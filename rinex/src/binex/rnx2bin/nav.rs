@@ -13,7 +13,7 @@ pub struct Streamer<'a> {
     ephemeris_iter: Box<dyn Iterator<Item = (&'a NavKey, &'a Ephemeris)> + 'a>,
 }
 
-fn forge_gps_ephemeris_frame(toc: &Epoch, sv: SV, eph: &Ephemeris) -> Option<EphemerisFrame> {
+fn forge_gps_ephemeris_frame(_toc: &Epoch, sv: SV, eph: &Ephemeris) -> Option<EphemerisFrame> {
     let clock_offset = eph.clock_bias as f32;
     let clock_drift = eph.clock_drift as f32;
     let clock_drift_rate = eph.clock_drift_rate as f32;
@@ -73,7 +73,7 @@ fn forge_gps_ephemeris_frame(toc: &Epoch, sv: SV, eph: &Ephemeris) -> Option<Eph
     }))
 }
 
-fn forge_sbas_ephemeris_frame(toc: &Epoch, sv: SV, eph: &Ephemeris) -> Option<EphemerisFrame> {
+fn forge_sbas_ephemeris_frame(_toc: &Epoch, sv: SV, eph: &Ephemeris) -> Option<EphemerisFrame> {
     let sbas_prn = sv.prn;
 
     let clock_offset = eph.clock_bias;
@@ -114,8 +114,8 @@ fn forge_sbas_ephemeris_frame(toc: &Epoch, sv: SV, eph: &Ephemeris) -> Option<Ep
     }))
 }
 
-fn forge_gal_ephemeris_frame(toc: &Epoch, sv: SV, eph: &Ephemeris) -> Option<EphemerisFrame> {
-    let sv_prn = sv.prn;
+fn forge_gal_ephemeris_frame(_toc: &Epoch, sv: SV, eph: &Ephemeris) -> Option<EphemerisFrame> {
+    let _sv_prn = sv.prn;
 
     let clock_offset = eph.clock_bias as f32;
     let clock_drift = eph.clock_drift as f32;

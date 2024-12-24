@@ -38,7 +38,7 @@ pub struct SignalDataPoint {
 
 impl SignalDataPoint {
     pub fn new(epoch: Epoch, flag: EpochFlag, sv: SV, observable: Observable, value: f64) -> Self {
-        let mut signal = SignalObservation {
+        let signal = SignalObservation {
             sv,
             observable,
             value,
@@ -75,7 +75,6 @@ fn basic_header_tests(dut: &Header, timeof_first_obs: Option<&str>, timeof_last_
 /// Generic test that we can use for Observation [Rinex]
 pub fn generic_observation_rinex_test(
     dut: &Rinex,
-    model: Option<&Rinex>,
     version: &str,
     header_constellation: Option<&str>,
     has_clock: bool,

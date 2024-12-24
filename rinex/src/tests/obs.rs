@@ -22,7 +22,6 @@ fn v2_aopr0010_17o() {
 
     generic_observation_rinex_test(
             &dut,
-            None,
             "2.10",
             Some("GPS"),
             false,
@@ -64,7 +63,6 @@ fn v2_npaz3550_21o() {
 
     generic_observation_rinex_test(
         &dut,
-        None,
         "2.11",
         Some("MIXED"),
         false,
@@ -107,7 +105,6 @@ fn v2_rovn0010_21o() {
 
     generic_observation_rinex_test(
             &dut,
-            None,
             "2.11",
             Some("MIXED"), 
             false,
@@ -161,7 +158,6 @@ fn v3_duth0630() {
 
     generic_observation_rinex_test(
             &dut,
-            None,
             "3.02",
             Some("MIXED"),
             false,
@@ -213,7 +209,6 @@ fn v4_kms300dnk_r_2022_v3crx() {
 
     generic_observation_rinex_test(
             &dut,
-            None,
             "4.00",
             Some("MIXED"),
             false,
@@ -259,7 +254,6 @@ fn v2_kosg0010_95o() {
 
     generic_observation_rinex_test(
         &dut,
-        None,
         "2.0",
         Some("GPS"),
         false,
@@ -303,7 +297,6 @@ fn v2_ajac3550() {
 
     generic_observation_rinex_test(
             &dut,
-            None,
             "2.11",
             Some("MIXED"),
             false,
@@ -554,7 +547,6 @@ fn v3_noa10630() {
 
     generic_observation_rinex_test(
         &dut,
-        None,
         "3.02",
         Some("GPS"),
         false,

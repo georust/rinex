@@ -20,7 +20,6 @@ mod test {
             for revision in std::fs::read_dir(data_path).unwrap() {
                 let rev = revision.unwrap();
                 let rev_path = rev.path();
-                let revision = rev_path.file_stem().unwrap().to_string_lossy().to_string();
                 let rev_fullpath = &rev_path.to_str().unwrap();
                 for entry in std::fs::read_dir(rev_fullpath).unwrap() {
                     let entry = entry.unwrap();

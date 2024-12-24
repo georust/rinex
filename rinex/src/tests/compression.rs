@@ -3,6 +3,7 @@ mod test {
     use crate::prelude::*;
     use crate::tests::toolkit::random_name;
     use std::{fs::remove_file as fs_remove_file, path::PathBuf};
+
     #[test]
     #[ignore]
     fn crinex1() {
@@ -55,6 +56,7 @@ mod test {
             );
         }
     }
+
     #[test]
     #[ignore]
     fn crinex1_reciprocity() {
@@ -95,6 +97,7 @@ mod test {
             let _ = fs_remove_file(&tmp_path);
         }
     }
+
     #[test]
     #[ignore]
     fn crinex3() {
@@ -153,6 +156,7 @@ mod test {
             );
         }
     }
+
     #[test]
     #[ignore]
     fn crinex3_reciprocity() {

@@ -5,9 +5,8 @@ use std::io::Write;
 use crate::{
     epoch::epoch_decompose as epoch_decomposition,
     error::FormattingError,
-    hatanaka::{Error, NumDiff, TextDiff},
+    hatanaka::{NumDiff, TextDiff},
     observation::{HeaderFields, Record},
-    prelude::{Constellation, SV},
     BufWriter,
 };
 
@@ -80,7 +79,7 @@ impl<const M: usize> CompressorExpert<M> {
             }
 
             if let Some(clk) = v.clock {
-                write!(w, "{}", '\n')?;
+                write!(w, "{:14.3}\n", clk.offset_s)?;
             } else {
                 write!(w, "{}", '\n')?;
             }

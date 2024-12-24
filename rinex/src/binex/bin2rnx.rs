@@ -6,9 +6,7 @@ use crate::{
     production::{Postponing, SnapshotMode},
 };
 
-use binex::prelude::{
-    Decoder, EphemerisFrame, GeoStringFrame, Message, Record, SolutionsFrame, StreamElement,
-};
+use binex::prelude::{Decoder, EphemerisFrame, Message, Record, SolutionsFrame, StreamElement};
 
 #[cfg(feature = "log")]
 use log::{debug, error, info};
@@ -45,22 +43,22 @@ impl<'a, R: Read> Iterator for BIN2RNX<'a, R> {
                         Record::EphemerisFrame(fr) => {
                             let nav = self.nav_rinex.record.as_mut_nav().unwrap();
                             match fr {
-                                EphemerisFrame::GAL(eph) => {},
-                                EphemerisFrame::GLO(eph) => {},
-                                EphemerisFrame::GPS(gps) => {},
-                                EphemerisFrame::SBAS(gps) => {},
+                                EphemerisFrame::GAL(_) => {},
+                                EphemerisFrame::GLO(_) => {},
+                                EphemerisFrame::GPS(_) => {},
+                                EphemerisFrame::SBAS(_) => {},
                                 EphemerisFrame::GPSRaw(_raw) => {},
                             }
                         },
-                        Record::MonumentGeo(geo) => for fr in geo.frames.iter() {},
+                        Record::MonumentGeo(geo) => for _ in geo.frames.iter() {},
                         Record::Solutions(pvt) => {
                             for fr in pvt.frames.iter() {
                                 match fr {
-                                    SolutionsFrame::AntennaEcefPosition(ecef) => {},
-                                    SolutionsFrame::AntennaGeoPosition(geo) => {},
-                                    SolutionsFrame::Comment(comment) => {},
-                                    SolutionsFrame::TemporalSolution(time) => {},
-                                    SolutionsFrame::TimeSystem(time) => {},
+                                    SolutionsFrame::AntennaEcefPosition(_ecef) => {},
+                                    SolutionsFrame::AntennaGeoPosition(_geo) => {},
+                                    SolutionsFrame::Comment(_comment) => {},
+                                    SolutionsFrame::TemporalSolution(_time) => {},
+                                    SolutionsFrame::TimeSystem(_time) => {},
                                     SolutionsFrame::AntennaEcefVelocity(_ecef) => {},
                                     SolutionsFrame::AntennaGeoVelocity(_geo) => {},
                                     SolutionsFrame::Extra(_extra) => {},

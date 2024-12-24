@@ -120,7 +120,6 @@ mod test {
 
         generic_observation_rinex_test(
             &merged,
-            None,
             "2.11",
             Some("MIXED"),
             false,

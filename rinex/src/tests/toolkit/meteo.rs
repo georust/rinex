@@ -1,8 +1,7 @@
 use itertools::Itertools;
-use std::str::FromStr;
 
 use crate::{
-    prelude::{Header, Observable, Rinex, RinexType},
+    prelude::{Header, Rinex, RinexType},
     tests::toolkit::{generic_rinex_test, observables_csv, TimeFrame},
 };
 
@@ -36,7 +35,7 @@ pub fn generic_comparison(dut: &Rinex, model: &Rinex) {
         }
     }
 
-    for (k, v) in rec_dut.iter() {
+    for (k, _) in rec_dut.iter() {
         assert!(
             rec_model.get(k).is_some(),
             "found unexpected content: {:?}",

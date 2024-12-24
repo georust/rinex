@@ -69,7 +69,7 @@ pub fn generic_comparison(dut: &Rinex, model: &Rinex) {
         }
     }
 
-    for (k, v) in dut.iter() {
+    for (k, _) in dut.iter() {
         if model.get(&k).is_none() {
             panic!("found invalid data at {:?}", k);
         }

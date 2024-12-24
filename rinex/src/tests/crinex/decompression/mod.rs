@@ -134,7 +134,6 @@ fn testbench_v1() {
             );
             generic_observation_rinex_test(
                     &dut,
-                    None,
                     "2.11",
                     Some("MIXED"),
                     false,
@@ -163,7 +162,6 @@ fn testbench_v1() {
             );
             generic_observation_rinex_test(
                 &dut,
-                None,
                 "2.11",
                 Some("MIXED"),
                 false,
@@ -184,7 +182,6 @@ fn testbench_v1() {
         } else if crnx_name.eq("wsra0010.21d") {
             generic_observation_rinex_test(
                     &dut,
-                    None,
                     "2.11",
                     Some("MIXED"),
                     false,
@@ -206,7 +203,6 @@ fn testbench_v1() {
         } else if crnx_name.eq("aopr0010.17d") {
             generic_observation_rinex_test(
                 &dut,
-                None,
                 "2.10",
                 Some("GPS"),
                 false,
@@ -247,7 +243,6 @@ fn testbench_v1() {
         } else if crnx_name.eq("AJAC3550.21D") {
             generic_observation_rinex_test(
                     &dut,
-                    None,
                     "2.11",
                     Some("MIXED"),
                     false,
@@ -331,7 +326,6 @@ fn testbench_v3() {
 
             generic_observation_rinex_test(
                 &dut,
-                None,
                 "3.02",
                 Some("MIXED"),
                 false, // has_clock
@@ -364,7 +358,6 @@ fn testbench_v3() {
 
             generic_observation_rinex_test(
                 &dut,
-                None,
                 "3.04",
                 Some("MIXED"),
                 false, // has_clock
@@ -416,7 +409,6 @@ fn v1_zegv0010_21d() {
 
     generic_observation_rinex_test(
             &dut,
-            None,
             "2.11",
             Some("MIXED"),
             false,
@@ -472,7 +464,6 @@ fn v3_acor00esp_r2021() {
 
     generic_observation_rinex_test(
             &dut,
-            None,
             "3.04",
             Some("MIXED"),
             false,
@@ -513,7 +504,6 @@ fn v3_esbc00dnk() {
 
     generic_observation_rinex_test(
             &dut,
-            None,
             "3.05",
             Some("MIXED"),
             false,
@@ -555,7 +545,6 @@ fn v3_mojn00dnk() {
 
     generic_observation_rinex_test(
             &dut,
-            None,
             "3.05",
             Some("MIXED"),
             false,

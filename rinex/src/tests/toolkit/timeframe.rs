@@ -14,9 +14,7 @@ impl TimeFrame {
     pub fn evenly_spaced(ts: TimeSeries) -> Self {
         Self::EvenlySpaced(ts.into_iter())
     }
-    pub fn erratic(epochs: &[Epoch]) -> Self {
-        Self::Erratic(epochs.to_vec().into_iter())
-    }
+
     pub fn from_erratic_csv(csv: &str) -> Self {
         let epochs = csv
             .split(',')
