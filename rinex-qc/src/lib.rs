@@ -13,8 +13,10 @@ mod cfg;
 pub mod plot;
 
 mod context;
-mod navigation;
 mod report;
+
+#[cfg(feature = "nav")]
+mod navigation;
 
 pub mod prelude {
     pub use crate::{
@@ -27,7 +29,13 @@ pub mod prelude {
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
 
     #[cfg(feature = "nav")]
-    pub use gnss_rtk::prelude::{Config as RTKConfig, Method as RTKMethod};
+    pub use gnss_rtk::prelude::{Config as RTKConfig, Method as RTKMethod, PVTSolutionType};
+
+    #[cfg(feature = "nav")]
+    pub use cggtts::{
+        prelude::Track as CggttsTrack,
+        track::BIPM_TRACKING_DURATION_SECONDS as BIPM_CGGTTS_TRACKING_DURATION_SECONDS,
+    };
 
     pub use maud::{html, Markup, Render};
     pub use qc_traits::{Filter, Merge, MergeError, Preprocessing, Repair, RepairTrait, Split};
@@ -79,10 +87,25 @@ pub enum QcCtxError {
 pub enum QcError {
     #[error("ephemeris source design")]
     EphemerisSource,
+    #[error("failed to determine rx position")]
+    RxPosition,
     #[error("orbital source design")]
     OrbitalSource,
     #[error("clock source design")]
     ClockSource,
     #[error("no signal source")]
     SignalSource,
+}
+
+#[cfg(feature = "nav")]
+use gnss_rtk::prelude::Error as RTKError;
+
+/// [RTKCggttsError] is returned by [NavCggttsSolver]
+/// and basically combines [RTKError] and CGGTTS tracking errors
+#[derive(Debug, Error)]
+pub enum QcRtkCggttsError {
+    #[error("rtk error: {0}")]
+    RTK(#[from] RTKError),
+    #[error("dummy")]
+    Dumy,
 }

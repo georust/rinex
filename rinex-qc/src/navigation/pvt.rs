@@ -4,7 +4,10 @@ use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
     context::{meta::MetaData, QcContext},
-    navigation::{clock::ClockContext, orbit::OrbitalContext, signal::SignalSource},
+    navigation::{
+        carrier_from_rtk, carrier_to_rtk, clock::ClockContext, orbit::OrbitalContext,
+        signal::SignalSource,
+    },
     QcError,
 };
 
@@ -12,56 +15,12 @@ use itertools::Itertools;
 
 use gnss_rtk::prelude::{
     Candidate, Carrier as RTKCarrier, ClockCorrection, Config as RTKConfig, Epoch,
-    Error as RTKError, Frame, Observation, Orbit, PVTSolution, Solver, SV,
+    Error as RTKError, Frame, Observation, Orbit, OrbitSource, PVTSolution, Solver, SV,
 };
 
 use rinex::prelude::{obs::SignalObservation, Carrier, Observable};
 
 use super::eph::EphemerisContext;
-
-/// Converts [Carrier] to [RTKCarrier]
-fn carrier_to_rtk(carrier: &Carrier) -> Option<RTKCarrier> {
-    match carrier {
-        Carrier::L1 => Some(RTKCarrier::L1),
-        Carrier::L2 => Some(RTKCarrier::L2),
-        Carrier::L5 => Some(RTKCarrier::L5),
-        Carrier::L6 => Some(RTKCarrier::L6),
-        Carrier::E1 => Some(RTKCarrier::E1),
-        Carrier::E5 => Some(RTKCarrier::E5),
-        Carrier::E6 => Some(RTKCarrier::E6),
-        Carrier::E5a => Some(RTKCarrier::E5A),
-        Carrier::E5b => Some(RTKCarrier::E5B),
-        Carrier::B2 => Some(RTKCarrier::B2),
-        Carrier::B2A => Some(RTKCarrier::B2A),
-        Carrier::B2B | Carrier::B2I => Some(RTKCarrier::B2iB2b),
-        Carrier::B1I => Some(RTKCarrier::B1I),
-        Carrier::B1A | Carrier::B1C => Some(RTKCarrier::B1aB1c),
-        Carrier::B3 | Carrier::B3A => Some(RTKCarrier::B3),
-        Carrier::G1(_) | Carrier::G1a | Carrier::G2(_) | Carrier::G2a | Carrier::G3 => None,
-        Carrier::S => None,
-        Carrier::S1 | Carrier::U2 => None,
-    }
-}
-
-fn carrier_from_rtk(carrier: &RTKCarrier) -> Carrier {
-    match carrier {
-        RTKCarrier::B1I => Carrier::B1I,
-        RTKCarrier::B1aB1c => Carrier::B1A,
-        RTKCarrier::B2 => Carrier::B2,
-        RTKCarrier::B2A => Carrier::B2A,
-        RTKCarrier::B2iB2b => Carrier::B2I,
-        RTKCarrier::B3 => Carrier::B3,
-        RTKCarrier::E1 => Carrier::E1,
-        RTKCarrier::E5 => Carrier::E5,
-        RTKCarrier::E5A => Carrier::E5a,
-        RTKCarrier::E5B => Carrier::E5b,
-        RTKCarrier::E6 => Carrier::E6,
-        RTKCarrier::L1 => Carrier::L1,
-        RTKCarrier::L2 => Carrier::L2,
-        RTKCarrier::L5 => Carrier::L5,
-        RTKCarrier::L6 => Carrier::L6,
-    }
-}
 
 /// [NavPvtSolver] is an efficient structure to consume [QcContext]
 /// and resolve all possible [PVTSolution]s from it.

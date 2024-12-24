@@ -37,13 +37,24 @@ impl std::str::FromStr for ObservationUniqueId {
     }
 }
 
-impl std::fmt::Display for ObservationUniqueId {
+impl std::fmt::LowerHex for ObservationUniqueId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Receiver(rx) => write!(f, "rcvr:{}", rx),
             Self::Operator(op) => write!(f, "op:{}", op),
             Self::Antenna(ant) => write!(f, "ant:{}", ant),
             Self::GeodeticMarker(geo) => write!(f, "geo:{}", geo),
+        }
+    }
+}
+
+impl std::fmt::Display for ObservationUniqueId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Receiver(rx) => write!(f, "rcvr={}", rx),
+            Self::Operator(op) => write!(f, "operator={}", op),
+            Self::Antenna(ant) => write!(f, "antenna={}", ant),
+            Self::GeodeticMarker(geo) => write!(f, "geodetic={}", geo),
         }
     }
 }
@@ -71,7 +82,7 @@ impl ObservationUniqueId {
             },
             QcPreferedObsSorting::Receiver => {
                 if let Some(rcvr) = &rinex.header.rcvr {
-                    Some(Self::Receiver(rcvr.model.to_string()))
+                    Some(Self::Receiver(format!("{}-{}", rcvr.model, rcvr.sn)))
                 } else {
                     None
                 }

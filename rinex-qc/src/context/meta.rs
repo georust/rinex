@@ -14,6 +14,16 @@ pub struct MetaData {
     pub unique_id: Option<String>,
 }
 
+impl std::fmt::Display for MetaData {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.name)?;
+        if let Some(unique_id) = &self.unique_id {
+            write!(f, "({})", unique_id)?;
+        }
+        Ok(())
+    }
+}
+
 impl MetaData {
     /// Determine basic [MetaData] from provided [Path].
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, QcCtxError> {
