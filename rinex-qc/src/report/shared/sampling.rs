@@ -28,6 +28,7 @@ pub struct SamplingReport {
 }
 
 impl SamplingReport {
+    /// Creates a [SamplingReport] from a [Rinex]
     pub fn from_rinex(rinex: &Rinex) -> Self {
         let gaps = rinex.data_gaps(None).collect::<Vec<_>>();
         Self {
@@ -56,6 +57,7 @@ impl SamplingReport {
     }
 
     #[cfg(feature = "sp3")]
+    /// Creates a [SamplingReport] from [SP3]
     pub fn from_sp3(sp3: &SP3) -> Self {
         let t_start = sp3.first_epoch().expect("badly formed sp3: empty?");
         let t_end = sp3.last_epoch().expect("badly formed sp3: empty?");

@@ -20,6 +20,7 @@ pub(crate) mod meta;
 pub(crate) mod meteo;
 pub(crate) mod nav;
 pub(crate) mod obs;
+pub(crate) mod report;
 pub(crate) mod rnx;
 pub(crate) mod session;
 

@@ -93,6 +93,7 @@ impl Plot {
     pub fn add_trace(&mut self, t: Box<dyn Trace>) {
         self.plotly.add_trace(t);
     }
+
     /// Define custom controls for [Self]
     pub fn add_custom_controls(&mut self, buttons: Vec<Button>) {
         let layout = self.plotly.layout();
@@ -101,6 +102,7 @@ impl Plot {
             .update_menus(vec![UpdateMenu::new().y(0.8).buttons(buttons)]);
         self.plotly.set_layout(layout);
     }
+
     /// Builds new standardized 1D Time domain plot
     pub fn timedomain_plot(
         plot_id: &str,
@@ -132,12 +134,12 @@ impl Plot {
                     .show_tick_labels(true)
                     .dtick(0.25)
                     .range_slider(RangeSlider::new().visible(true))
-                    .range_selector(RangeSelector::new().buttons(buttons))
-                    .tick_format("{:05}"),
+                    .range_selector(RangeSelector::new().buttons(buttons)),
             )
             .y_axis(Axis::new().title(y_axis_label).zero_line(true))
             .show_legend(show_legend)
             .auto_size(true);
+
         let mut plotly = Plotly::new();
         plotly.set_layout(layout);
         Self {
@@ -145,6 +147,7 @@ impl Plot {
             plot_id: plot_id.to_string(),
         }
     }
+
     /// Builds new 3D plot
     pub fn plot_3d(
         plot_id: &str,
@@ -183,6 +186,7 @@ impl Plot {
             plot_id: plot_id.to_string(),
         }
     }
+
     /// Builds new Skyplot
     pub fn sky_plot(plot_id: &str, title: &str, show_legend: bool) -> Self {
         Self::polar_plot(
@@ -193,6 +197,7 @@ impl Plot {
             show_legend,
         )
     }
+
     /// Trace for a skyplot
     pub fn sky_trace<T: Default + Clone + Serialize>(
         name: &str,
@@ -242,6 +247,7 @@ impl Plot {
             plot_id: plot_id.to_string(),
         }
     }
+
     /// Builds new World Map
     pub fn world_map(
         plot_id: &str,

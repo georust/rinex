@@ -37,6 +37,17 @@ impl std::str::FromStr for ObservationUniqueId {
     }
 }
 
+impl std::fmt::UpperExp for ObservationUniqueId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Receiver(rx) => write!(f, "rcvr={}", rx),
+            Self::Operator(op) => write!(f, "operator={}", op),
+            Self::Antenna(ant) => write!(f, "antenna={}", ant),
+            Self::GeodeticMarker(geo) => write!(f, "geodetic={}", geo),
+        }
+    }
+}
+
 impl std::fmt::LowerHex for ObservationUniqueId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -51,10 +62,10 @@ impl std::fmt::LowerHex for ObservationUniqueId {
 impl std::fmt::Display for ObservationUniqueId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Receiver(rx) => write!(f, "rcvr={}", rx),
-            Self::Operator(op) => write!(f, "operator={}", op),
-            Self::Antenna(ant) => write!(f, "antenna={}", ant),
-            Self::GeodeticMarker(geo) => write!(f, "geodetic={}", geo),
+            Self::Receiver(rx) => write!(f, "{}", rx),
+            Self::Operator(op) => write!(f, "{}", op),
+            Self::Antenna(ant) => write!(f, "{}", ant),
+            Self::GeodeticMarker(geo) => write!(f, "{}", geo),
         }
     }
 }
@@ -132,7 +143,7 @@ impl QcContext {
                 "{} designated by {} (prefered method)",
                 meta.name, unique_id
             );
-            meta.set_unique_id(&unique_id.to_string());
+            meta.set_unique_id(&format!("{:x}", unique_id));
         }
 
         // Now proceed to stacking
