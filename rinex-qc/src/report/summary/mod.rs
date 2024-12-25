@@ -13,17 +13,19 @@ use std::collections::HashMap;
 
 pub struct QcSummary {
     general: QcGeneralSummary,
-    rovers: HashMap<MetaData, QcRoverSummary>,
+    rovers_sum: HashMap<MetaData, QcRoverSummary>,
 }
 
 impl QcSummary {
     pub fn new(ctx: &QcContext) -> Self {
         Self {
             general: QcGeneralSummary::new(ctx),
-            rovers: {
+            rovers_sum: {
                 let mut rovers = HashMap::new();
                 for (meta, rinex) in ctx.obs_dataset.iter() {
-                    rovers.insert(meta.clone(), QcRoverSummary::new(ctx))
+                    let meta = meta.clone();
+                    let rover_summary = QcRoverSummary::new(ctx, &meta, &rinex);
+                    rovers.insert(meta.clone(), rover_summary);
                 }
                 rovers
             },
@@ -40,6 +42,13 @@ impl Render for QcSummary {
                         tr {
                             td {
                                 (self.general.render())
+                            }
+                        }
+                        @ for (meta, rover) in self.rovers_sum.iter() {
+                            tr {
+                                td {
+                                    (rover.render())
+                                }
                             }
                         }
                     }

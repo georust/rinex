@@ -23,6 +23,7 @@ pub(crate) mod obs;
 pub(crate) mod report;
 pub(crate) mod rnx;
 pub(crate) mod session;
+pub(crate) mod tropo;
 
 use crate::{
     cfg::{QcConfig, QcFrameModel},

@@ -91,9 +91,34 @@ function showQcSelectedGnssRx(rx) {
     }
 }
 
-function buildPagelisteners() {
-    // builds page dependent listeners
+function onQcNaviSummaryConstellationChanges(changes) {
+    console.log("YES changes: " + changes.target.value);
+}
 
+function buildPageListeners() {
+    // Summary listeners
+    // 1. qc-navi-sum for each rover, for each constellation
+    let navi_summary_selector = document.getElementsByClassName("qc-navi-sum-selector");
+
+    for (selector of navi_summary_selector) {
+        selector.onchange = function(changes) {
+            var constellation = changes.target.value;
+            console.log("qc-navi-sum constellation: " + constellation);
+            
+            var selected = document.getElementsByClassName("qc-navi-sum-selected");
+            for (fields of selected) {
+                var id = fields.id;
+                if (id == constellation) {
+                    fields.style.display = "block";
+                } else {
+                    fields.style.display = "none";
+                }
+            }
+
+        }
+    }
+    
+    // builds page dependent listeners
     // 1. obs-receivers content display (if any)
     var receivers = document.getElementById("qc-obs-receivers");
     if (receivers != null) {

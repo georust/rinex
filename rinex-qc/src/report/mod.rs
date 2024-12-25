@@ -89,6 +89,13 @@ impl QcReport {
                             }
                             "Summary"
                         }
+                        ul class="menu-list" {
+                            li {
+                                a id="qc-compliancy" class="qc-sidemenu" {
+                                    "Compliancy"
+                                }
+                            }
+                        }
                     }
                     // @ if let Some(observations) = &self.observations {
                     //     li {
@@ -167,6 +174,12 @@ impl Render for QcReport {
                                 }
                             }//class=hero
                         } // class=columns
+                    }
+                    // minimum JS required
+                    script {
+                        (PreEscaped(
+                            "buildPageListeners();"
+                        ))
                     }
                 }
             }
