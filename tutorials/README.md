@@ -1,54 +1,32 @@
-Scripts
-=======
-
-This folder will help you get started and illustrates all the capabilities of the toolbox.  
-Topics are split by either opmodes or specific constellations.
-
-Before trying to run your own processing pipeline, you should understand 
-[how to load your own data into the toolbox](https://github.com/georust/wiki)
-
-Getting started
-===============
-
-Our examples expect the binaries to have been generated with all features activated:
-
-```bash
-# download the toolbox and dataset
-git clone https://github.com/georust/rinex
-cd rinex
-
-# build the tools
-cargo build --release --all-features
-
-# try one of the examples
-./tutorials/GAL/mojdnk.sh
-```
-
-RINEX-Cli and other applications will generate logs but we do not store them in the following examples.  
-Activate the application logs by activating the `RUST_LOG` environment variable.  
-For example, this will make you see any trace
-
-```bash
-export RUST_LOG=trace
-```
-
-When working with the toolbox, use the `$GEORUST\_WORKSPACE` variable or `-w` to define your own.
-
 Tutorials
 =========
 
-Most scripts are indexed by constellation, sometimes by signal or modulation.  
-When we say `-brdc`, we want to emphasize that navigation is performed using
-decoded radio message, rather than using post processed laboratory products.  
+The tutorials serie will try to illustrate all options offered by the toolbox.
 
-This is also sometimes referred to as "real time" surveying, because it is exactly like
-navigating in real-time, except that the radio messages were stored as RINEX files, which
-allows to replay them later.
+Prior running our examples, you are expected 
+[to read how the two Wiki pages](https://github.com/georust/wiki)
 
-`-sum` scripts emphasize that the analysis is restricted to summary report.
+## File operations
 
-`CGGTTS` solutions are special timing oriented navigation solutions. Some of our surveys
-are 100% dedicated to CGGTTS, sometimes we solve standard and CGGTTS solutions at the same time.
+The toolbox can perform several file operations.
+File operations refer to operations where we're either
+
+1. interested in reworking on patch an input product
+2. always synthesizing at least one output product.
+Whether it is a RINEx, and SP3 or other format depends on the context.
+
+Follow [this section](./FOPS) if you're interested in such operations.
+
+## Navigation
+
+Post processed navigation and surveying is depicted [in the related section](./NAV).
+
+It solely relies on `rinex-cli` to this day. It depicts static and other contexts
+of navigation.
+
+## CGGTTS
+
+The [CGGTTS](./CGGTTS) section focuses on the post processed _timing oriented_ navigation solution.
 
 - [48H](./48H) two RINEX datasets at once and more
   - 48h surveying (2 day course with two RINEX at once)
