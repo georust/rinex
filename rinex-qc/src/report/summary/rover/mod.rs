@@ -51,7 +51,9 @@ impl Render for QcRoverSummary {
 only files & constellations relationship.\n
 Use the timeframe analysis to actually confirm the summary report"
                                 data-balloon-pos="right" {
-                                    "Compliancy"
+                                    b {
+                                        "Compliancy"
+                                    }
                                 }
                             }
                             td {

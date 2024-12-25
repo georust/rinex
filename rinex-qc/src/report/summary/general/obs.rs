@@ -24,14 +24,91 @@ impl std::fmt::Display for Format {
     }
 }
 
+#[derive(Default)]
+pub enum RxPositionSource {
+    #[default]
+    RINEx,
+    UserDefined,
+}
+
+impl std::fmt::Display for RxPositionSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::RINEx => write!(f, "RINEx"),
+            Self::UserDefined => write!(f, "User Defined"),
+        }
+    }
+}
+
+pub struct RxPosition {
+    pub source: RxPositionSource,
+    pub ecef_km: (f64, f64, f64),
+    pub geodetic: (f64, f64, f64),
+}
+
+impl Render for RxPosition {
+    fn render(&self) -> Markup {
+        html! {
+            div class="table-container" {
+                table class="table is-bordered" {
+                    tbody {
+                        tr {
+                            th class="is-info" {
+                                "Source"
+                            }
+                            td {
+                                (self.source.to_string())
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "ECEF (km)"
+                            }
+                            td {
+                                (format!("{:.3e}", self.ecef_km.0))
+                            }
+                            td {
+                                (format!("{:.3e}", self.ecef_km.1))
+                            }
+                            td {
+                                (format!("{:.3e}", self.ecef_km.2))
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "GEO (ddeg)"
+                            }
+                            td {
+                                (format!("{:.3e}", self.geodetic.0))
+                            }
+                            td {
+                                (format!("{:.3e}", self.geodetic.1))
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Altitude (above sea)"
+                            }
+                            td {
+                                (format!("{:.3e}", self.geodetic.2))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub struct QcObservationSummary {
     name: String,
     format: Format,
+    rx_position: Option<RxPosition>,
     designator: Option<ObservationUniqueId>,
 }
 
 impl QcObservationSummary {
-    pub fn new(meta: MetaData, rinex: &Rinex) -> Self {
+    pub fn new(ctx: &QcContext, meta: MetaData, rinex: &Rinex) -> Self {
         Self {
             name: meta.name.to_string(),
             format: {
@@ -50,9 +127,25 @@ impl QcObservationSummary {
                     }
                 }
             },
-            designator: if let Some(unique_id) = meta.unique_id {
+            designator: if let Some(unique_id) = &meta.unique_id {
                 let designator = ObservationUniqueId::from_str(&unique_id).unwrap();
                 Some(designator)
+            } else {
+                None
+            },
+            rx_position: if let Some(orbit) = ctx.meta_rx_orbit(&meta) {
+                let pos_vel = orbit.to_cartesian_pos_vel();
+                match orbit.latlongalt() {
+                    Ok(geodetic) => Some(RxPosition {
+                        source: RxPositionSource::RINEx,
+                        ecef_km: (pos_vel[0], pos_vel[1], pos_vel[2]),
+                        geodetic,
+                    }),
+                    Err(e) => {
+                        error!("(anise): orbit.latlongalt: {}", e);
+                        None
+                    },
+                }
             } else {
                 None
             },
@@ -120,6 +213,16 @@ impl Render for QcObservationSummary {
                                 }
                             }
                         }
+                        @ if let Some(rx_position) = &self.rx_position {
+                            tr {
+                                th class="is-info" {
+                                    "Reference position"
+                                }
+                                td {
+                                    (rx_position.render())
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -141,7 +244,7 @@ impl QcObservationsSummary {
 
         for meta in metas.into_iter().unique() {
             if let Some(rinex) = ctx.obs_dataset.get(&meta) {
-                summaries.push(QcObservationSummary::new(meta.clone(), &rinex))
+                summaries.push(QcObservationSummary::new(ctx, meta.clone(), &rinex))
             }
         }
         Self {
