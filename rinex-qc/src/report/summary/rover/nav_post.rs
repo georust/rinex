@@ -1,27 +1,20 @@
 use maud::{html, Markup, Render};
 
-use crate::context::QcContext;
+use crate::{context::QcContext, prelude::Rinex};
 
-pub struct QcNavPostSummary {
-    /// Navigation compatible
-    pub nav_compatible: bool,
-    /// CPP compatible
-    pub cpp_compatible: bool,
-    /// PPP compatible
-    pub ppp_compatible: bool,
-    /// PPP ultra compatible
-    pub ppp_ultra_compatible: bool,
+struct QcNavConstellationSummary {
+    iono_cancelling: bool,
+    nav_compatible: bool,
+    ppp_compatible: bool,
+}
+
+struct QcNavSummary {
+    tropo_optimization: bool,
+    constell_summary: HashMap<Constellation, QcNavConstellationSummary>,
 }
 
 impl QcNavPostSummary {
-    pub fn new(context: &QcContext) -> Self {
-        Self {
-            nav_compatible: false,
-            cpp_compatible: false,
-            ppp_compatible: false,
-            ppp_ultra_compatible: false,
-        }
-    }
+    pub fn new(context: &QcContext, rover: &Rinex) -> Self {}
 }
 
 impl Render for QcNavPostSummary {

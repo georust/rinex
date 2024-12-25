@@ -1,12 +1,12 @@
 use crate::{
+    context::{meta::MetaData, QcContext},
     plot::{Button, ButtonBuilder, MarkerSymbol, NamedColor, Plot},
     prelude::{html, Markup, Render, Rinex},
-    context::{QcContext, meta::MetaData},
 };
 
 use std::collections::HashMap;
 
-use rinex::prelude::{Carrier, Epoch, SV, Constellation};
+use rinex::prelude::{Carrier, Constellation, Epoch, SV};
 
 struct CurvePoint {
     pub y: f64,
@@ -32,8 +32,12 @@ pub struct QcTimeFrame {
 }
 
 impl QcTimeFrame {
-    pub fn new(constellation: &Constellation, ctx: &QcContext, meta: &MetaData, obs_rinex: &Rinex) -> Self {
-
+    pub fn new(
+        constellation: &Constellation,
+        ctx: &QcContext,
+        meta: &MetaData,
+        obs_rinex: &Rinex,
+    ) -> Self {
         // X range (min, max)
         let mut x_range = (Epoch::default(), Epoch::default());
 
@@ -64,10 +68,7 @@ impl QcTimeFrame {
 
         let mut constell_plot = HashMap::new();
 
-        for (meta, rinex) in ctx.obs_dataset.iter() {
-
-        }
-
+        for (meta, rinex) in ctx.obs_dataset.iter() {}
 
         let mut plot = Plot::timedomain_plot("time_frame_plot", "Time Frame", "", true);
 

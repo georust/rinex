@@ -20,7 +20,7 @@ mod navigation;
 
 pub mod prelude {
     pub use crate::{
-        cfg::{ConfigError, QcConfig, QcReportType},
+        cfg::{QcConfig, QcConfigError, QcReportType},
         context::QcContext,
         report::{QcExtraPage, QcReport},
         QcError,

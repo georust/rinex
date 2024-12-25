@@ -1,8 +1,8 @@
 mod general;
-//mod rover;
+mod rover;
 
 use general::QcGeneralSummary;
-//use rover::QcRoverSummary;
+use rover::QcRoverSummary;
 
 use crate::{
     context::{meta::MetaData, QcContext},
@@ -13,13 +13,20 @@ use std::collections::HashMap;
 
 pub struct QcSummary {
     general: QcGeneralSummary,
-    //rovers: HashMap<MetaData, QcRoverSummary>,
+    rovers: HashMap<MetaData, QcRoverSummary>,
 }
 
 impl QcSummary {
     pub fn new(ctx: &QcContext) -> Self {
         Self {
             general: QcGeneralSummary::new(ctx),
+            rovers: {
+                let mut rovers = HashMap::new();
+                for (meta, rinex) in ctx.obs_dataset.iter() {
+                    rovers.insert(meta.clone(), QcRoverSummary::new(ctx))
+                }
+                rovers
+            },
         }
     }
 }

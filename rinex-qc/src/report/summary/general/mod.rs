@@ -53,19 +53,23 @@ impl Render for QcGeneralSummary {
                             }
                         }
                         @ if let Some(observations) = &self.observations {
-                            th class="is-info" {
-                                "Observations"
-                            }
-                            td {
-                                (observations.render())
+                            tr {
+                                th class="is-info" {
+                                    "Observations"
+                                }
+                                td {
+                                    (observations.render())
+                                }
                             }
                         }
                         @ if let Some(navigation) = &self.navigation {
-                            th class="is-info" {
-                                "Navigation"
-                            }
-                            td {
-                                (navigation.render())
+                            tr {
+                                th class="is-info" {
+                                    "Navigation"
+                                }
+                                td {
+                                    (navigation.render())
+                                }
                             }
                         }
                     }

@@ -11,8 +11,8 @@ use rinex::prelude::Constellation;
 use std::collections::HashMap;
 
 use crate::{
-    context::QcContext,
-    prelude::{html, Render, Markup},
+    context::{meta::MetaData, QcContext},
+    prelude::{html, Markup, Render},
 };
 
 /// [QcRoverSummary] is a general report, per rover in the dataset
@@ -26,10 +26,12 @@ pub struct QcRoverSummary {
 }
 
 impl QcRoverSummary {
-    pub fn new(ctx: &QcContext) -> Self {
+    pub fn new(ctx: &QcContext, meta: MetaData) -> Self {
+        let rover_fileset = ctx.obs_dataset.get(&meta).unwrap();
+
         Self {
-            navi: QcNavPostSummary::new(ctx),
-            bias_sum: QcBiasSummary::new(ctx),
+            navi: QcNavPostSummary::new(ctx, &rover_fileset),
+            bias_sum: QcBiasSummary::new(ctx, &rover_fileset),
             timeframes: {
                 let mut timeframes = HashMap::new();
                 for (meta, rinex) in ctx.obs_dataset.iter() {

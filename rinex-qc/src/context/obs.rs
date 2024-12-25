@@ -1,5 +1,5 @@
 use crate::{
-    cfg::QcPreferedObsSorting,
+    cfg::preference::QcPreferedRoversSorting,
     context::{meta::MetaData, QcContext},
     prelude::Rinex,
     QcCtxError,
@@ -71,16 +71,16 @@ impl std::fmt::Display for ObservationUniqueId {
 }
 
 impl ObservationUniqueId {
-    fn new(cfg: &QcPreferedObsSorting, rinex: &Rinex) -> Option<Self> {
+    fn new(cfg: &QcPreferedRoversSorting, rinex: &Rinex) -> Option<Self> {
         match cfg {
-            QcPreferedObsSorting::Antenna => {
+            QcPreferedRoversSorting::Antenna => {
                 if let Some(ant) = &rinex.header.rcvr_antenna {
                     Some(Self::Antenna(format!("{}-{}", ant.model, ant.sn)))
                 } else {
                     None
                 }
             },
-            QcPreferedObsSorting::Geodetic => {
+            QcPreferedRoversSorting::Geodetic => {
                 if let Some(marker) = &rinex.header.geodetic_marker {
                     if let Some(number) = marker.number() {
                         Some(Self::GeodeticMarker(format!("{}-{}", marker.name, number)))
@@ -91,9 +91,16 @@ impl ObservationUniqueId {
                     None
                 }
             },
-            QcPreferedObsSorting::Receiver => {
+            QcPreferedRoversSorting::Receiver => {
                 if let Some(rcvr) = &rinex.header.rcvr {
                     Some(Self::Receiver(format!("{}-{}", rcvr.model, rcvr.sn)))
+                } else {
+                    None
+                }
+            },
+            QcPreferedRoversSorting::Operator => {
+                if let Some(operator) = &rinex.header.observer {
+                    Some(Self::Operator(operator.to_string()))
                 } else {
                     None
                 }
@@ -138,7 +145,9 @@ impl QcContext {
         data: Rinex,
     ) -> Result<(), QcCtxError> {
         // Designate an Indexing ID following prefered method
-        if let Some(unique_id) = ObservationUniqueId::new(&self.cfg.obs_sorting, &data) {
+        if let Some(unique_id) =
+            ObservationUniqueId::new(&self.cfg.preference.rovers_sorting, &data)
+        {
             debug!(
                 "{} designated by {} (prefered method)",
                 meta.name, unique_id
@@ -161,7 +170,7 @@ impl QcContext {
 mod test {
 
     use crate::{
-        cfg::{QcConfig, QcPreferedObsSorting},
+        cfg::{preference::QcPreferedRoversSorting, QcConfig},
         context::{meta::MetaData, QcContext},
     };
 
@@ -195,7 +204,7 @@ mod test {
 
         // Prefered: Geodetic
         let mut cfg = QcConfig::default();
-        cfg.obs_sorting = QcPreferedObsSorting::Geodetic;
+        cfg.preference.rovers_sorting = QcPreferedRoversSorting::Geodetic;
 
         let mut ctx = QcContext::new(cfg).unwrap();
 
@@ -217,7 +226,7 @@ mod test {
 
         // Prefered: Antenna
         let mut cfg = QcConfig::default();
-        cfg.obs_sorting = QcPreferedObsSorting::Antenna;
+        cfg.preference.rovers_sorting = QcPreferedRoversSorting::Antenna;
 
         let mut ctx = QcContext::new(cfg).unwrap();
 

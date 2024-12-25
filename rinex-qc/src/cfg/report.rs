@@ -1,7 +1,7 @@
 use maud::{html, Markup, Render};
 use serde::{Deserialize, Serialize};
 
-use crate::cfg::ConfigError;
+use crate::cfg::QcConfigError;
 
 /// [QcReportType]
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -16,12 +16,12 @@ pub enum QcReportType {
 }
 
 impl std::str::FromStr for QcReportType {
-    type Err = ConfigError;
+    type Err = QcConfigError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_lowercase().as_str() {
             "sum" | "summ" | "summary" => Ok(Self::Summary),
             "full" => Ok(Self::Full),
-            _ => Err(ConfigError::ReportType),
+            _ => Err(QcConfigError::ReportType),
         }
     }
 }

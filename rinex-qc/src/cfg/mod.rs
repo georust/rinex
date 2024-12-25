@@ -6,54 +6,25 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 pub mod navi;
+pub mod preference;
 pub mod report;
 pub mod rover;
 
 pub use navi::{QcFrameModel, QcNaviOpts};
+pub use preference::QcPreferedSettings;
 pub use report::{QcReportOpts, QcReportType};
 pub use rover::QcCustomRoverOpts;
 
 #[derive(Error, Debug)]
-pub enum ConfigError {
+pub enum QcConfigError {
     #[error("invalid prefered orbital source")]
     PreferedOrbit,
     #[error("invalid report type")]
     ReportType,
     #[error("invalid observation sorting method")]
     ObservationsSorting,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub enum QcPreferedObsSorting {
-    /// Sort Observation datasets per Receiver model (needs to be defined)
-    #[default]
-    #[serde(rename(serialize = "rcvr", deserialize = "rcvr"))]
-    Receiver,
-    /// Sort Observation datasets per Antenna model.
-    /// Use this if your datasets describes the same receiver model
-    /// and you operate several, with different antenna specs
-    #[serde(rename(serialize = "antenna", deserialize = "antenna"))]
-    Antenna,
-    /// Sort observation datasets per Geodetic marker name/number.
-    /// Prefer this when operating to/from GNSS agencies owing Geodetic markers
-    #[serde(rename(serialize = "geodetic", deserialize = "geodetic"))]
-    Geodetic,
-}
-
-impl std::str::FromStr for QcPreferedObsSorting {
-    type Err = ConfigError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let trimmed = s.trim().to_ascii_lowercase();
-        if trimmed.eq("rcvr") {
-            Ok(Self::Receiver)
-        } else if trimmed.eq("antenna") {
-            Ok(Self::Antenna)
-        } else if trimmed.eq("geodetic") {
-            Ok(Self::Geodetic)
-        } else {
-            Err(ConfigError::ObservationsSorting)
-        }
-    }
+    #[error("library built without sp3 support")]
+    SP3NotSupported,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -61,7 +32,7 @@ pub struct QcConfig {
     #[serde(default)]
     pub workspace: PathBuf,
     #[serde(default)]
-    pub obs_sorting: QcPreferedObsSorting,
+    pub preference: QcPreferedSettings,
     #[serde(default)]
     pub report: QcReportOpts,
     #[serde(default)]
@@ -89,6 +60,14 @@ impl Render for QcConfig {
                         }
                         td {
                             (self.report.render())
+                        }
+                    }
+                    tr {
+                        th class="is-info" {
+                            "Preference"
+                        }
+                        td {
+                            (self.preference.render())
                         }
                     }
                     tr {
