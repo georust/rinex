@@ -175,7 +175,7 @@ mod test {
         assert_eq!(key.frmtype, NavFrameType::Ephemeris);
         assert_eq!(key.msgtype, NavMessageType::LNAV);
 
-        let ephemeris = frame.as_eph().unwrap();
+        let ephemeris = frame.as_ephemeris().unwrap();
 
         assert_eq!(ephemeris.clock_bias, 7.282570004460E-05);
         assert_eq!(ephemeris.clock_drift, 0.0);
@@ -275,7 +275,7 @@ mod test {
         assert_eq!(key.msgtype, NavMessageType::LNAV);
         assert_eq!(key.frmtype, NavFrameType::Ephemeris);
 
-        let ephemeris = frame.as_eph().unwrap();
+        let ephemeris = frame.as_ephemeris().unwrap();
 
         assert_eq!(ephemeris.clock_bias, -0.426337239332E-03);
         assert_eq!(ephemeris.clock_drift, -0.752518047875e-10);
@@ -439,7 +439,7 @@ mod test {
         assert_eq!(key.frmtype, NavFrameType::Ephemeris);
         assert_eq!(key.msgtype, NavMessageType::LNAV);
 
-        let ephemeris = frame.as_eph().unwrap();
+        let ephemeris = frame.as_ephemeris().unwrap();
 
         assert_eq!(ephemeris.clock_bias, -0.101553811692e-02);
         assert_eq!(ephemeris.clock_drift, -0.804334376880e-11);
@@ -597,7 +597,7 @@ mod test {
         assert_eq!(key.msgtype, NavMessageType::LNAV);
         assert_eq!(key.frmtype, NavFrameType::Ephemeris);
 
-        let ephemeris = frame.as_eph().unwrap();
+        let ephemeris = frame.as_ephemeris().unwrap();
 
         assert_eq!(ephemeris.clock_bias, -0.420100986958e-04);
         assert_eq!(ephemeris.clock_drift, 0.000000000000e+00);

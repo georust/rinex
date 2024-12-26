@@ -1,4 +1,7 @@
-use crate::{navigation::Ephemeris, prelude::ParsingError};
+use crate::{
+    navigation::{EarthOrientation, Ephemeris, SystemTime},
+    prelude::ParsingError,
+};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -48,14 +51,14 @@ impl std::str::FromStr for NavFrameType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum NavFrame {
     EPH(Ephemeris),
-    // EOP(EopFrame),
+    EOP(EarthOrientation),
     // ION(IonosphereModel),
-    // STO(SystemTimeFrame),
+    STO(SystemTime),
 }
 
 impl NavFrame {
     /// [Ephemeris] unwrapping attempt.
-    pub fn as_eph(&self) -> Option<&Ephemeris> {
+    pub fn as_ephemeris(&self) -> Option<&Ephemeris> {
         match self {
             Self::EPH(eph) => Some(eph),
             _ => None,
@@ -63,13 +66,28 @@ impl NavFrame {
     }
 
     /// Mutable [Ephemeris] unwrapping attempt.
-    pub fn as_mut_eph(&mut self) -> Option<&mut Ephemeris> {
+    pub fn as_mut_ephemeris(&mut self) -> Option<&mut Ephemeris> {
         match self {
             Self::EPH(eph) => Some(eph),
             _ => None,
         }
     }
 
+    /// [SystemTime] unwrapping attempt.
+    pub fn as_system_time(&self) -> Option<&SystemTime> {
+        match self {
+            Self::STO(fr) => Some(fr),
+            _ => None,
+        }
+    }
+
+    /// Mutable [SystemTime] unwrapping attempt.
+    pub fn as_mut_system_time(&mut self) -> Option<&mut SystemTime> {
+        match self {
+            Self::STO(fr) => Some(fr),
+            _ => None,
+        }
+    }
     // pub fn as_ion(&self) -> Option<(NavMsgType, SV, &IonMessage)> {
     //     match self {
     //         Self::Ion(msg, sv, fr) => Some((*msg, *sv, fr)),
@@ -84,31 +102,19 @@ impl NavFrame {
     //     }
     // }
 
-    // pub fn as_eop(&self) -> Option<(NavMsgType, SV, &EopMessage)> {
-    //     match self {
-    //         Self::Eop(msg, sv, fr) => Some((*msg, *sv, fr)),
-    //         _ => None,
-    //     }
-    // }
+    /// [EarthOrientation] unwrapping attempt
+    pub fn as_earth_orientation(&self) -> Option<&EarthOrientation> {
+        match self {
+            Self::EOP(fr) => Some(fr),
+            _ => None,
+        }
+    }
 
-    // pub fn as_mut_eop(&mut self) -> Option<(NavMsgType, SV, &mut EopMessage)> {
-    //     match self {
-    //         Self::Eop(msg, sv, fr) => Some((*msg, *sv, fr)),
-    //         _ => None,
-    //     }
-    // }
-
-    // pub fn as_sto(&self) -> Option<(NavMsgType, SV, &StoMessage)> {
-    //     match self {
-    //         Self::Sto(msg, sv, fr) => Some((*msg, *sv, fr)),
-    //         _ => None,
-    //     }
-    // }
-
-    // pub fn as_mut_sto(&mut self) -> Option<(NavMsgType, SV, &mut StoMessage)> {
-    //     match self {
-    //         Self::Sto(msg, sv, fr) => Some((*msg, *sv, fr)),
-    //         _ => None,
-    //     }
-    // }
+    /// Mutable [EarthOrientation] unwrapping attempt
+    pub fn as_mut_earth_orientation(&mut self) -> Option<&mut EarthOrientation> {
+        match self {
+            Self::EOP(fr) => Some(fr),
+            _ => None,
+        }
+    }
 }

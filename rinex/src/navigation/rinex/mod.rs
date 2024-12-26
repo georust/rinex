@@ -3,7 +3,9 @@
 mod feature; // feature dependent, high level methods
 
 use crate::{
-    navigation::{Ephemeris, NavFrame, NavFrameType, NavKey, NavMessageType},
+    navigation::{
+        EarthOrientation, Ephemeris, NavFrame, NavFrameType, NavKey, NavMessageType, SystemTime,
+    },
     prelude::{Epoch, Rinex, RinexType, SV},
 };
 
@@ -48,8 +50,46 @@ impl Rinex {
         if let Some(rec) = self.record.as_nav() {
             Box::new(rec.iter().filter_map(|(k, v)| {
                 if k.frmtype == NavFrameType::Ephemeris {
-                    let eph = v.as_eph().unwrap();
-                    Some((k, eph))
+                    let fr = v.as_ephemeris().unwrap();
+                    Some((k, fr))
+                } else {
+                    None
+                }
+            }))
+        } else {
+            Box::new([].into_iter())
+        }
+    }
+
+    /// [SystemTime] frames iter, which may only exist
+    /// in NAV V4 format.
+    pub fn nav_system_time_frames_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&NavKey, &SystemTime)> + '_> {
+        if let Some(rec) = self.record.as_nav() {
+            Box::new(rec.iter().filter_map(|(k, v)| {
+                if k.frmtype == NavFrameType::SystemTimeOffset {
+                    let fr = v.as_system_time().unwrap();
+                    Some((k, fr))
+                } else {
+                    None
+                }
+            }))
+        } else {
+            Box::new([].into_iter())
+        }
+    }
+
+    /// [EarthOrientation] frames iter, which may only exist
+    /// in NAV V4 format.
+    pub fn nav_earth_orientation_frames_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&NavKey, &EarthOrientation)> + '_> {
+        if let Some(rec) = self.record.as_nav() {
+            Box::new(rec.iter().filter_map(|(k, v)| {
+                if k.frmtype == NavFrameType::EarthOrientation {
+                    let fr = v.as_earth_orientation().unwrap();
+                    Some((k, fr))
                 } else {
                     None
                 }

@@ -1,8 +1,7 @@
 //! Navigation module
-
 pub mod orbits;
 
-mod eopmessage;
+mod earth_orientation;
 mod ephemeris;
 mod frame;
 mod health;
@@ -10,7 +9,7 @@ mod ionmessage;
 mod message;
 mod parsing;
 mod rinex;
-mod stomessage;
+mod system_time;
 
 pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
@@ -33,11 +32,11 @@ use serde::{Deserialize, Serialize};
 
 pub use orbits::OrbitItem;
 
-pub use eopmessage::EopMessage;
+pub use earth_orientation::EarthOrientation;
 pub use ephemeris::Ephemeris;
 pub use health::{GeoHealth, GloHealth, Health, IrnssHealth};
 pub use ionmessage::{BdModel, IonMessage, KbModel, KbRegionCode, NgModel, NgRegionFlags};
-pub use stomessage::StoMessage;
+pub use system_time::SystemTime;
 
 use crate::prelude::{Epoch, SV};
 

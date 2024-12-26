@@ -1,5 +1,7 @@
 use crate::{
-    navigation::{Ephemeris, NavFrame, NavFrameType, NavKey, NavMessageType},
+    navigation::{
+        EarthOrientation, Ephemeris, NavFrame, NavFrameType, NavKey, NavMessageType, SystemTime,
+    },
     prelude::ParsingError,
     prelude::SV,
 };
@@ -35,14 +37,12 @@ pub fn parse(content: &str) -> Result<(NavKey, NavFrame), ParsingError> {
             (epoch, NavFrame::EPH(ephemeris))
         },
         NavFrameType::SystemTimeOffset => {
-            // let (epoch, msg) = StoMessage::parse(lines, ts)?;
-            // (epoch, NavFrame::Sto(msg_type, sv, msg))
-            panic!("not yet");
+            let (epoch, system_time) = SystemTime::parse(lines, ts)?;
+            (epoch, NavFrame::STO(system_time))
         },
         NavFrameType::EarthOrientation => {
-            // let (epoch, msg) = EopMessage::parse(lines, ts)?;
-            // (epoch, NavFrame::Eop(msg_type, sv, msg))
-            panic!("not yet");
+            let (epoch, eop) = EarthOrientation::parse(lines, ts)?;
+            (epoch, NavFrame::EOP(eop))
         },
         NavFrameType::IonosphereModel => {
             // let (epoch, msg): (Epoch, IonMessage) = match msg_type {

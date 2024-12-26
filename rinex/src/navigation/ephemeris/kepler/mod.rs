@@ -7,9 +7,6 @@ use anise::{
     math::{Vector3, Vector6},
 };
 
-#[cfg(feature = "log")]
-use log::{error, warn};
-
 mod helper;
 
 /// [Kepler] stores all keplerian parameters

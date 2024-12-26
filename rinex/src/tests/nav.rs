@@ -1126,6 +1126,13 @@ fn nav_v4_kms300dnk_r2022() {
         J04",
         187,
     );
+
+    // test STO frames
+    let mut tests_passed = 0;
+
+    for (k, system_time) in dut.nav_system_time_frames_iter() {}
+
+    assert_eq!(tests_passed, 0);
 }
 
 //     for (_epoch, (msg, sv, _ephemeris)) in rinex.ephemeris() {

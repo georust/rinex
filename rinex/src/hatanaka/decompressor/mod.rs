@@ -10,9 +10,6 @@ pub mod io;
 
 use num_integer::div_ceil;
 
-#[cfg(feature = "log")]
-use log::debug;
-
 #[cfg(docsrs)]
 use crate::hatanaka::Compressor;
 

@@ -10,9 +10,6 @@ use crate::{
 
 use std::io::{BufWriter, Write};
 
-#[cfg(feature = "log")]
-use log::error;
-
 use itertools::Itertools;
 
 pub fn format<W: Write>(

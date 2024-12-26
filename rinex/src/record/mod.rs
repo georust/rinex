@@ -6,9 +6,6 @@ use crate::{
 
 use std::collections::BTreeMap;
 
-#[cfg(feature = "log")]
-use log::error;
-
 #[cfg(feature = "serde")]
 use serde::Serialize;
 

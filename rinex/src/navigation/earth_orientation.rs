@@ -10,7 +10,7 @@ use std::str::FromStr;
 /// Earth Orientation Message
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct EopMessage {
+pub struct EarthOrientation {
     /// ((arc-sec), (arc-sec.day⁻¹), (arc-sec.day⁻²))
     pub x: (f64, f64, f64),
     /// ((arc-sec), (arc-sec.day⁻¹), (arc-sec.day⁻²))
@@ -21,7 +21,7 @@ pub struct EopMessage {
     pub delta_ut1: (f64, f64, f64),
 }
 
-impl EopMessage {
+impl EarthOrientation {
     pub(crate) fn parse(
         mut lines: std::str::Lines<'_>,
         ts: TimeScale,

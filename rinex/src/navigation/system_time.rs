@@ -1,3 +1,4 @@
+// NAV V4 System Time Messages
 use std::str::FromStr;
 
 #[cfg(feature = "serde")]
@@ -8,21 +9,21 @@ use crate::{
     prelude::{Epoch, ParsingError, TimeScale},
 };
 
-/// System Time Offset Message
+/// System Time (offset) Message
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct StoMessage {
+pub struct SystemTime {
     /// Time System
     pub system: String,
     /// UTC ID
     pub utc: String,
     /// Message transmmission time in seconds of GNSS week
     pub t_tm: u32,
-    /// ((s), (s.s⁻¹), (s.s⁻²))
+    /// (offset, drift, drift-rate) as (s, s.s⁻¹, s.s⁻²)
     pub a: (f64, f64, f64),
 }
 
-impl StoMessage {
+impl SystemTime {
     pub fn parse(
         mut lines: std::str::Lines<'_>,
         ts: TimeScale,

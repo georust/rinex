@@ -9,7 +9,7 @@ use crate::{
 use binex::prelude::{Decoder, EphemerisFrame, Message, Record, SolutionsFrame, StreamElement};
 
 #[cfg(feature = "log")]
-use log::{debug, error, info};
+use log::{error, info};
 
 /// BIN2RNX is a RINEX producer from a BINEX stream.
 /// It can serialize the streamed messages and collect them as RINEX.
