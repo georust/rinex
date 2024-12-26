@@ -23,6 +23,8 @@ use cggtts::{
     track::{FitData, GlonassChannel, SVTracker, Scheduler},
 };
 
+use hifitime::Unit;
+
 use crate::{
     cli::Context,
     positioning::{
@@ -419,7 +421,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
         let next_release_duration = next_release.unwrap() - *t;
         should_release = (next_release_duration <= dominant_sampling_period)
             && (next_release_duration > Duration::ZERO);
-        trk_midpoint = Some(next_release.unwrap() - trk_duration / 2);
+        trk_midpoint = Some(next_release.unwrap() - (3.0 * 60.0 * Unit::Second) - trk_duration / 2);
         info!("{:?} - {} until next track", t, next_release.unwrap() - *t);
     } //.observations()
 
