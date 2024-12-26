@@ -5,7 +5,7 @@ mod earth_orientation;
 mod ephemeris;
 mod frame;
 mod health;
-mod ionmessage;
+mod ionosphere;
 mod message;
 mod parsing;
 mod rinex;

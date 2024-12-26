@@ -1,6 +1,7 @@
 use crate::{
     navigation::{
         EarthOrientation, Ephemeris, NavFrame, NavFrameType, NavKey, NavMessageType, SystemTime,
+        NgModel, BdModel, KbModel,
     },
     prelude::ParsingError,
     prelude::SV,
@@ -45,28 +46,27 @@ pub fn parse(content: &str) -> Result<(NavKey, NavFrame), ParsingError> {
             (epoch, NavFrame::EOP(eop))
         },
         NavFrameType::IonosphereModel => {
-            // let (epoch, msg): (Epoch, IonMessage) = match msg_type {
-            //     NavMsgType::IFNV => {
-            //         let (epoch, model) = NgModel::parse(lines, ts)?;
-            //         (epoch, IonMessage::NequickGModel(model))
-            //     },
-            //     NavMsgType::CNVX => match sv.constellation {
-            //         Constellation::BeiDou => {
-            //             let (epoch, model) = BdModel::parse(lines, ts)?;
-            //             (epoch, IonMessage::BdgimModel(model))
-            //         },
-            //         _ => {
-            //             let (epoch, model) = KbModel::parse(lines, ts)?;
-            //             (epoch, IonMessage::KlobucharModel(model))
-            //         },
-            //     },
-            //     _ => {
-            //         let (epoch, model) = KbModel::parse(lines, ts)?;
-            //         (epoch, IonMessage::KlobucharModel(model))
-            //     },
-            // };
-            // (epoch, NavFrame::Ion(msg_type, sv, msg))
-            panic!("not yet");
+            let (epoch, iono_model): (Epoch, IonMessage) = match msgtype {
+                NavMsgType::IFNV => {
+                    let (epoch, model) = NgModel::parse(lines, ts)?;
+                    (epoch, IonosphereModel::NequickGModel(model))
+                },
+                NavMsgType::CNVX => match sv.constellation {
+                    Constellation::BeiDou => {
+                        let (epoch, model) = BdModel::parse(lines, ts)?;
+                        (epoch, IonosphereModel::BdgimModel(model))
+                    },
+                    _ => {
+                        let (epoch, model) = KbModel::parse(lines, ts)?;
+                        (epoch, IonosphereModel::KlobucharModel(model))
+                    },
+                },
+                _ => {
+                    let (epoch, model) = KbModel::parse(lines, ts)?;
+                    (epoch, IonosphereModel::KlobucharModel(model))
+                },
+            };
+            (epoch, NavFrame::ION(msg))
         },
     };
 

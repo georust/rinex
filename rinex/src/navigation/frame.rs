@@ -1,5 +1,5 @@
 use crate::{
-    navigation::{EarthOrientation, Ephemeris, SystemTime},
+    navigation::{EarthOrientation, IonosphereModel, Ephemeris, SystemTime},
     prelude::ParsingError,
 };
 
@@ -88,19 +88,20 @@ impl NavFrame {
             _ => None,
         }
     }
-    // pub fn as_ion(&self) -> Option<(NavMsgType, SV, &IonMessage)> {
-    //     match self {
-    //         Self::Ion(msg, sv, fr) => Some((*msg, *sv, fr)),
-    //         _ => None,
-    //     }
-    // }
+    
+    pub fn as_ionosphere_model(&self) -> Option<&IonosphereModel> {
+        match self {
+            Self::ION(fr) => Some(fr),
+            _ => None,
+        }
+    }
 
-    // pub fn as_mut_ion(&mut self) -> Option<(NavMsgType, SV, &mut IonMessage)> {
-    //     match self {
-    //         Self::Ion(msg, sv, fr) => Some((*msg, *sv, fr)),
-    //         _ => None,
-    //     }
-    // }
+    pub fn as_mut_ionosphere_model(&mut self) -> Option<&mut IonosphereModel> {
+        match self {
+            Self::ION(fr) => Some((fr),
+            _ => None,
+        }
+    }
 
     /// [EarthOrientation] unwrapping attempt
     pub fn as_earth_orientation(&self) -> Option<&EarthOrientation> {
