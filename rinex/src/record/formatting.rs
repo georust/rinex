@@ -1,4 +1,5 @@
 use crate::{
+    doris::format as format_doris_observations,
     meteo::format as format_meteo_observations,
     observation::format as format_observations,
     prelude::{FormattingError, Header},
@@ -17,6 +18,8 @@ impl Record {
             format_observations(w, rec, header)
         } else if let Some(rec) = self.as_meteo() {
             format_meteo_observations(w, rec, header)
+        } else if let Some(rec) = self.as_doris() {
+            format_doris_observations(w, rec, header)
         } else {
             Ok(())
         }

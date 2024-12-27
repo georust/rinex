@@ -15,6 +15,8 @@ mod parsing;
 mod rinex;
 mod station;
 
+pub(crate) use formatting::format;
+
 #[cfg(feature = "processing")]
 pub(crate) mod decim;
 
