@@ -15,7 +15,7 @@ use crate::{
     linspace::Linspace,
     marker::{GeodeticMarker, MarkerType},
     meteo::{HeaderFields as MeteoHeader, Sensor as MeteoSensor},
-    navigation::{IonMessage, KbModel},
+    navigation::{IonosphereModel, KbModel},
     observable::Observable,
     observation::HeaderFields as ObservationHeader,
     prelude::{Constellation, Duration, Epoch, ParsingError, TimeScale, COSPAR, DOMES, SV},
@@ -56,7 +56,7 @@ impl Header {
         let mut rx_position: Option<_> = Option::<(f64, f64, f64)>::None;
 
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
-        let mut ionod_corrections = HashMap::<Constellation, IonMessage>::with_capacity(4);
+        let mut ionod_corrections = HashMap::<Constellation, IonosphereModel>::with_capacity(4);
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
 
         let mut comments = Vec::<String>::with_capacity(8);
@@ -662,8 +662,8 @@ impl Header {
             } else if marker.contains("ION ALPHA") {
                 // RINEX v2 Ionospheric correction. We tolerate BETA/ALPHA order mixup, as per
                 // RINEX v2 standards [https://files.igs.org/pub/data/format/rinex211.txt] paragraph 5.2.
-                match IonMessage::from_rinex2_header(content, marker) {
-                    Ok(IonMessage::KlobucharModel(KbModel {
+                match IonosphereModel::from_rinex2_header(content, marker) {
+                    Ok(IonosphereModel::Klobuchar(KbModel {
                         alpha,
                         beta,
                         region,
@@ -686,7 +686,7 @@ impl Header {
                             } else {
                                 ionod_corrections.insert(
                                     c,
-                                    IonMessage::KlobucharModel(KbModel {
+                                    IonosphereModel::Klobuchar(KbModel {
                                         alpha,
                                         beta,
                                         region,
@@ -701,8 +701,8 @@ impl Header {
                 // RINEX v2 Ionospheric correction. We are flexible in their order of appearance,
                 // RINEX v2 standards do NOT guarantee that (header fields are free order).
                 // [https://files.igs.org/pub/data/format/rinex211.txt] paragraph 5.2.
-                match IonMessage::from_rinex2_header(content, marker) {
-                    Ok(IonMessage::KlobucharModel(KbModel {
+                match IonosphereModel::from_rinex2_header(content, marker) {
+                    Ok(IonosphereModel::Klobuchar(KbModel {
                         alpha,
                         beta,
                         region,
@@ -724,7 +724,7 @@ impl Header {
                             } else {
                                 ionod_corrections.insert(
                                     c,
-                                    IonMessage::KlobucharModel(KbModel {
+                                    IonosphereModel::Klobuchar(KbModel {
                                         alpha,
                                         beta,
                                         region,
@@ -757,8 +757,8 @@ impl Header {
                     "GLO" => Constellation::Glonass,
                     _ => continue,
                 };
-                match IonMessage::from_rinex3_header(content) {
-                    Ok(IonMessage::KlobucharModel(KbModel {
+                match IonosphereModel::from_rinex3_header(content) {
+                    Ok(IonosphereModel::Klobuchar(KbModel {
                         alpha,
                         beta,
                         region,
@@ -776,7 +776,7 @@ impl Header {
                             // latch new model
                             ionod_corrections.insert(
                                 constell,
-                                IonMessage::KlobucharModel(KbModel {
+                                IonosphereModel::Klobuchar(KbModel {
                                     alpha,
                                     beta,
                                     region,

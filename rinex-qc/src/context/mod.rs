@@ -25,6 +25,10 @@ pub(crate) mod rnx;
 pub(crate) mod session;
 pub(crate) mod tropo;
 
+#[cfg(feature = "sp3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
+pub(crate) mod sp3;
+
 use crate::{
     cfg::{QcConfig, QcFrameModel},
     context::{
@@ -54,14 +58,10 @@ pub struct QcContext {
     pub ionex_dataset: Option<Rinex>,
     /// Meteo [Rinex] stored by [MetaData]
     pub meteo_dataset: HashMap<MetaData, Rinex>,
-    // pub(crate) sky_context: Option<SkyContext>,
-    // pub(crate) clk_dataset: Option<ClockDataSet>,
-    // /// [MeteoContext] that either applies regionally or worldwidely
-    // meteo_context: MeteoContext,
-    // /// [ClockContext] that either applies worldwidely
-    // clk_context: ClockContext,
-    // /// [IonosphereContext] that either applies regionally or worldwidely
-    // iono_context: IonosphereContext,
+    /// Possible [SP3] fileset
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
+    pub sp3_dataset: HashMap<MetaData, SP3>,
 }
 
 impl QcContext {
@@ -190,24 +190,8 @@ impl QcContext {
         Ok(s)
     }
 
-    // /// Returns possible Reference position defined in this context.
-    // /// Usually the Receiver location in the laboratory.
-    // pub fn user_rover_position(&self) -> Option<GroundPosition> {
-    //     if let Some(data) = self.observation_data() {
-    //         if let Some(pos) = data.header.ground_position {
-    //             return Some(pos);
-    //         }
-    //     }
-    //     if let Some(data) = self.brdc_navigation_data() {
-    //         if let Some(pos) = data.header.ground_position {
-    //             return Some(pos);
-    //         }
-    //     }
-    //     None
-    // }
-
     /// Smart data loader, that will automatically pick up the provided
-    /// format (if supported) and load it into this [DataSet].
+    /// format (if supported) and load it into the [QcContext].
     pub fn load_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), QcCtxError> {
         let path = path.as_ref();
         let mut meta = MetaData::new(path)?;
@@ -215,27 +199,27 @@ impl QcContext {
         if let Ok(rinex) = Rinex::from_file(path) {
             self.load_rinex(&mut meta, rinex)?;
             info!(
-                "{} (RINex) loaded",
+                "{} (RINEx) loaded",
                 path.file_stem().unwrap_or_default().to_string_lossy()
             );
             return Ok(());
         }
 
-        // #[cfg(feature = "sp3")]
-        // if let Ok(sp3) = SP3::from_file(path) {
-        //     self.sky_context.load_sp3(meta, sp3)?;
-        //     info!(
-        //         "{} (SP3) loaded",
-        //         path.file_stem().unwrap_or_default().to_string_lossy()
-        //     );
-        //     return Ok(());
-        // }
+        #[cfg(feature = "sp3")]
+        if let Ok(sp3) = SP3::from_file(path) {
+            self.load_sp3(&mut meta, sp3)?;
+            info!(
+                "{} (SP3) loaded",
+                path.file_stem().unwrap_or_default().to_string_lossy()
+            );
+            return Ok(());
+        }
 
         Err(QcCtxError::NonSupportedFormat)
     }
 
     /// Smart data loader, that will automatically pick up the provided
-    /// format (if supported).
+    /// format (if supported) and load it into the [QcContext].
     #[cfg(feature = "flate2")]
     pub fn load_gzip_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), QcCtxError> {
         let path = path.as_ref();
@@ -244,25 +228,26 @@ impl QcContext {
         if let Ok(rinex) = Rinex::from_gzip_file(path) {
             self.load_rinex(&mut meta, rinex)?;
             info!(
-                "{} (RINex) loaded",
+                "{} (RINEx) loaded",
                 path.file_stem().unwrap_or_default().to_string_lossy()
             );
             return Ok(());
         }
 
-        // #[cfg(feature = "sp3")]
-        // if let Ok(sp3) = SP3::from_gzip_file(path) {
-        //     self.sky_context.load_sp3(meta, sp3);
-        //     info!(
-        //         "SP3: \"{}\" loaded",
-        //         path.file_stem().unwrap_or_default().to_string_lossy()
-        //     );
-        //     return Ok(());
-        // }
+        #[cfg(feature = "sp3")]
+        if let Ok(sp3) = SP3::from_gzip_file(path) {
+            self.load_sp3(&mut meta, sp3)?;
+            info!(
+                "{} (SP3) loaded",
+                path.file_stem().unwrap_or_default().to_string_lossy()
+            );
+            return Ok(());
+        }
 
         Err(QcCtxError::NonSupportedFormat)
     }
 
+    /// Applies [Filter] operation to this [QcContext]
     pub fn filter_mut(&mut self, filter: &Filter) {
         for (_, rinex) in self.obs_dataset.iter_mut() {
             rinex.filter_mut(&filter);
@@ -278,16 +263,21 @@ impl QcContext {
         }
     }
 
+    /// Applies [Repair] operation to this [QcContext].
+    /// This may only apply to Observation and Navigation datasets.
     pub fn repair_mut(&mut self, repair: Repair) {
         for (_, rinex) in self.obs_dataset.iter_mut() {
             rinex.repair_mut(repair);
         }
+
+        if let Some(rinex) = &mut self.nav_dataset {
+            rinex.repair_mut(repair);
+        }
     }
 
-    /// Synthesize a [QcReport], performs analysis
-    /// and calculations to fill the report according to [QcConfig] preset.
-    /// Report synthesis is not rendition! You need to use the
-    /// rendition trait when you want to.
+    /// Run all analysis requested by the [QcConfig]uration script
+    /// and wrap them into a [QcReport]. Once the report is synthesize,
+    /// you can render it in the format you want to.
     pub fn report_synthesis(&self) -> QcReport {
         QcReport::new(self)
     }
@@ -298,6 +288,19 @@ impl std::fmt::Debug for QcContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (k, _) in &self.obs_dataset {
             write!(f, "Observation RINex: {}", k.name)?;
+        }
+
+        for (k, _) in &self.meteo_dataset {
+            write!(f, "Meteo RINex: {}", k.name)?;
+        }
+
+        #[cfg(feature = "sp3")]
+        for (k, _) in &self.sp3_dataset {
+            if let Some(unique_id) = k.unique_id {
+                write!(f, "({}) SP3: {}", unique_id, k.name)?;
+            } else {
+                write!(f, "SP3: {}", k.name)?;
+            }
         }
         Ok(())
     }

@@ -1,5 +1,5 @@
 use crate::{
-    navigation::{EarthOrientation, IonosphereModel, Ephemeris, SystemTime},
+    navigation::{EarthOrientation, Ephemeris, IonosphereModel, SystemTime},
     prelude::ParsingError,
 };
 
@@ -52,7 +52,7 @@ impl std::str::FromStr for NavFrameType {
 pub enum NavFrame {
     EPH(Ephemeris),
     EOP(EarthOrientation),
-    // ION(IonosphereModel),
+    ION(IonosphereModel),
     STO(SystemTime),
 }
 
@@ -88,7 +88,7 @@ impl NavFrame {
             _ => None,
         }
     }
-    
+
     pub fn as_ionosphere_model(&self) -> Option<&IonosphereModel> {
         match self {
             Self::ION(fr) => Some(fr),
@@ -98,7 +98,7 @@ impl NavFrame {
 
     pub fn as_mut_ionosphere_model(&mut self) -> Option<&mut IonosphereModel> {
         match self {
-            Self::ION(fr) => Some((fr),
+            Self::ION(fr) => Some(fr),
             _ => None,
         }
     }

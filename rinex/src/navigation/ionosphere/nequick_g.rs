@@ -97,7 +97,7 @@ mod test {
             },
         );
     }
-    
+
     #[test]
     fn rinex3_ng_header_parsing() {
         let ng = IonMessage::from_rinex3_header(
@@ -113,5 +113,4 @@ mod test {
             })
         );
     }
-    
 }

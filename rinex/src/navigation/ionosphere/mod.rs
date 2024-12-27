@@ -8,26 +8,33 @@ use bitflags::bitflags;
 
 use std::{f64::consts::PI, str::FromStr};
 
+mod bdgim;
+mod klobuchar;
+mod nequick_g;
+
+pub use bdgim::BdModel;
+pub use klobuchar::{KbModel, KbRegionCode};
+pub use nequick_g::{NgModel, NgRegionFlags};
+
 /// [IonosphereModel] that may be described in modern NAV V4 RINEx
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum IonosphereModel {
     /// Klobuchar Model
-    KlobucharModel(KbModel),
+    Klobuchar(KbModel),
     /// Nequick-G Model
-    NequickGModel(NgModel),
+    NequickG(NgModel),
     /// BDGIM Model
-    BdgimModel(BdModel),
+    Bdgim(BdModel),
 }
 
 impl Default for IonosphereModel {
     fn default() -> Self {
-        Self::KlobucharModel(KbModel::default())
+        Self::Klobuchar(KbModel::default())
     }
 }
 
 impl IonosphereModel {
-
     /// Parses [IonosphereModel] from old (RINEX3) header Ionospheric terms.
     /// In this case, it will apply for the entire day course.
     /// Two models may exist: Klobuchar and NequickG.
@@ -44,7 +51,7 @@ impl IonosphereModel {
                 let a0 = f64::from_str(a0.trim()).map_err(|_| ParsingError::NequickGData)?;
                 let a1 = f64::from_str(a1.trim()).map_err(|_| ParsingError::NequickGData)?;
                 let a2 = f64::from_str(a2.trim()).map_err(|_| ParsingError::NequickGData)?;
-                Ok(Self::NequickGModel(NgModel {
+                Ok(Self::NequickG(NgModel {
                     a: (a0, a1, a2),
                     // TODO: is this not the 4th field? double check
                     region: NgRegionFlags::default(),
@@ -70,7 +77,7 @@ impl IonosphereModel {
                     let a2 = f64::from_str(a2.trim()).map_err(|_| ParsingError::KlobucharData)?;
                     let a3 = f64::from_str(a3.trim()).map_err(|_| ParsingError::KlobucharData)?;
 
-                    Ok(Self::KlobucharModel(KbModel {
+                    Ok(Self::Klobuchar(KbModel {
                         alpha: (a0, a1, a2, a3),
                         beta: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
                         region,
@@ -80,7 +87,7 @@ impl IonosphereModel {
                     let b1 = f64::from_str(a1.trim()).map_err(|_| ParsingError::KlobucharData)?;
                     let b2 = f64::from_str(a2.trim()).map_err(|_| ParsingError::KlobucharData)?;
                     let b3 = f64::from_str(a3.trim()).map_err(|_| ParsingError::KlobucharData)?;
-                    Ok(Self::KlobucharModel(KbModel {
+                    Ok(Self::Klobuchar(KbModel {
                         alpha: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
                         beta: (b0, b1, b2, b3),
                         region,
@@ -107,7 +114,7 @@ impl IonosphereModel {
             let a2 = f64::from_str(a2.trim()).map_err(|_| ParsingError::KlobucharData)?;
             let a3 = f64::from_str(a3.trim()).map_err(|_| ParsingError::KlobucharData)?;
 
-            Ok(Self::KlobucharModel(KbModel {
+            Ok(Self::Klobuchar(KbModel {
                 alpha: (a0, a1, a2, a3),
                 beta: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
                 region: KbRegionCode::WideArea,
@@ -119,7 +126,7 @@ impl IonosphereModel {
             let b2 = f64::from_str(a2.trim()).map_err(|_| ParsingError::KlobucharData)?;
             let b3 = f64::from_str(a3.trim()).map_err(|_| ParsingError::KlobucharData)?;
 
-            Ok(Self::KlobucharModel(KbModel {
+            Ok(Self::Klobuchar(KbModel {
                 alpha: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
                 beta: (b0, b1, b2, b3),
                 region: KbRegionCode::WideArea,
@@ -149,34 +156,34 @@ impl IonosphereModel {
     //     }
     // }
 
-    /// Returns reference to Klobuchar Model
+    /// Returns reference to Klobuchar [KbModel]
     pub fn as_klobuchar(&self) -> Option<&KbModel> {
         match self {
-            Self::KlobucharModel(model) => Some(model),
+            Self::Klobuchar(model) => Some(model),
             _ => None,
         }
     }
 
-    /// Returns mutable reference to Klobuchar Model
+    /// Returns mutable reference to Klobuchar [KbModel]
     pub fn as_klobuchar_mut(&mut self) -> Option<&mut KbModel> {
         match self {
-            Self::KlobucharModel(model) => Some(model),
+            Self::Klobuchar(model) => Some(model),
             _ => None,
         }
     }
 
-    /// Unwraps self as Nequick-G Model
+    /// Returns reference to Nequick-G [NgModel]
     pub fn as_nequick_g(&self) -> Option<&NgModel> {
         match self {
-            Self::NequickGModel(model) => Some(model),
+            Self::NequickG(model) => Some(model),
             _ => None,
         }
     }
 
-    /// Unwraps self as BDGIM Model
+    /// Returns reference to BDGIM [BdModel]
     pub fn as_bdgim(&self) -> Option<&BdModel> {
         match self {
-            Self::BdgimModel(model) => Some(model),
+            Self::Bdgim(model) => Some(model),
             _ => None,
         }
     }
@@ -187,7 +194,6 @@ mod test {
     use super::*;
     #[test]
     fn rinex3_ng_header_parsing() {
-
         /// RINEx3 Nequick-G header
         let ng = IonosphereModel::from_rinex3_header(
             "GAL    6.6250e+01 -1.6406e-01 -2.4719e-03  0.0000e+00       ",
@@ -206,13 +212,12 @@ mod test {
 
     #[test]
     fn rinex3_kb_header_parsing() {
-
         /// RINex3 Kb header
         let kb = IonosphereModel::from_rinex3_header(
             "GPSA   7.4506e-09 -1.4901e-08 -5.9605e-08  1.1921e-07       ",
         );
         let kb = kb.unwrap();
-        
+
         assert_eq!(
             kb,
             IonosphereModel::KlobucharModel(KbModel {
@@ -243,7 +248,7 @@ mod test {
         let kb = kb.unwrap();
         assert_eq!(
             kb,
-            IonosphereModel::KlobucharModel(KbModel {
+            IonosphereModel::Klobuchar(KbModel {
                 alpha: (1.1176E-8, 2.9802E-8, -4.1723E-7, 6.5565E-7),
                 beta: (0.0, 0.0, 0.0, 0.0),
                 region: KbRegionCode::WideArea,
@@ -257,7 +262,7 @@ mod test {
         let kb = kb.unwrap();
         assert_eq!(
             kb,
-            IonosphereModel::KlobucharModel(KbModel {
+            IonosphereModel::Klobuchar(KbModel {
                 alpha: (0.0, 0.0, 0.0, 0.0),
                 beta: (1.4131E5, -5.2429E5, 1.6384E6, -4.5875E5),
                 region: KbRegionCode::WideArea,
@@ -317,7 +322,7 @@ mod test {
             let kb = kb.unwrap();
             assert_eq!(
                 kb,
-                IonosphereModel::KlobucharModel(KbModel {
+                IonosphereModel::Klobuchar(KbModel {
                     alpha,
                     beta: (0.0, 0.0, 0.0, 0.0),
                     region: KbRegionCode::WideArea,
@@ -348,7 +353,7 @@ mod test {
             let kb = kb.unwrap();
             assert_eq!(
                 kb,
-                IonosphereModel::KlobucharModel(KbModel {
+                IonosphereModel::Klobuchar(KbModel {
                     alpha: (0.0, 0.0, 0.0, 0.0),
                     beta,
                     region: KbRegionCode::WideArea,

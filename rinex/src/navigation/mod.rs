@@ -14,8 +14,14 @@ mod system_time;
 pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
 pub use crate::navigation::{
+    earth_orientation::EarthOrientation,
+    ephemeris::Ephemeris,
     frame::{NavFrame, NavFrameType},
+    health::{GeoHealth, GloHealth, Health, IrnssHealth},
+    ionosphere::{BdModel, IonosphereModel, KbModel, KbRegionCode, NgModel, NgRegionFlags},
     message::NavMessageType,
+    orbits::OrbitItem,
+    system_time::SystemTime,
 };
 
 #[cfg(feature = "processing")]
@@ -30,17 +36,9 @@ pub(crate) mod repair; // repair Trait implementation
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-pub use orbits::OrbitItem;
-
-pub use earth_orientation::EarthOrientation;
-pub use ephemeris::Ephemeris;
-pub use health::{GeoHealth, GloHealth, Health, IrnssHealth};
-pub use ionmessage::{BdModel, IonMessage, KbModel, KbRegionCode, NgModel, NgRegionFlags};
-pub use system_time::SystemTime;
+use std::collections::BTreeMap;
 
 use crate::prelude::{Epoch, SV};
-
-use std::collections::BTreeMap;
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

@@ -10,7 +10,7 @@ use crate::{
     leap::Leap,
     marker::GeodeticMarker,
     meteo::HeaderFields as MeteoHeader,
-    navigation::IonMessage,
+    navigation::IonosphereModel,
     observation::HeaderFields as ObservationHeader,
     prelude::{Constellation, Duration, Epoch, COSPAR, SV},
     types::Type,
@@ -118,7 +118,7 @@ pub struct Header {
     pub sv_antenna: Option<SvAntenna>,
     /// Possible Ionospheric Delay correction model, described in
     /// header section of old RINEX files (<V4).
-    pub ionod_corrections: HashMap<Constellation, IonMessage>,
+    pub ionod_corrections: HashMap<Constellation, IonosphereModel>,
     /// Possible DCBs compensation information
     pub dcb_compensations: Vec<DcbCompensation>,
     /// Possible PCVs compensation information

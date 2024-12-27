@@ -1,10 +1,9 @@
 use crate::{
     navigation::{
-        EarthOrientation, Ephemeris, NavFrame, NavFrameType, NavKey, NavMessageType, SystemTime,
-        NgModel, BdModel, KbModel,
+        BdModel, EarthOrientation, Ephemeris, IonosphereModel, KbModel, NavFrame, NavFrameType,
+        NavKey, NavMessageType, NgModel, SystemTime,
     },
-    prelude::ParsingError,
-    prelude::SV,
+    prelude::{Constellation, ParsingError, SV},
 };
 
 /// ([NavKey], [NavFrame]) parsing attempt for a V4 frame.
@@ -46,27 +45,27 @@ pub fn parse(content: &str) -> Result<(NavKey, NavFrame), ParsingError> {
             (epoch, NavFrame::EOP(eop))
         },
         NavFrameType::IonosphereModel => {
-            let (epoch, iono_model): (Epoch, IonMessage) = match msgtype {
-                NavMsgType::IFNV => {
+            let (epoch, model) = match msgtype {
+                NavMessageType::IFNV => {
                     let (epoch, model) = NgModel::parse(lines, ts)?;
-                    (epoch, IonosphereModel::NequickGModel(model))
+                    (epoch, IonosphereModel::NequickG(model))
                 },
-                NavMsgType::CNVX => match sv.constellation {
+                NavMessageType::CNVX => match sv.constellation {
                     Constellation::BeiDou => {
                         let (epoch, model) = BdModel::parse(lines, ts)?;
-                        (epoch, IonosphereModel::BdgimModel(model))
+                        (epoch, IonosphereModel::Bdgim(model))
                     },
                     _ => {
                         let (epoch, model) = KbModel::parse(lines, ts)?;
-                        (epoch, IonosphereModel::KlobucharModel(model))
+                        (epoch, IonosphereModel::Klobuchar(model))
                     },
                 },
                 _ => {
                     let (epoch, model) = KbModel::parse(lines, ts)?;
-                    (epoch, IonosphereModel::KlobucharModel(model))
+                    (epoch, IonosphereModel::Klobuchar(model))
                 },
             };
-            (epoch, NavFrame::ION(msg))
+            (epoch, NavFrame::ION(model))
         },
     };
 
