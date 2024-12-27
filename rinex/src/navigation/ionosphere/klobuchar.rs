@@ -4,8 +4,6 @@ use crate::{
     prelude::{Epoch, ParsingError, TimeScale},
 };
 
-use bitflags::bitflags;
-
 use std::{f64::consts::PI, str::FromStr};
 
 /// Klobuchar Parameters region
@@ -176,6 +174,8 @@ impl KbModel {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::navigation::IonosphereModel;
+
     #[test]
     fn klobuchar_model() {
         assert_eq!(KbRegionCode::default(), KbRegionCode::WideArea);
@@ -213,56 +213,56 @@ mod test {
 
     #[test]
     fn rinex3_header_model_parsing() {
-        let kb = IonMessage::from_rinex3_header(
+        let kb = IonosphereModel::from_rinex3_header(
             "GPSA   7.4506e-09 -1.4901e-08 -5.9605e-08  1.1921e-07       ",
         );
         assert!(kb.is_ok(), "failed to parse GPSA iono correction header");
         let kb = kb.unwrap();
         assert_eq!(
             kb,
-            IonMessage::KlobucharModel(KbModel {
+            IonosphereModel::Klobuchar(KbModel {
                 alpha: (7.4506E-9, -1.4901E-8, -5.9605E-8, 1.1921E-7),
                 beta: (0.0, 0.0, 0.0, 0.0),
                 region: KbRegionCode::WideArea,
             })
         );
 
-        let kb = IonMessage::from_rinex3_header(
+        let kb = IonosphereModel::from_rinex3_header(
             "GPSB   9.0112e+04 -6.5536e+04 -1.3107e+05  4.5875e+05       ",
         );
         assert!(kb.is_ok(), "failed to parse GPSB iono correction header");
         let kb = kb.unwrap();
         assert_eq!(
             kb,
-            IonMessage::KlobucharModel(KbModel {
+            IonosphereModel::Klobuchar(KbModel {
                 alpha: (0.0, 0.0, 0.0, 0.0),
                 beta: (9.0112E4, -6.5536E4, -1.3107E5, 4.5875E5),
                 region: KbRegionCode::WideArea,
             })
         );
 
-        let kb = IonMessage::from_rinex3_header(
+        let kb = IonosphereModel::from_rinex3_header(
             "BDSA   1.1176e-08  2.9802e-08 -4.1723e-07  6.5565e-07       ",
         );
         assert!(kb.is_ok(), "failed to parse BDSA iono correction header");
         let kb = kb.unwrap();
         assert_eq!(
             kb,
-            IonMessage::KlobucharModel(KbModel {
+            IonosphereModel::Klobuchar(KbModel {
                 alpha: (1.1176E-8, 2.9802E-8, -4.1723E-7, 6.5565E-7),
                 beta: (0.0, 0.0, 0.0, 0.0),
                 region: KbRegionCode::WideArea,
             })
         );
 
-        let kb = IonMessage::from_rinex3_header(
+        let kb = IonosphereModel::from_rinex3_header(
             "BDSB   1.4131e+05 -5.2429e+05  1.6384e+06 -4.5875e+05   3   ",
         );
         assert!(kb.is_ok(), "failed to parse BDSB iono correction header");
         let kb = kb.unwrap();
         assert_eq!(
             kb,
-            IonMessage::KlobucharModel(KbModel {
+            IonosphereModel::Klobuchar(KbModel {
                 alpha: (0.0, 0.0, 0.0, 0.0),
                 beta: (1.4131E5, -5.2429E5, 1.6384E6, -4.5875E5),
                 region: KbRegionCode::WideArea,
@@ -272,7 +272,7 @@ mod test {
         /*
          * Test japanese (QZSS) orbital plan
          */
-        let kb = IonMessage::from_rinex3_header(
+        let kb = IonosphereModel::from_rinex3_header(
             "QZSA   7.4506e-09 -1.4901e-08 -5.9605e-08  1.1921e-07       ",
         );
         assert!(kb.is_ok(), "failed to parse QZSA iono correction header");
@@ -284,7 +284,7 @@ mod test {
             "QZSA ionospheric corr badly interprated as worldwide correction"
         );
 
-        let kb = IonMessage::from_rinex3_header(
+        let kb = IonosphereModel::from_rinex3_header(
             "QZSB   9.0112e+04 -6.5536e+04 -1.3107e+05  4.5875e+05       ",
         );
         assert!(kb.is_ok(), "failed to parse QZSB iono correction header");
@@ -317,12 +317,12 @@ mod test {
                 (0.1211E-07, -0.7451E-08, -0.5960E-07, 0.1192E-06),
             ),
         ] {
-            let kb = IonMessage::from_rinex2_header(line, "ION ALPHA           ");
+            let kb = IonosphereModel::from_rinex2_header(line, "ION ALPHA           ");
             assert!(kb.is_ok(), "failed to parse ION ALPHA header");
             let kb = kb.unwrap();
             assert_eq!(
                 kb,
-                IonMessage::KlobucharModel(KbModel {
+                IonosphereModel::Klobuchar(KbModel {
                     alpha,
                     beta: (0.0, 0.0, 0.0, 0.0),
                     region: KbRegionCode::WideArea,
@@ -348,12 +348,12 @@ mod test {
                 (0.1167E+06, -0.2458E+06, -0.6554E+05, 0.1114E+07),
             ),
         ] {
-            let kb = IonMessage::from_rinex2_header(line, "ION BETA            ");
+            let kb = IonosphereModel::from_rinex2_header(line, "ION BETA            ");
             assert!(kb.is_ok(), "failed to parse ION BETA header");
             let kb = kb.unwrap();
             assert_eq!(
                 kb,
-                IonMessage::KlobucharModel(KbModel {
+                IonosphereModel::Klobuchar(KbModel {
                     alpha: (0.0, 0.0, 0.0, 0.0),
                     beta,
                     region: KbRegionCode::WideArea,

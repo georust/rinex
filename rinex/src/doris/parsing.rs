@@ -1,9 +1,9 @@
 use crate::{
-    doris::{DorisKey, Observations, SignalObservation, Station},
+    doris::{DorisKey, Observations, SignalKey, SignalObservation, Station},
     epoch::parse_in_timescale as parse_epoch_in_timescale,
     observation::ClockObservation,
     observation::EpochFlag,
-    prelude::{Epoch, Header, ParsingError, TimeScale},
+    prelude::{Header, Observable, ParsingError, TimeScale},
 };
 
 /// Returns true if forwarded content does match new DORIS measurement.
@@ -11,54 +11,61 @@ pub fn is_new_epoch(line: &str) -> bool {
     line.starts_with('>')
 }
 
-fn parse_new_station(
+fn parse_observations(
     line: &str,
-    stations: &Vec<Station>,
-    signals: &mut Vec<SignalObservation>,
+    mut obs_ptr: usize,
+    station: &Station,
+    observables: &[Observable],
+    numobs: usize,
+    observations: &mut Observations,
 ) -> Result<(), ParsingError> {
-    let line_len = line.len();
+    const OBSERVABLE_WIDTH: usize = 14;
 
-    // station number
-    let station_num = line[1..]
-        .trim()
-        .parse::<usize>()
-        .map_err(|_| ParsingError::DorisStationFormat)?;
-
-    // identify station
-    let station = stations
-        .get(station_num)
-        .ok_or(ParsingError::DorisStationIdentification)?
-        .clone();
-
-    // parse first signals
-    let mut offset = 4;
-    loop {
-        let end = (offset + 14).min(line_len);
-
-        if line_len < end + 1 {}
-        if line_len < end + 2 {}
-
-        offset += 14;
-    }
-
-    Ok(())
-}
-
-fn parse_station_continuation(
-    line: &str,
-    signals: &mut Vec<SignalObservation>,
-) -> Result<(), ParsingError> {
-    let line_len = line.len();
-
-    // pare signals
     let mut offset = 0;
+    let line_len = line.len();
+
     loop {
-        let end = (offset + 14).min(line_len);
+        let mut m1 = Option::<u8>::None;
+        let mut m2 = Option::<u8>::None;
 
-        if line_len < end + 1 {}
-        if line_len < end + 2 {}
+        if offset + OBSERVABLE_WIDTH + 1 < line_len {
+            let slice = &line[offset + OBSERVABLE_WIDTH..offset + OBSERVABLE_WIDTH + 1];
+            println!("flag : \"{}\"", slice);
+            if let Ok(flag) = slice.trim().parse::<u8>() {
+                m1 = Some(flag);
+            }
+        }
 
-        offset += 14;
+        if offset + OBSERVABLE_WIDTH + 2 < line_len {
+            let slice = &line[offset + OBSERVABLE_WIDTH + 1..offset + OBSERVABLE_WIDTH + 2];
+            println!("flag : \"{}\"", slice);
+            if let Ok(flag) = slice.trim().parse::<u8>() {
+                m2 = Some(flag);
+            }
+        }
+
+        if offset + OBSERVABLE_WIDTH < line_len {
+            let slice = &line[offset..offset + OBSERVABLE_WIDTH];
+            println!("slice: \"{}\"", slice);
+            if let Ok(value) = slice.trim().parse::<f64>() {
+                let key = SignalKey {
+                    station: station.clone(),
+                    observable: observables[obs_ptr].clone(),
+                };
+
+                observations
+                    .signals
+                    .insert(key, SignalObservation { m1, m2, value });
+            }
+        }
+
+        offset += OBSERVABLE_WIDTH;
+        obs_ptr += 1;
+
+        if obs_ptr == numobs {
+            // abnormal content: abort and avoid overflowing
+            break;
+        }
     }
 
     Ok(())
@@ -75,19 +82,15 @@ pub fn parse_epoch(
     const CLOCK_SIZE: usize = 14;
     const MIN_EPOCH_SIZE: usize = EPOCH_SIZE + CLOCK_SIZE + 2;
 
-    let mut obs_idx = 0usize;
-    let mut epoch = Epoch::default();
+    let mut obs_ptr = 0;
     let flag = EpochFlag::default();
-
-    let key = DorisKey { epoch, flag };
 
     let null_clock = ClockObservation::default();
 
+    let mut station = Option::<Station>::None;
     let mut observations = Observations::default();
 
     let mut lines = content.lines();
-
-    let mut signals = Vec::with_capacity(8);
 
     let doris = header
         .doris
@@ -95,6 +98,8 @@ pub fn parse_epoch(
         .ok_or(ParsingError::MissingObservableDefinition)?;
 
     let observables = &doris.observables;
+    let numobs = observables.len();
+
     let stations = &doris.stations;
 
     // parse TAI timestamp
@@ -106,6 +111,8 @@ pub fn parse_epoch(
     }
 
     let epoch = parse_epoch_in_timescale(&line[2..2 + EPOCH_SIZE], TimeScale::TAI)?;
+
+    let key = DorisKey { epoch, flag };
 
     // parse clock field
     let offset_s = line[CLOCK_OFFSET..CLOCK_OFFSET + CLOCK_SIZE]
@@ -127,9 +134,29 @@ pub fn parse_epoch(
     // parse following stations
     for line in lines {
         if line.starts_with('D') {
-            parse_new_station(&line[1..], stations, &mut signals)?;
-        } else {
-            parse_station_continuation(line, &mut signals);
+            obs_ptr = 0;
+
+            // station number
+            let station_num = line[1..]
+                .trim()
+                .parse::<usize>()
+                .map_err(|_| ParsingError::DorisStationFormat)?;
+
+            // identify station
+            if let Some(s) = stations.get(station_num) {
+                station = Some(s.clone());
+            }
+        }
+
+        if let Some(station) = &station {
+            parse_observations(
+                &line[4..],
+                obs_ptr,
+                &station,
+                observables,
+                numobs,
+                &mut observations,
+            )?;
         }
     }
 
@@ -139,7 +166,7 @@ pub fn parse_epoch(
 #[cfg(test)]
 mod test {
     use super::is_new_epoch;
-    use std::str::FromStr;
+
     #[test]
     fn new_epoch() {
         for (desc, expected) in [

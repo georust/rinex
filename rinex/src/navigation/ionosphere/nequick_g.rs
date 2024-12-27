@@ -1,12 +1,11 @@
 use crate::{
-    carrier::Carrier,
     epoch::parse_in_timescale as parse_epoch_in_timescale,
     prelude::{Epoch, ParsingError, TimeScale},
 };
 
 use bitflags::bitflags;
 
-use std::{f64::consts::PI, str::FromStr};
+use std::str::FromStr;
 
 bitflags! {
     #[derive(Debug, Default, Clone, Copy)]
@@ -74,6 +73,8 @@ impl NgModel {
 
 #[cfg(test)]
 mod test {
+    use crate::navigation::IonosphereModel;
+
     use super::*;
 
     #[test]
@@ -100,14 +101,14 @@ mod test {
 
     #[test]
     fn rinex3_ng_header_parsing() {
-        let ng = IonMessage::from_rinex3_header(
+        let ng = IonosphereModel::from_rinex3_header(
             "GAL    6.6250e+01 -1.6406e-01 -2.4719e-03  0.0000e+00       ",
         );
         assert!(ng.is_ok(), "failed to parse GAL iono correction header");
         let ng = ng.unwrap();
         assert_eq!(
             ng,
-            IonMessage::NequickGModel(NgModel {
+            IonosphereModel::NequickG(NgModel {
                 a: (6.6250e+01, -1.6406e-01, -2.4719e-03),
                 region: NgRegionFlags::empty(),
             })

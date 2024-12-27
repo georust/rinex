@@ -1,12 +1,9 @@
 use crate::{
-    carrier::Carrier,
     epoch::parse_in_timescale as parse_epoch_in_timescale,
     prelude::{Epoch, ParsingError, TimeScale},
 };
 
-use bitflags::bitflags;
-
-use std::{f64::consts::PI, str::FromStr};
+use std::str::FromStr;
 
 /// BDGIM Model payload
 #[derive(Debug, Copy, Clone, Default, PartialEq, PartialOrd)]

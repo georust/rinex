@@ -263,7 +263,6 @@ mod test {
       .200000000000e+01  .000000000000e+00 -.599999994133e-09 -.900000000000e-08
       .432000000000e+06  .000000000000e+00 0.000000000000e+00 0.000000000000e+00";
 
-        let version = Version::new(3, 0);
         let (key, frame) = parse_epoch(&header, content).unwrap();
 
         assert_eq!(key.sv.prn, 5);

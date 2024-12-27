@@ -1,12 +1,6 @@
-use crate::{
-    carrier::Carrier,
-    epoch::parse_in_timescale as parse_epoch_in_timescale,
-    prelude::{Epoch, ParsingError, TimeScale},
-};
+use crate::prelude::ParsingError;
 
-use bitflags::bitflags;
-
-use std::{f64::consts::PI, str::FromStr};
+use std::str::FromStr;
 
 mod bdgim;
 mod klobuchar;
@@ -194,7 +188,7 @@ mod test {
     use super::*;
     #[test]
     fn rinex3_ng_header_parsing() {
-        /// RINEx3 Nequick-G header
+        // v3 Nequick-G header
         let ng = IonosphereModel::from_rinex3_header(
             "GAL    6.6250e+01 -1.6406e-01 -2.4719e-03  0.0000e+00       ",
         );
@@ -203,7 +197,7 @@ mod test {
         let ng = ng.unwrap();
         assert_eq!(
             ng,
-            IonosphereModel::NequickGModel(NgModel {
+            IonosphereModel::NequickG(NgModel {
                 a: (6.6250e+01, -1.6406e-01, -2.4719e-03),
                 region: NgRegionFlags::empty(),
             })
@@ -212,7 +206,7 @@ mod test {
 
     #[test]
     fn rinex3_kb_header_parsing() {
-        /// RINex3 Kb header
+        // v3 Kb header
         let kb = IonosphereModel::from_rinex3_header(
             "GPSA   7.4506e-09 -1.4901e-08 -5.9605e-08  1.1921e-07       ",
         );
@@ -220,7 +214,7 @@ mod test {
 
         assert_eq!(
             kb,
-            IonosphereModel::KlobucharModel(KbModel {
+            IonosphereModel::Klobuchar(KbModel {
                 alpha: (7.4506E-9, -1.4901E-8, -5.9605E-8, 1.1921E-7),
                 beta: (0.0, 0.0, 0.0, 0.0),
                 region: KbRegionCode::WideArea,
@@ -234,7 +228,7 @@ mod test {
         let kb = kb.unwrap();
         assert_eq!(
             kb,
-            IonosphereModel::KlobucharModel(KbModel {
+            IonosphereModel::Klobuchar(KbModel {
                 alpha: (0.0, 0.0, 0.0, 0.0),
                 beta: (9.0112E4, -6.5536E4, -1.3107E5, 4.5875E5),
                 region: KbRegionCode::WideArea,
