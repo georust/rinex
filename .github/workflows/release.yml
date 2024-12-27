@@ -18,6 +18,7 @@ jobs:
       matrix:
         include:
           - crate: rinex-qc-traits
+          - crate: binex 
           - crate: rinex
           - crate: sp3
           - crate: sinex
@@ -26,6 +27,8 @@ jobs:
           - crate: ublox-rnx
           - crate: rnx2crx
           - crate: crx2rnx
+          - crate: bin2rnx
+          - crate: rnx2bin
           - crate: rinex-cli
     steps:
       - name: Checkout
@@ -97,21 +100,29 @@ jobs:
           -p rinex-cli \
           -p rnx2crx \
           -p crx2rnx \
+          -p rnx2bin \
+          -p bin2rnx \
           -p ublox-rnx
         ls -lah target/${{ matrix.target }}/release
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           crx2rnx="target/${{ matrix.target }}/release/crx2rnx.exe"
           rnx2crx="target/${{ matrix.target }}/release/rnx2crx.exe"
+          rnx2bin="target/${{ matrix.target }}/release/rnx2bin.exe"
+          bin2rnx="target/${{ matrix.target }}/release/bin2rnx.exe"
           rinexcli="target/${{ matrix.target }}/release/rinex-cli.exe"
           ubloxrnx="target/${{ matrix.target }}/release/ublox-rnx.exe"
         else
           crx2rnx="target/${{ matrix.target }}/release/crx2rnx"
           rnx2crx="target/${{ matrix.target }}/release/rnx2crx"
+          rnx2bin="target/${{ matrix.target }}/release/rnx2bin"
+          bin2rnx="target/${{ matrix.target }}/release/bin2rnx"
           rinexcli="target/${{ matrix.target }}/release/rinex-cli"
           ubloxrnx="target/${{ matrix.target }}/release/ublox-rnx"
         fi
         echo "CRX2RNX=$crx2rnx" >> $GITHUB_ENV
-        echo "RNX2CRX=$crx2rnx" >> $GITHUB_ENV
+        echo "RNX2CRX=$rnx2crx" >> $GITHUB_ENV
+        echo "RNX2BIN=$rnx2bin" >> $GITHUB_ENV
+        echo "BIN2RNX=$bin2rnx" >> $GITHUB_ENV
         echo "RNXCLI=$rinexcli" >> $GITHUB_ENV
         echo "UBX2RNX=$ubloxrnx" >> $GITHUB_ENV
 
@@ -127,6 +138,8 @@ jobs:
         cp {README.md,LICENSE-MIT,LICENSE-APACHE} "$ARCHIVE"/
         cp "$CRX2RNX" "$ARCHIVE"/
         cp "$RNX2CRX" "$ARCHIVE"/
+        cp "$RNX2BIN" "$ARCHIVE"/
+        cp "$BIN2RNX" "$ARCHIVE"/
         cp "$RNXCLI" "$ARCHIVE"/
         cp "$UBX2RNX" "$ARCHIVE"/
 
