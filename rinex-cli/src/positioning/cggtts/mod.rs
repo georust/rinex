@@ -439,10 +439,9 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
             && (next_release_duration > Duration::ZERO);
         trk_midpoint = Some(next_cv_start_time.unwrap() - trk_duration / 2);
         info!(
-            "{:?} - {} until next cv period {}",
+            "{:?} - {} until next cv period",
             t,
-            next_tracking_start_time.unwrap() - *t,
-            next_cv_start_time.unwrap() - *t
+            next_cv_start_time.unwrap() - *t,
         );
 
         // skip the prepare duration
