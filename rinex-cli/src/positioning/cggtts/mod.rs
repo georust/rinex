@@ -437,7 +437,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
         let next_release_duration = next_cv_start_time.unwrap() - *t;
         should_release = (next_release_duration <= dominant_sampling_period)
             && (next_release_duration > Duration::ZERO);
-        trk_midpoint = Some(next_tracking_start_time.unwrap() - trk_duration / 2);
+        trk_midpoint = Some(next_cv_start_time.unwrap() - trk_duration / 2);
         info!(
             "{:?} - {} until next cv period {}",
             t,
