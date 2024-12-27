@@ -1,10 +1,29 @@
-RINex / GNSS QC
+RINEx / GNSS QC
 ===============
 
-The QC library is GNSS post processing core library.  
+The `Qc` library, standing for Quality Control, is a GNSS post processing core library.  
 It is capable of answering the demanding tasks of precise navigation,
-in just a few lines of code. It currently supports both RINex and optionnally SP3,
-but other format may be introduced in the future.
+and other similar GNSS post processing tasks.
+
+## Supported File formats
+
+The `Qc` library currently manages many formats, and more may be introduced
+in the future.
+
+The following RINEx formats are supported:
+
+- Observation RINEx
+- Navigation RINEx
+- Meteo RINEx
+- IONEx
+
+Other supported formats:
+
+- SP3
+
+The library does not support the following format (as of today):
+
+- DORIS RINEx
 
 ## Workspace
 
@@ -177,7 +196,6 @@ let kml = ctx.kml_track_solutions()
 // Collect tracks a GPX
 let gpx = ctx.gpx_track_solutions()
     .unwrap();
-
 ```
 
 ## CGGTTS tracker and solutions solver
