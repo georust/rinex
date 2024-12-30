@@ -1130,9 +1130,22 @@ fn nav_v4_kms300dnk_r2022() {
     // test STO frames
     let mut tests_passed = 0;
 
-    for (k, system_time) in dut.nav_system_time_frames_iter() {}
+    let g26 = SV::from_str("G26").unwrap();
 
-    assert_eq!(tests_passed, 0);
+    for (k, system_time) in dut.nav_system_time_frames_iter() {
+        if k.sv == g26 {
+            assert_eq!(k.msgtype, NavMessageType::LNAV);
+            assert_eq!(system_time.system, "GPUT");
+            assert_eq!(system_time.utc, "UTC(USNO)");
+            assert_eq!(system_time.t_tm, 0);
+            assert_eq!(
+                system_time.a,
+                (2.952840000000E+05, 9.313225746155E-10, 2.664535259100E-15)
+            );
+        }
+    }
+
+    assert_eq!(tests_passed, 1);
 }
 
 //     for (_epoch, (msg, sv, _ephemeris)) in rinex.ephemeris() {

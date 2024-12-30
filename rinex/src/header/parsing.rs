@@ -466,18 +466,30 @@ impl Header {
             } else if marker.contains("WAVELENGTH FACT L1/2") {
                 //TODO
             } else if marker.contains("APPROX POSITION XYZ") {
-                // station base coordinates
-                let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                let x_ecef_m = items[0].trim();
-                let x_ecef_m = f64::from_str(x_ecef_m).or(Err(ParsingError::Coordinates))?;
+                let mut num_items = 0;
+                let (mut x_ecef_m, mut y_ecef_m, mut z_ecef_m) = (0.0_f64, 0.0_f64, 0.0_f64);
 
-                let y_ecef_m = items[1].trim();
-                let y_ecef_m = f64::from_str(y_ecef_m).or(Err(ParsingError::Coordinates))?;
+                for (nth, item) in content.split_ascii_whitespace().enumerate() {
+                    if let Ok(ecef_m) = item.trim().parse::<f64>() {
+                        match nth {
+                            0 => {
+                                x_ecef_m = ecef_m;
+                            },
+                            1 => {
+                                y_ecef_m = ecef_m;
+                            },
+                            2 => {
+                                num_items = 3;
+                                z_ecef_m = ecef_m;
+                            },
+                            _ => {},
+                        }
+                    }
+                }
 
-                let z_ecef_m = items[2].trim();
-                let z_ecef_m = f64::from_str(z_ecef_m).or(Err(ParsingError::Coordinates))?;
-
-                rx_position = Some((x_ecef_m, y_ecef_m, z_ecef_m));
+                if num_items == 3 {
+                    rx_position = Some((x_ecef_m, y_ecef_m, z_ecef_m));
+                }
             } else if marker.contains("ANT # / TYPE") {
                 let (sn, rem) = content.split_at(20);
                 let (model, _) = rem.split_at(20);
@@ -964,10 +976,17 @@ impl Header {
         let (ns, rem) = rem.split_at(8);
 
         // println!("Y \"{}\" M \"{}\" D \"{}\" HH \"{}\" MM \"{}\" SS \"{}\" NS \"{}\"", y, m, d, hh, mm, ss, ns); // DEBUG
-        let y = y
+        let mut y = y
             .trim()
             .parse::<u32>()
             .map_err(|_| ParsingError::DatetimeParsing)?;
+
+        // handle OLD RINEX problem
+        if y >= 79 && y <= 99 {
+            y += 1900;
+        } else if y < 79 {
+            y += 2000;
+        }
 
         let m = m
             .trim()
@@ -1137,5 +1156,22 @@ impl Header {
                 doris.observables.push(observable);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::{Epoch, Header};
+    use std::str::FromStr;
+
+    #[test]
+    fn parse_time_of_obs() {
+        let content = "  2021    12    21     0     0    0.0000000     GPS";
+        let parsed = Header::parse_time_of_obs(&content).unwrap();
+        assert_eq!(parsed, Epoch::from_str("2021-12-21T00:00:00 GPST").unwrap());
+
+        let content = "  1995    01    01    00    00   00.000000             ";
+        let parsed = Header::parse_time_of_obs(&content).unwrap();
+        assert_eq!(parsed, Epoch::from_str("1995-01-01T00:00:00 TAI").unwrap());
     }
 }
