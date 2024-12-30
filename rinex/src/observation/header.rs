@@ -47,21 +47,33 @@ impl HeaderFields {
     ) -> Result<(), FormattingError> {
         if let Some(t) = self.timeof_first_obs {
             let (y, m, d, hh, mm, ss, ns) = epoch_decomposition(t);
-            let nanos = 0;
             writeln!(
                 w,
                 "{:6} {:5} {:5} {:5} {:5} {:4}.{:07}     {:x}         TIME OF FIRST OBS",
-                y, m, d, hh, mm, ss, nanos, t.time_scale,
+                y,
+                m,
+                d,
+                hh,
+                mm,
+                ss,
+                ns / 100,
+                t.time_scale,
             )?;
         }
 
         if let Some(t) = self.timeof_last_obs {
             let (y, m, d, hh, mm, ss, ns) = epoch_decomposition(t);
-            let nanos = 0;
             writeln!(
                 w,
                 "{:6} {:5} {:5} {:5} {:5} {:4}.{:07}     {:x}         TIME OF LAST OBS",
-                y, m, d, hh, mm, ss, nanos, t.time_scale,
+                y,
+                m,
+                d,
+                hh,
+                mm,
+                ss,
+                ns / 100,
+                t.time_scale,
             )?;
         }
 

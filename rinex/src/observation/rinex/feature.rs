@@ -6,10 +6,7 @@ use crate::{
 
 use itertools::Itertools;
 
-use std::{
-    collections::{BTreeMap, HashMap},
-    ops::Mul,
-};
+use std::collections::{BTreeMap, HashMap};
 
 /// Supported signal [Combination]s
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]

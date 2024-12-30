@@ -46,7 +46,7 @@ impl<const M: usize> CompressorExpert<M> {
         header: &HeaderFields,
     ) -> Result<(), FormattingError> {
         for (k, v) in record.iter() {
-            let (y, m, d, hh, mm, ss, nanos) = epoch_decomposition(k.epoch);
+            let (y, m, d, hh, mm, ss, ns) = epoch_decomposition(k.epoch);
 
             // form unique SV list
             let svnn = v
@@ -59,13 +59,14 @@ impl<const M: usize> CompressorExpert<M> {
             self.epoch_buf.clear();
 
             self.epoch_buf = format!(
-                "{:04} {:02} {:02} {:04} {:04} {:04}.0000000  {}{:3}      ",
+                "{:04} {:02} {:02} {:04} {:04} {:04}.{:07} {}{:3}      ",
                 y,
                 m,
                 d,
                 hh,
                 mm,
                 ss,
+                ns / 100,
                 k.flag,
                 svnn.len(),
             );

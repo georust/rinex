@@ -300,6 +300,7 @@ impl Record {
                                 Err(e) => {
                                     error!("parsing: {}", e);
                                 },
+                                #[cfg(not(feature = "log"))]
                                 Err(_) => {},
                             }
 

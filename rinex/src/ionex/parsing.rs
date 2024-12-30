@@ -161,6 +161,8 @@ pub fn parse_rms_map(
     epoch: Epoch,
     record: &mut Record,
 ) -> Result<(), ParsingError> {
+    const NON_AVAILABLE_TEC_KEYWORD: &str = "9999";
+
     let lines = content.lines();
 
     let mut fixed_lat = 0.0_f64;
@@ -177,26 +179,43 @@ pub fn parse_rms_map(
             } else if marker.contains("EXPONENT") {
                 // should not have been presented (handled @ higher level)
                 continue; // avoid parsing
+            } else if marker.contains("START OF") {
+                continue; // avoid parsing
+            } else if marker.contains("LAT/LON1/LON2/DLON/H") {
+                // gric specs (to follow)
+                (fixed_lat, long1, long_spacing, fixed_alt) = parse_grid_specs(content)?;
+
+                // determine quantization parameters
+                long = long1;
+                continue; // avoid parsing
+            } else if marker.contains("END OF RMS MAP") {
+                // block conclusion
+                // don't care about block #id actually
+                return Ok(());
             }
         }
 
         // proceed to parsing
         for item in line.split_ascii_whitespace() {
-            if let Ok(tec) = item.trim().parse::<i64>() {
-                let quantized_lat = Quantized::new(fixed_lat, lat_exponent);
-                let quantized_long = Quantized::new(long, long_exponent);
-                let quantized_alt = Quantized::new(fixed_alt, alt_exponent);
+            let item = item.trim();
 
-                let coordinates = QuantizedCoordinates::from_quantized(
-                    quantized_lat,
-                    quantized_long,
-                    quantized_alt,
-                );
+            if item != NON_AVAILABLE_TEC_KEYWORD {
+                if let Ok(rms_tecu) = item.parse::<i64>() {
+                    let quantized_lat = Quantized::new(fixed_lat, lat_exponent);
+                    let quantized_long = Quantized::new(long, long_exponent);
+                    let quantized_alt = Quantized::new(fixed_alt, alt_exponent);
 
-                // we only augment previously parsed TEC values
-                let key = IonexKey { epoch, coordinates };
-                if let Some(v) = record.get_mut(&key) {
-                    v.set_quantized_rms(tec, tec_exponent);
+                    let coordinates = QuantizedCoordinates::from_quantized(
+                        quantized_lat,
+                        quantized_long,
+                        quantized_alt,
+                    );
+
+                    // we only augment previously parsed TEC values
+                    let key = IonexKey { epoch, coordinates };
+                    if let Some(v) = record.get_mut(&key) {
+                        v.set_quantized_rms(rms_tecu, tec_exponent);
+                    }
                 }
             }
         }

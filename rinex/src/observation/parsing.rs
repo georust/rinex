@@ -15,8 +15,8 @@ use std::{
 // TODO: see if we can get rid of num_integer
 use num_integer::div_ceil;
 
-#[cfg(feature = "log")]
-use log::{debug, error};
+// #[cfg(feature = "log")]
+// use log::{debug, error};
 
 /// Returns true if provided content matches the start of a new Observation Epoch
 pub fn is_new_epoch(line: &str, v: Version) -> bool {
@@ -516,7 +516,7 @@ fn parse_signals_v3(
                     Ok(unsigned) => {
                         lli = LliFlags::from_bits(unsigned);
                     },
-                    Err(e) => {
+                    Err(_e) => {
                         //#[cfg(feature = "log")]
                         //error!("lli: {}", e);
                     },
