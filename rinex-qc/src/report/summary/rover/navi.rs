@@ -188,14 +188,20 @@ impl Render for QcNaviSummary {
                                 // constellation pages
                                 @ for (nth, (constellation, navi_sum)) in self.constellations_navi.iter().enumerate() {
                                     @ if nth == 0 {
-                                        tr {
-                                            td class="qc-navi-sum-selected" id=(constellation.to_string()) style="display:block" {
+                                        tr class="qc-navi-sum-selected" id=(constellation.to_string()) style="display:block" {
+                                            td {
+                                                (format!("{} compliancy", constellation))
+                                            }
+                                            td {
                                                 (navi_sum.render())
                                             }
                                         }
                                     } @ else {
-                                        tr {
-                                            td class="qc-navi-sum-selected" id=(constellation.to_string()) style="display:none" {
+                                        tr class="qc-navi-sum-selected" id=(constellation.to_string()) style="display:none" {
+                                            td {
+                                                (format!("{} compliancy", constellation))
+                                            }
+                                            td {
                                                 (navi_sum.render())
                                             }
                                         }
