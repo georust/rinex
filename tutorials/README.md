@@ -12,6 +12,13 @@ The [Qc (Quality Control)](./QC) reports and most broadly, _geodetic report_
 is heavily documented and probably the most important feature
 of our toolbox: 
 
+## Filter designer
+
+The [Filter Designer](./Filter) is critical when operating the toolbox.
+It is for example the only solution to focus on some particular signals
+or constellations. It is vital you learn how to operate it, especially
+for PPP navigation.
+
 ## File operations
 
 The toolbox can perform several file operations.
