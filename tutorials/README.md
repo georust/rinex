@@ -6,6 +6,12 @@ The tutorials serie will try to illustrate all options offered by the toolbox.
 Prior running our examples, you are expected 
 [to read how the two Wiki pages](https://github.com/georust/wiki)
 
+## Geodetic reports
+
+The [Qc (Quality Control)](./QC) reports and most broadly, _geodetic report_ 
+is heavily documented and probably the most important feature
+of our toolbox: 
+
 ## File operations
 
 The toolbox can perform several file operations.
@@ -27,3 +33,9 @@ of navigation.
 ## CGGTTS
 
 The [CGGTTS](./CGGTTS) section focuses on the post processed _timing oriented_ navigation solution.
+
+## Other
+
+When operating the toolbox, it might be very useful, sometimes vital, to use the debug traces
+and understand what they mean. [This page](./Logs.md) teaches how to unlock the debug traces
+and their meaning.
