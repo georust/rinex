@@ -5,30 +5,22 @@ use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 // mod shared;
 
 mod obs;
+use obs::QcObservationsReport;
+
+mod nav;
+use nav::QcBrdcNavigationReport;
+
 mod summary;
+
+#[cfg(feature = "sp3")]
+mod sp3;
+
+#[cfg(feature = "sp3")]
+use sp3::QcHighPrecisionNavigationReports;
 
 pub(crate) mod shared;
 
 use crate::{cfg::QcReportType, context::QcContext, report::summary::QcSummary};
-
-// mod rinex;
-// use rinex::RINEXReport;
-
-// mod orbit;
-// use orbit::OrbitReport;
-
-// mod iono;
-// use iono::IonoReport;
-
-// #[cfg(feature = "sp3")]
-// mod sp3;
-
-// preprocessed navi
-// mod navi;
-// use navi::QcNavi;
-
-// #[cfg(feature = "sp3")]
-// use sp3::SP3Report;
 
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
@@ -44,10 +36,12 @@ pub struct QcExtraPage {
 pub struct QcReport {
     /// Summary report (always present)
     summary: QcSummary,
-    // /// Custom chapters (user created)
-    // custom_chapters: Vec<QcExtraPage>,
-    // /// One page per Observations
-    // observations: Option<QcObservationsReport>,
+    /// Observations report
+    observations: Option<QcObservationsReport>,
+    /// BRDC Navigation report
+    brdc_nav: Option<QcBrdcNavigationReport>,
+    /// SP3 high precision report
+    sp3_nav: Option<QcHighPrecisionNavigationReports>,
 }
 
 impl QcReport {
@@ -59,6 +53,22 @@ impl QcReport {
         } else {
             Self {
                 summary: QcSummary::new(ctx),
+                observations: if ctx.has_observations() {
+                    Some(QcObservationsReport::new(ctx))
+                } else {
+                    None
+                },
+                brdc_nav: if ctx.has_navigation_data() {
+                    None
+                } else {
+                    None
+                },
+                #[cfg(feature = "sp3")]
+                sp3_nav: if ctx.has_precise_orbits() {
+                    Some(QcHighPrecisionNavigationReports::new(ctx))
+                } else {
+                    None
+                },
             }
         }
     }
@@ -66,7 +76,13 @@ impl QcReport {
     /// Generates a summary only report
     pub fn summary_only(ctx: &QcContext) -> Self {
         let summary = QcSummary::new(&ctx);
-        Self { summary }
+        Self {
+            summary,
+            observations: None,
+            brdc_nav: None,
+            #[cfg(feature = "sp3")]
+            sp3_nav: None,
+        }
     }
 
     // /// Add a custom chapter to the report
@@ -79,34 +95,43 @@ impl QcReport {
         html! {
             aside class="menu" {
                 p class="menu-label" {
-                    (format!("RINEX-Qc v{}", env!("CARGO_PKG_VERSION")))
+                    (format!("RINEx-Qc v{}", env!("CARGO_PKG_VERSION")))
                 }
                 ul class="menu-list" {
                     li {
-                        a id="qc-summary" class="qc-sidemenu" {
+                        a id="qc-summary" class="qc-sidemenu" onclick="onQcSummaryClicks()" {
                             span class="icon" {
                                 i class="fa fa-home" {}
                             }
                             "Summary"
                         }
-                        ul class="menu-list" {
-                            li {
-                                a id="qc-compliancy" class="qc-sidemenu" {
-                                    "Compliancy"
+                    }
+                    @ if self.observations.is_some() {
+                        li {
+                            a id="qc-observations" class="qc-sidemenu" onclick="onQcObservationsClicks()" {
+                                span class="icon" {
+                                    i class="fa-solid fa-tower-broadcast" {}
                                 }
+                                "Observations"
                             }
                         }
                     }
-                    // @ if let Some(observations) = &self.observations {
-                    //     li {
-                    //         a id="qc-observations" class="qc-sidemenu" {
-                    //             span class="icon" {
-                    //                 i class="fa-solid fa-tower-broadcast" {}
-                    //             }
-                    //             "Observations"
-                    //         }
-                    //     }
-                    // }
+                    @ if self.brdc_nav.is_some() {
+                        a id="qc-navigation" class="qc-sidemenu" onclick="onQcNavigationClicks()" {
+                            span class="icon" {
+                                i class="fa-solid fa-satellite-dish" {}
+                            }
+                            "Broadcast Navigation (BRDC)"
+                        }
+                    }
+                    @ if self.sp3_nav.is_some() {
+                        a id="qc-navigation" class="qc-sidemenu" onclick="onQcHighPrecisionOrbitsClicks()" {
+                            span class="icon" {
+                                i class="fa-solid fa-satellite-dish" {}
+                            }
+                            "High Precision Orbits (Sp3)"
+                        }
+                    }
                     p class="menu-label" {
                         a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {
                             "Wiki"
@@ -170,6 +195,13 @@ impl Render for QcReport {
                                 div class="section" id="qc-summary" style="display:block" {
                                     div class="container is-main" {
                                         (self.summary.render())
+                                    }
+                                }
+                                @ if let Some(obs) = &self.observations {
+                                    div class="section" id="qc-observations" style="display:none" {
+                                        div class="container is-main" {
+                                            (obs.render())
+                                        }
                                     }
                                 }
                             }//class=hero

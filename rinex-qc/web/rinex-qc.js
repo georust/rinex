@@ -47,14 +47,13 @@ function getQcSummaryHero() {
 }
 
 function getQcObservationsHero() {
-    return getHeroContentById("qc-obs");
+    return getHeroContentById("qc-observations");
 }
 
 function showQcSummary() {
     console.log("show: qc-summary");
     let hero = getQcSummaryHero();
     hero.style.display = 'block';
-    hideQcObservations();
 }
 
 function hideQcSummary() {
@@ -63,33 +62,48 @@ function hideQcSummary() {
     hero.style.display = 'none';
 }
 
+
 function showQcObservations() {
-    console.log("show: qc-obs");
+    var hero = getQcSummaryHero();
+    hero.display.style = 'none';
 
-    // unlock this section and its summary
-    showContentByDocumentId("qc-obs");
-    showContentByDocumentId("qc-obs-summary");
-
-    // hide other sections
-    hideQcSummary();
-}
-
-function hideQcObservations() {
-    console.log("show: qc-obs");
-    showContentByDocumentId("qc-obs");
-}
-
-function showQcSelectedGnssRx(rx) {
-    console.log("showing: " +rx);
-    var gnss_receivers = document.getElementsByClassName("qc-obs-receiver");
-    for (var gnss_rx of gnss_receivers) {
-        if (gnss_rx.id == rx) {
-            gnss_rx.style.display = 'block';
-        } else {
-            gnss_rx.style.display = 'none';
-        }
+    var hero = getQcObservationsHero();
+    if (hero != null) {
+        hero.display.style = 'block';
     }
 }
+
+function onQcSummaryClicks() {
+    var hero = getQcSummaryHero();
+    hero.style = 'block';
+
+    var hero = getQcObservationsHero();
+    if (hero != null) {
+        hero.style = 'none';
+    }
+}
+
+function onQcObservationsClicks() {
+    var hero = getQcSummaryHero();
+    hero.style = 'none';
+
+    var hero = getQcObservationsHero();
+    if (hero != null) {
+        hero.style = 'block';
+    }
+}
+
+// function showQcSelectedGnssRx(rx) {
+//     console.log("showing: " +rx);
+//     var gnss_receivers = document.getElementsByClassName("qc-obs-receiver");
+//     for (var gnss_rx of gnss_receivers) {
+//         if (gnss_rx.id == rx) {
+//             gnss_rx.style.display = 'block';
+//         } else {
+//             gnss_rx.style.display = 'none';
+//         }
+//     }
+// }
 
 function onQcNaviSummaryConstellationChanges(changes) {
     console.log("YES changes: " + changes.target.value);
@@ -114,21 +128,20 @@ function buildPageListeners() {
                     fields.style.display = "none";
                 }
             }
-
         }
     }
     
-    // builds page dependent listeners
-    // 1. obs-receivers content display (if any)
-    var receivers = document.getElementById("qc-obs-receivers");
-    if (receivers != null) {
-        receivers.onchange = function(changes) {
-            var selected_gnss_rx = changes.target.value;
-            console.log("selected receiver: " + selected_gnss_rx);
-            showQcSelectedGnssRx(selected_gnss_rx);
+    // qc-sidemenu listeners
+    let qc_side_menu = document.getElementsByClassName("qc-sidemenu");
+    for (item of qc_side_menu) {
+        var item_id = item.id;
+        console.log("qc-sidemenu item: " + item_id);
+
+        if (item_id == "qc-observations") {
+            item.e
+            item.onchange = function(changes) {
+                console.log(changes.target.value);
+            };
         }
     }
-
-    // for each qc-obs-receivers: create the constellation pagination listener
-    // for each qc-obs-constellations: create the signal pagination listener;
 }

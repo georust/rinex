@@ -292,11 +292,11 @@ impl std::fmt::Debug for QcContext {
     /// Debug formatting, prints all loaded files per Product category.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (k, _) in &self.obs_dataset {
-            write!(f, "Observation RINex: {}", k.name)?;
+            write!(f, "Observation RINEx: {}", k.name)?;
         }
 
         for (k, _) in &self.meteo_dataset {
-            write!(f, "Meteo RINex: {}", k.name)?;
+            write!(f, "Meteo RINEx: {}", k.name)?;
         }
 
         #[cfg(feature = "sp3")]

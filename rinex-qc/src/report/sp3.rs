@@ -5,17 +5,20 @@ use std::collections::HashMap;
 
 use sp3::prelude::{Constellation, SP3, SV};
 
-use crate::report::shared::SamplingReport;
+use crate::{
+    context::QcContext,
+    report::shared::SamplingReport,
+};
 
-pub struct SP3Page {
-    has_clock: bool,
+pub struct QcHighPrecisionPage {
     has_velocity: bool,
+    has_clock: bool,
     has_clock_drift: bool,
     satellites: Vec<SV>,
     sampling: SamplingReport,
 }
 
-impl Render for SP3Page {
+impl Render for QcHighPrecisionPage {
     fn render(&self) -> Markup {
         html! {
             div class="table-container" {
@@ -30,7 +33,15 @@ impl Render for SP3Page {
                             "Velocity"
                         }
                         td {
-                            (self.has_velocity.to_string())
+                            @ if self.has_velocity {
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
+                                }
+                            } @ else {
+                                span class="icon" style="color:red" {
+                                    i class="fa-solid fa-circle-xmark" {}
+                                }
+                            }
                         }
                     }
                     tr {
@@ -38,7 +49,15 @@ impl Render for SP3Page {
                             "Clock offset"
                         }
                         td {
-                            (self.has_clock.to_string())
+                            @ if self.has_clock {
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
+                                }
+                            } @ else {
+                                span class="icon" style="color:red" {
+                                    i class="fa-solid fa-circle-xmark" {}
+                                }
+                            }
                         }
                     }
                     tr {
@@ -46,7 +65,15 @@ impl Render for SP3Page {
                             "Clock drift"
                         }
                         td {
-                            (self.has_clock_drift.to_string())
+                            @ if self.has_clock_drift {
+                                span class="icon" style="color:green" {
+                                    i class="fa-solid fa-circle-check" {}
+                                }
+                            } @ else {
+                                span class="icon" style="color:red" {
+                                    i class="fa-solid fa-circle-xmark" {}
+                                }
+                            }
                         }
                     }
                     tr {
@@ -71,39 +98,27 @@ impl Render for SP3Page {
     }
 }
 
-pub struct SP3Report {
+pub struct QcHighPrecisionNavigationReport {
     pub agency: String,
     pub version: String,
-    pub coord_system: String,
-    pub orbit_fit: String,
+    pub coordinates_system: String,
+    pub fit_method: String,
     pub constellation: String,
     pub time_scale: String,
-    pub sampling: SamplingReport,
-    pub pages: HashMap<Constellation, SP3Page>,
+    pub pages: HashMap<Constellation, QcHighPrecisionPage>,
 }
 
-impl SP3Report {
-    pub fn html_inline_menu_bar(&self) -> Markup {
-        html! {
-            a id="menu:sp3" {
-                span class="icon" {
-                    i class="fa-solid fa-satellite" {}
-                }
-                (format!("High Precision Orbit (SP3{})", self.version))
-            }
-        }
-    }
+impl QcHighPrecisionNavigationReport {
     pub fn new(sp3: &SP3) -> Self {
         Self {
             agency: sp3.agency.clone(),
             version: sp3.version.to_string(),
-            coord_system: sp3.coord_system.clone(),
-            orbit_fit: sp3.orbit_type.to_string(),
+            fit_method: sp3.orbit_type.to_string(),
+            coordinates_system: sp3.coord_system.clone(),
             time_scale: sp3.time_scale.to_string(),
-            sampling: SamplingReport::from_sp3(sp3),
             constellation: sp3.constellation.to_string(),
             pages: {
-                let mut pages = HashMap::<Constellation, SP3Page>::new();
+                let mut pages = HashMap::new();
                 for constellation in sp3.constellation() {
                     let filter = Filter::mask(
                         MaskOperand::Equals,
@@ -114,7 +129,7 @@ impl SP3Report {
                     let satellites = focused.sv().collect::<Vec<_>>();
                     pages.insert(
                         constellation,
-                        SP3Page {
+                        QcHighPrecisionPage {
                             has_clock: focused.sv_clock().count() > 0,
                             sampling: SamplingReport::from_sp3(&focused),
                             has_velocity: focused.sv_velocities().count() > 0,
@@ -129,7 +144,7 @@ impl SP3Report {
     }
 }
 
-impl Render for SP3Report {
+impl Render for QcHighPrecisionNavigationReport {
     fn render(&self) -> Markup {
         html! {
             div class="table-container" {
@@ -137,7 +152,7 @@ impl Render for SP3Report {
                     tr {
                         th {
                             button aria-label="File revision" data-balloon-pos="right" {
-                                "File revision"
+                                "Revision"
                             }
                         }
                         td {
@@ -181,7 +196,7 @@ impl Render for SP3Report {
                             }
                         }
                         td {
-                            (self.coord_system.clone())
+                            (self.coordinates_system.clone())
                         }
                     }
                     tr {
@@ -191,15 +206,7 @@ impl Render for SP3Report {
                             }
                         }
                         td {
-                            (self.orbit_fit.clone())
-                        }
-                    }
-                    tr {
-                        th {
-                            "Sampling"
-                        }
-                        td {
-                            (self.sampling.render())
+                            (self.fit_method.clone())
                         }
                     }
                 }//table
@@ -220,6 +227,22 @@ impl Render for SP3Report {
                     }
                 }
             }
+        }
+    }
+}
+
+pub struct QcHighPrecisionNavigationReports {
+    pub pages: HashMap<String, QcHighPrecisionNavigationReport>,
+}
+
+impl QcHighPrecisionNavigationReports {
+    pub fn new(ctx: &QcContext) -> Self {
+        let mut pages = HashMap::new();
+        for (meta, sp3) in ctx.sp3_dataset.iter() {
+            pages.insert(meta.name.to_string(), QcHighPrecisionNavigationReport::new(sp3));
+        }
+        Self {
+            pages,
         }
     }
 }

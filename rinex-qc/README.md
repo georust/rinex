@@ -40,9 +40,9 @@ frame model. If Internet access is not feasible, it will rely on lower precision
 The `Qc` library uses the RUST Logger internally, it will most notably let you know
 how you could "enhance" your input data.
 
-## RINex input
+## RINEx input
 
-Stack any supported RINex to form a complex dataset very easily:
+Stack any supported RINEx to form a complex dataset very easily:
 
 ```rust
 use rinex_qc::prelude::*;
@@ -144,12 +144,12 @@ let cfg = QcConfig::default();
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINex
+// stack a RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINex
+// stack a BRDC RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -179,12 +179,12 @@ let cfg = QcConfig::default();
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINex
+// stack a RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINex
+// stack a BRDC RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -218,12 +218,12 @@ let cfg = QcConfig::default();
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINex
+// stack a RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINex
+// stack a BRDC RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -263,12 +263,12 @@ let cfg = QcConfig::default()
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINex
+// stack a RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINex
+// stack a BRDC RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -307,7 +307,7 @@ ctx.load_gzip_file(
     .unwrap();
 ```
 
-It is more common to prefer Clock RINex for that purpose. The `Qc` library
+It is more common to prefer Clock RINEx for that purpose. The `Qc` library
 allows that once again. Simply provide that file:
 
 ```rust
@@ -319,18 +319,18 @@ use rinex_qc::prelude::*;
 // interpretation.
 let cfg = QcConfig::default()
     .with_prefered_orbit(QcPreferedOrbit::SP3)
-    .with_prefered_clock(QcPreferedClock::RINex);
+    .with_prefered_clock(QcPreferedClock::RINEx);
 
 // deploy
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINex
+// stack a RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINex
+// stack a BRDC RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -340,7 +340,7 @@ ctx.load_gzip_file(
     "../test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
     .unwrap();
 
-// stack a Clock RINex
+// stack a Clock RINEx
 ctx.load_gzip_file(
     "../test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz")
     .unwrap();
@@ -377,18 +377,18 @@ use rinex_qc::prelude::*;
 // interpretation.
 let cfg = QcConfig::default()
     .with_prefered_orbit(QcPreferedOrbit::SP3)
-    .with_prefered_clock(QcPreferedClock::RINex);
+    .with_prefered_clock(QcPreferedClock::RINEx);
 
 // deploy
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINex
+// stack a RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINex
+// stack a BRDC RINEx
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -398,7 +398,7 @@ ctx.load_gzip_file(
     "../test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
     .unwrap();
 
-// stack a Clock RINex
+// stack a Clock RINEx
 ctx.load_gzip_file(
     "../test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz")
     .unwrap();
