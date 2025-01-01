@@ -32,10 +32,7 @@ pub mod prelude {
     pub use gnss_rtk::prelude::{Config as RTKConfig, Method as RTKMethod, PVTSolutionType};
 
     #[cfg(feature = "nav")]
-    pub use cggtts::{
-        prelude::Track as CggttsTrack,
-        track::BIPM_TRACKING_DURATION_SECONDS as BIPM_CGGTTS_TRACKING_DURATION_SECONDS,
-    };
+    pub use cggtts::prelude::Track as CggttsTrack;
 
     pub use maud::{html, Markup, Render};
     pub use qc_traits::{Filter, Merge, MergeError, Preprocessing, Repair, RepairTrait, Split};

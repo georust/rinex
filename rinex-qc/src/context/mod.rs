@@ -27,7 +27,10 @@ pub(crate) mod tropo;
 
 #[cfg(feature = "sp3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
-pub(crate) mod sp3;
+pub(crate) mod sp3_data;
+
+#[cfg(feature = "sp3")]
+use sp3::prelude::SP3;
 
 use crate::{
     cfg::{QcConfig, QcFrameModel},
@@ -184,6 +187,8 @@ impl QcContext {
             nav_dataset: Default::default(),
             meteo_dataset: Default::default(),
             ionex_dataset: Default::default(),
+            #[cfg(feature = "sp3")]
+            sp3_dataset: Default::default(),
         };
 
         s.deploy()?;
@@ -296,7 +301,7 @@ impl std::fmt::Debug for QcContext {
 
         #[cfg(feature = "sp3")]
         for (k, _) in &self.sp3_dataset {
-            if let Some(unique_id) = k.unique_id {
+            if let Some(unique_id) = &k.unique_id {
                 write!(f, "({}) SP3: {}", unique_id, k.name)?;
             } else {
                 write!(f, "SP3: {}", k.name)?;

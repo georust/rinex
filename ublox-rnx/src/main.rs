@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use rinex::{
     hardware::Receiver,
-    navigation::{IonMessage, KbModel, KbRegionCode},
+    navigation::{IonosphereModel, KbModel, KbRegionCode},
     observation::{ClockObservation, EpochFlag, LliFlags, SignalObservation},
     prelude::{Constellation, Duration, Epoch, Header, Observable, TimeScale, SV},
 };
@@ -311,7 +311,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                         beta: (pkt.beta0(), pkt.beta1(), pkt.beta2(), pkt.beta3()),
                         region: KbRegionCode::default(), // TODO,
                     };
-                    let _iono = IonMessage::KlobucharModel(kbmodel);
+                    let _iono = IonosphereModel::Klobuchar(kbmodel);
                 },
                 /*
                  * OBSERVATION: Receiver Clock
