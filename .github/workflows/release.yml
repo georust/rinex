@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   publish_crates:
-    name: Release Libraries
+    name: Publish Workspace
     runs-on: ubuntu-latest
     continue-on-error: true
     if: github.ref_type == 'tag'
@@ -89,7 +89,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libudev-dev
 
-    - name: Build applications
+    - name: Build Workspace
       shell: bash
       run: |
         CARGO_PROFILE_RELEASE_STRIP=symbols ${{ env.CARGO }} build \
