@@ -24,7 +24,7 @@ use rinex::prelude::{obs::SignalObservation, Carrier, Observable};
 
 use super::eph::EphemerisContext;
 
-use cggtts::{prelude::Track as CggttsTrack, track::Scheduler as CggttsScheduler};
+use cggtts::prelude::Track as CggttsTrack;
 
 use anise::math::Vector6;
 
@@ -35,8 +35,8 @@ pub struct NavCggttsSolver<'a> {
     solver: Solver,
     eph_ctx: RefCell<EphemerisContext<'a>>,
     observations: HashMap<RTKCarrier, Observation>,
-    /// Track scheduling table
-    scheduler: CggttsScheduler,
+    // /// Track scheduling table
+    // scheduler: CggttsScheduler,
     /// Epoch of next publication
     next_release: Epoch,
     /// Next track midpoint
@@ -281,19 +281,19 @@ impl QcContext {
             Solver::new_almanac_frame(&cfg, Some(rx_orbit), self.almanac.clone(), self.earth_cef);
 
         // Initialize the track scheduler
-        let scheduler = CggttsScheduler::new(tracking_duration);
-        let next_release = scheduler.next_track_start(t0);
-        let track_midpoint =
-            next_release - (3.0 * 60.0) * Unit::Second - (780.0 * Unit::Second) / 2.0;
+        // let scheduler = CggttsScheduler::new(tracking_duration);
+        // let next_release = scheduler.next_track_start(t0);
+        // let track_midpoint =
+        //    next_release - (3.0 * 60.0) * Unit::Second - (780.0 * Unit::Second) / 2.0;
 
-        info!("{}: {} until next track", t0, next_release - t0);
+        //info!("{}: {} until next track", t0, next_release - t0);
 
         Ok(NavCggttsSolver {
             solver,
             signal,
-            scheduler,
-            next_release,
-            track_midpoint,
+            // scheduler,
+            next_release: Default::default(),
+            track_midpoint: Default::default(),
             eph_ctx: RefCell::new(eph_ctx),
             observations: HashMap::with_capacity(8),
         })

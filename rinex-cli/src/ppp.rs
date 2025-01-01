@@ -4,7 +4,10 @@ use clap::ArgMatches;
 use rinex::prelude::Duration;
 
 use rinex_qc::prelude::{
-    PVTSolutionType, QcContext, RTKConfig, RTKMethod, BIPM_CGGTTS_TRACKING_DURATION_SECONDS,
+    PVTSolutionType,
+    QcContext,
+    RTKConfig,
+    RTKMethod, // BIPM_CGGTTS_TRACKING_DURATION_SECONDS,
 };
 
 /// ppp opmode
@@ -32,21 +35,21 @@ pub fn ppp(ctx: &QcContext, cli: &Cli, opts: &ArgMatches) {
 
 /// PPP with special --cggtts option
 pub fn ppp_cggtts(cfg: RTKConfig, ctx: &QcContext, cli: &Cli, opts: &ArgMatches) {
-    let tracking_dt = match opts.get_one::<Duration>("tracking") {
-        Some(dt) => {
-            info!("using custom tracking duration: {}", *dt);
-            *dt
-        },
-        None => {
-            let dt = Duration::from_seconds(BIPM_CGGTTS_TRACKING_DURATION_SECONDS.into());
-            info!("using BIPM tracking duration: {}", dt);
-            dt
-        },
-    };
+    //let tracking_dt = match opts.get_one::<Duration>("tracking") {
+    //    Some(dt) => {
+    //        info!("using custom tracking duration: {}", *dt);
+    //        *dt
+    //    },
+    //    None => {
+    //        let dt = Duration::from_seconds(BIPM_CGGTTS_TRACKING_DURATION_SECONDS.into());
+    //        info!("using BIPM tracking duration: {}", dt);
+    //        dt
+    //    },
+    //};
 
     for meta in ctx.observations_meta() {
         let mut solver = ctx
-            .nav_cggtts_solver(cfg.clone(), meta, None, tracking_dt)
+            .nav_cggtts_solver(cfg.clone(), meta, None, Default::default())
             .unwrap();
 
         while let Some(track) = solver.next() {
