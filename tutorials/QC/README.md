@@ -1,17 +1,14 @@
 QC tutorials
 ============
 
-`QC` stands for Quality Control and is the broad default option of `rinex-cli`,
-which will generate a geodetic report that summarizes everything the provided dataset contains.
+The default opmode of `rinex-cli` is Qc which standds for Quality Control
+and generates a complete geodetic report (in HTML) to summarize the data context,
+and most importantly help understand what can be achieved with it.
 
-When no options is passed to `rinex-cli`, we consider this is the selected mode
-and the program will render the report in HTML format. 
+When no opmode is selected in `rinex-cli`, we consider the Qc report is selected
+and a report will be rendered.
 
-- [Summary](./Summary) describes the most basic Qc report one can synthesize.
-- [Observation](./Observation) describes the Qc reporting behavior when
-Observation RINEx is present, and also available options in that scenario
-- [Navigation](./Navigation) same thing for Navigation RINEx
-- [SP3](./SP3) same thing when at least one SP3 file exist in the context
-- [IONEX](./IONEX) describes the Qc reporting behavior and available options
-when at least one IONEx file was provided to the context
-- [Clock](./Clock) same thing for special Clock RINEx files
+The following pages describe all sections of the geodetic report:
+
+- [QC-summary](./summary) to get started. Focuses on the
+report introduction and qc-sum option.
