@@ -15,6 +15,7 @@ pub struct TecPoint<'a> {
     pub alt_km: f64,
     pub alt_exponent: i8,
     pub tecu: f64,
+    pub rms: Option<f64>,
 }
 
 /// Basic tests for Observation [Rinex]

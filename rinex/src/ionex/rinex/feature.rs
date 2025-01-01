@@ -107,7 +107,7 @@ impl Rinex {
     /// ```
     /// example
     /// ```
-    pub fn ionex_tec_maps_altitude_range_km(&self) -> Option<(f64, f64)> {
+    pub fn ionex_altitude_range_km(&self) -> Option<(f64, f64)> {
         if self.is_ionex_3d() {
             let header = self.header.ionex.as_ref()?;
             Some((header.grid.height.start, header.grid.height.end))

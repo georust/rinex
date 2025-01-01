@@ -52,6 +52,7 @@ fn v1_ckmg0020_22i() {
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
                 tecu: 9.2,
+                rms: None,
             },
             TecPoint {
                 t: "2022-01-02T00:00:00 UTC",
@@ -62,6 +63,7 @@ fn v1_ckmg0020_22i() {
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
                 tecu: 38.3,
+                rms: None,
             },
             TecPoint {
                 t: "2022-01-02T00:00:00 UTC",
@@ -72,6 +74,7 @@ fn v1_ckmg0020_22i() {
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
                 tecu: 38.5,
+                rms: None,
             },
             TecPoint {
                 t: "2022-01-02T00:00:00 UTC",
@@ -82,6 +85,7 @@ fn v1_ckmg0020_22i() {
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
                 tecu: 38.5,
+                rms: None,
             },
             TecPoint {
                 t: "2022-01-02T00:00:00 UTC",
@@ -92,6 +96,7 @@ fn v1_ckmg0020_22i() {
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
                 tecu: 38.4,
+                rms: None,
             },
             TecPoint {
                 t: "2022-01-02T00:00:00 UTC",
@@ -102,6 +107,7 @@ fn v1_ckmg0020_22i() {
                 alt_km: 350.0,
                 alt_exponent: 0, // null spacing
                 tecu: 21.6,
+                rms: None,
             },
         ],
     );
@@ -187,6 +193,38 @@ fn v1_jplg0010_17i() {
         10.0,
         None,
         TimeFrame::from_inclusive_csv("2017-01-01T00:00:00 UTC, 2017-01-01T23:00:00 UTC, 2 hour"),
-        vec![],
+        vec![
+            TecPoint {
+                t: "2017-01-01T00:00:00 UTC",
+                lat_ddeg: 87.5,
+                lat_exponent: -1,
+                long_ddeg: -180.0,
+                long_exponent: -1,
+                alt_km: 450.0,
+                alt_exponent: 0, // null spacing
+                tecu: 3.3,
+                rms: Some(2.4),
+            },
+            TecPoint {
+                t: "2017-01-01T00:00:00 UTC",
+                lat_ddeg: 87.5,
+                lat_exponent: -1,
+                long_ddeg: -170.0,
+                long_exponent: -1,
+                alt_km: 450.0,
+                alt_exponent: 0, // null spacing
+                tecu: 3.2,
+                rms: Some(2.4),
+            },
+        ],
     );
+
+    // verify iso altitude
+    assert!(dut.is_ionex_2d());
+    assert_eq!(dut.ionex_fixed_altitude_km(), Some(450.0));
+    assert_eq!(dut.ionex_altitude_range_km(), Some((450.0, 450.0)));
+
+    for (k, _) in dut.ionex_tec_maps_iter() {
+        assert_eq!(k.coordinates.altitude_km(), 450.0);
+    }
 }
