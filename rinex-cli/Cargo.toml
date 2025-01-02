@@ -50,9 +50,9 @@ gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = 
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
 gnss-rtk = { git = "https://github.com/rtk-rs/gnss-rtk", branch = "main", features = ["serde"] }
 
-# cggtts = { version = "4.1.6", features = ["serde", "scheduler"], optional = true }
+cggtts = { version = "4.1.6", features = ["serde", "scheduler"], optional = true }
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"], optional = true }
-cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = ["serde", "scheduler"], optional = true }
+# cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = ["serde", "scheduler"], optional = true }
 
 rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["full"] }
 sp3 = { path = "../sp3", version = "=1.1.0-alpha-1", features = ["serde", "flate2"] }
