@@ -24,7 +24,7 @@ md-5 = "0.10"
 thiserror = "1"
 lazy_static = "1.4"
 flate2 = { version = "1.0.34", optional = true }
-hifitime = { version = "4.0.0-alpha", features = ["serde", "std"] }
+hifitime = { version = "4.0.0", features = ["serde", "std"] }
 
 [dev-dependencies]
 criterion = "0.5.1"

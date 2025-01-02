@@ -26,7 +26,7 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]
 thiserror = "1"
-hifitime = { version = "4.0.0-beta", optional = true }
+hifitime = { version = "4.0.0", optional = true }
 
 # gnss-rs = { version = "2.2.3", features = ["serde", "domes", "cospar"], optional = true }
 gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde", "domes", "cospar"], optional = true }
