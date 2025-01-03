@@ -37,6 +37,7 @@ thiserror = "1"
 strum = "0.26"
 itertools = "0.13.0"
 strum_macros = "0.26"
+hifitime = "4.0"
 anise = { version = "0.5.2", features = ["embed_ephem"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
@@ -45,8 +46,6 @@ statrs = { version = "0.16", optional = true }
 plotly = "0.9"
 # plotly = { path = "../../plotly-rs/plotly" }
 # plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"} 
-
-hifitime = "4.0"
 
 gnss-rs = { version = "2.3.1", features = ["serde"] }
 
