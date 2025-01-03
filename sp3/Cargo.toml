@@ -36,12 +36,12 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 thiserror = "1"
 map_3d = "0.1.5"
 itertools = "0.13.0"
-hifitime = "4.0.0"
+hifitime = "4.0"
 rinex-qc-traits = { path = "../qc-traits", version = "=0.2", optional = true }
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
 
-# gnss-rs = { version = "2.2.3", features = ["serde"] }
-gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
+gnss-rs = { version = "2.3.1", features = ["serde"] }
+# gnss-rs = { git = "https://github.com/rtk-rs/gnss", branch = "main", features = ["serde"] }
 
 [dev-dependencies]
