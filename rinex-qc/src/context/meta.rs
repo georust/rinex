@@ -14,6 +14,8 @@ pub struct ObsMetaData {
 }
 
 impl ObsMetaData {
+
+    /// Builds rover [ObsMetaData] from [MetaData].
     pub fn from_meta(meta: MetaData) -> Self {
         Self {
             meta,

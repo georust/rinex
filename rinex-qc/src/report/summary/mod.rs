@@ -60,10 +60,23 @@ impl Render for QcSummary {
                                 (self.general.render())
                             }
                         }
-                        @ for (meta, rover) in self.rovers_sum.iter() {
-                            tr {
+                        tr {
+                            th class="is-info" {
+                                "Rovers"
+                            }
+                            @ for (_, rover) in self.rovers_sum.iter() {
                                 td {
                                     (rover.render())
+                                }
+                            }
+                        }
+                        tr {
+                            th class="is-info" {
+                                "Bases"
+                            }
+                            @ for (_, base) in self.bases_sum.iter() {
+                                td {
+                                    (base.render())
                                 }
                             }
                         }

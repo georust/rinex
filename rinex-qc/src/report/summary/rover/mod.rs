@@ -39,6 +39,7 @@ impl QcRoverSummary {
         }
     }
 }
+
 impl Render for QcRoverSummary {
     fn render(&self) -> Markup {
         html! {

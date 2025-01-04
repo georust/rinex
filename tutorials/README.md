@@ -46,3 +46,5 @@ The [CGGTTS](./CGGTTS) section focuses on the post processed _timing oriented_ n
 When operating the toolbox, it might be very useful, sometimes vital, to use the debug traces
 and understand what they mean. [This page](./Logs.md) teaches how to unlock the debug traces
 and their meaning.
+
+You can also refer to our [Frequently Asked Questions](./FAQ.md) that tries to answer some basic questioning. Obviously all cases might not be answered, feel free to ask any question on the Discord channel.

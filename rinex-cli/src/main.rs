@@ -217,10 +217,10 @@ pub fn main() -> Result<(), Error> {
     // we put them into seperate folders
     if cli.has_fops_output_product() {
         for (k, _) in ctx.qc_context.obs_dataset.iter() {
-            ctx.qc_context.create_subdir(&k.name)?;
+            ctx.qc_context.create_subdir(&k.meta.name)?;
         }
         for (k, _) in ctx.qc_context.meteo_dataset.iter() {
-            ctx.qc_context.create_subdir(&k.name)?;
+            ctx.qc_context.create_subdir(&k.meta.name)?;
         }
     }
 
