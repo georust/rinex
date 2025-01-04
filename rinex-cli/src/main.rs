@@ -220,7 +220,7 @@ pub fn main() -> Result<(), Error> {
             ctx.qc_context.create_subdir(&k.meta.name)?;
         }
         for (k, _) in ctx.qc_context.meteo_dataset.iter() {
-            ctx.qc_context.create_subdir(&k.meta.name)?;
+            ctx.qc_context.create_subdir(&k.name)?;
         }
     }
 

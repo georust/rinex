@@ -24,8 +24,8 @@ pub fn tbin(ctx: &QcContext, cli: &Cli, submatches: &ArgMatches) -> Result<(), E
 
     // tbin applies to any temporal format
     // 1. prepare output
-    for (meta, _) in &ctx.obs_dataset {
-        ctx.create_subdir(&meta.name)
+    for (obs_meta, _) in &ctx.obs_dataset {
+        ctx.create_subdir(&obs_meta.meta.name)
             .unwrap_or_else(|e| panic!("failed to generate output dir: {}", e));
     }
     for (meta, _) in &ctx.meteo_dataset {
@@ -33,10 +33,10 @@ pub fn tbin(ctx: &QcContext, cli: &Cli, submatches: &ArgMatches) -> Result<(), E
             .unwrap_or_else(|e| panic!("failed to generate output dir: {}", e));
     }
 
-    for (meta, rinex) in &ctx.obs_dataset {
+    for (obs_meta, rinex) in &ctx.obs_dataset {
         for split in rinex.split_even_dt(*dt).iter() {
             let auto_generated_name = split.standard_filename(short_name, suffix, None);
-            let path = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
+            let path = ctx.cfg.workspace.join(&obs_meta.meta.name).join(auto_generated_name);
             if gzip_encoding {
                 split.to_gzip_file(path)?;
             } else {

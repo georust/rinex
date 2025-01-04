@@ -42,15 +42,15 @@ pub fn merge(ctx: &QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), Err
 
     let (name, rinex_c) = match rinex_b.header.rinex_type {
         RinexType::ObservationData => {
-            let meta = ctx.obs_dataset.keys().collect::<Vec<_>>()[0];
+            let obs_meta = ctx.obs_dataset.keys().collect::<Vec<_>>()[0];
 
             let rinex_a = ctx
                 .obs_dataset
-                .get(&meta)
+                .get(&obs_meta)
                 .unwrap_or_else(|| panic!("missing Observation RINex counterpart"));
 
             let rinex_c = rinex_a.merge(&rinex_b)?;
-            (meta.name.clone(), rinex_c)
+            (obs_meta.meta.name.clone(), rinex_c)
         },
         RinexType::NavigationData => {
             let rinex_a = ctx

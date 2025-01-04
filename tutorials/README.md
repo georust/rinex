@@ -47,4 +47,7 @@ When operating the toolbox, it might be very useful, sometimes vital, to use the
 and understand what they mean. [This page](./Logs.md) teaches how to unlock the debug traces
 and their meaning.
 
-You can also refer to our [Frequently Asked Questions](./FAQ.md) that tries to answer some basic questioning. Obviously all cases might not be answered, feel free to ask any question on the Discord channel.
+## Frequently Asked Questions (FAQ)
+
+You can also refer to our [Frequently Asked Questions](./FAQ.md) that tries to provide basic troubleshooting.  
+Obviously all cases questions cannot be answered, feel free to contact us on the Discord channel.

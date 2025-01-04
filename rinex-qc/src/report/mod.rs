@@ -1,11 +1,15 @@
 //! Generic analysis report
+use std::collections::HashMap;
 use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 
 // // shared analysis, that may apply to several products
 // mod shared;
 
 mod obs;
-use obs::QcObservationsReport;
+use obs::{
+    QcRoversObservationsReport,
+    QcBasesObservationsReport,
+};
 
 mod nav;
 use nav::QcBrdcNavigationReport;
@@ -20,7 +24,7 @@ use sp3::QcHighPrecisionNavigationReports;
 
 pub(crate) mod shared;
 
-use crate::{cfg::QcReportType, context::QcContext, report::summary::QcSummary};
+use crate::{cfg::QcReportType, context::{QcContext, meta::MetaData}, report::summary::QcSummary};
 
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
@@ -36,8 +40,10 @@ pub struct QcExtraPage {
 pub struct QcReport {
     /// Summary report (always present)
     summary: QcSummary,
-    /// Observations report
-    observations: Option<QcObservationsReport>,
+    /// ROVER Observations report
+    rover_observations: Option<QcRoversObservationsReport>,
+    /// BASE Observations report
+    base_observations: Option<QcBasesObservationsReport>,
     /// BRDC Navigation report
     brdc_nav: Option<QcBrdcNavigationReport>,
     /// SP3 high precision report
@@ -53,10 +59,19 @@ impl QcReport {
         } else {
             Self {
                 summary: QcSummary::new(ctx),
-                observations: if ctx.has_observations() {
-                    Some(QcObservationsReport::new(ctx))
-                } else {
-                    None
+                rover_observations: {
+                    if ctx.has_rover_observations() {
+                        Some(QcRoversObservationsReport::new(&ctx))
+                    } else {
+                        None
+                    }
+                },
+                base_observations: {
+                    if ctx.has_base_observations() {
+                        Some(QcBasesObservationsReport::new(&ctx))
+                    } else {
+                        None
+                    }
                 },
                 brdc_nav: if ctx.has_navigation_data() {
                     None
@@ -78,8 +93,9 @@ impl QcReport {
         let summary = QcSummary::new(&ctx);
         Self {
             summary,
-            observations: None,
             brdc_nav: None,
+            base_observations: Default::default(),
+            rover_observations: Default::default(),
             #[cfg(feature = "sp3")]
             sp3_nav: None,
         }
@@ -106,13 +122,90 @@ impl QcReport {
                             "Summary"
                         }
                     }
-                    @ if self.observations.is_some() {
-                        li {
-                            a id="qc-observations" class="qc-sidemenu" onclick="onQcObservationsClicks()" {
-                                span class="icon" {
-                                    i class="fa-solid fa-tower-broadcast" {}
+                    @ if let Some(rovers) = &self.rover_observations {
+                        @ if let Some(bases) = &self.base_observations {
+                            @ if rovers.reports.len() == 1 { 
+                                li {
+                                    a id="qc-rover-observations" class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
+                                        span class="icon" {
+                                            i class="fa-solid fa-tower-broadcast" {}
+                                        }
+                                        "ROVER Observations"
+                                    }
                                 }
-                                "Observations"
+                            } @ else {
+                                li {
+                                    a id="qc-rover-observations" class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
+                                        span class="icon" {
+                                            i class="fa-solid fa-tower-broadcast" {}
+                                        }
+                                        "ROVERs Observations"
+                                    }
+                                }
+
+                            }
+                            @ if bases.reports.len() == 1 {
+                                li {
+                                    a id="qc-base-observations" class="qc-sidemenu" onclick="onQcBaseObservationsClicks()" {
+                                        span class="icon" {
+                                            i class="fa-solid fa-tower-broadcast" {}
+                                        }
+                                        "Base station"
+                                    }
+                                }
+
+                            } else {
+                                li {
+                                    a id="qc-base-observations" class="qc-sidemenu" onclick="onQcBaseObservationsClicks()" {
+                                        span class="icon" {
+                                            i class="fa-solid fa-tower-broadcast" {}
+                                        }
+                                        "Base stations"
+                                    }
+                                }
+                            }
+                        } @ else {
+                            @ if rovers.reports.len() == 1 { 
+                                li {
+                                    a id="qc-rover-observations" class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
+                                        span class="icon" {
+                                            i class="fa-solid fa-tower-broadcast" {}
+                                        }
+                                        "Observations"
+                                    }
+                                }
+                            } @ else {
+                                li {
+                                    a id="qc-rover-observations" class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
+                                        span class="icon" {
+                                            i class="fa-solid fa-tower-broadcast" {}
+                                        }
+                                        "Observation"
+                                    }
+                                }
+                            }
+                        }
+                    } @ else {
+                        @ if let Some(bases) = &self.base_observations {
+                            @ if bases.reports.len() == 1 {
+                                li {
+                                    a id="qc-base-observations" class="qc-sidemenu" onclick="onQcBaseObservationsClicks()" {
+                                        span class="icon" {
+                                            i class="fa-solid fa-tower-broadcast" {}
+                                        }
+                                        "Base station"
+                                    }
+                                }
+
+                            } else {
+                                li {
+                                    a id="qc-base-observations" class="qc-sidemenu" onclick="onQcBaseObservationsClicks()" {
+                                        span class="icon" {
+                                            i class="fa-solid fa-tower-broadcast" {}
+                                        }
+                                        "Base stations"
+                                    }
+                                }
                             }
                         }
                     }
@@ -183,7 +276,7 @@ impl Render for QcReport {
                 body {
                     div id="title" {
                         title {
-                            "RINEX QC"
+                            "RINEX Qc"
                         }
                     }
                     div id="body" {
@@ -197,10 +290,21 @@ impl Render for QcReport {
                                         (self.summary.render())
                                     }
                                 }
-                                @ if let Some(obs) = &self.observations {
-                                    div class="section" id="qc-observations" style="display:none" {
+                            }
+                            @ if let Some(rover) = &self.rover_observations {
+                                div class="hero is-fullheight" {
+                                    div class="section" id="qc-rover-observations" style="display:block" {
                                         div class="container is-main" {
-                                            (obs.render())
+                                            (rover.render())
+                                        }
+                                    }
+                                }
+                            }
+                            @ if let Some(base) = &self.base_observations {
+                                div class="hero is-fullheight" {
+                                    div class="section" id="qc-base-observations" style="display:block" {
+                                        div class="container is-main" {
+                                            (base.render())
                                         }
                                     }
                                 }

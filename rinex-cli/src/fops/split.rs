@@ -90,8 +90,8 @@ pub fn split(ctx: &QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), Err
     let gzip_encoding = cli.gzip_encoding();
 
     // apply to all internal products
-    for (meta, rinex) in &ctx.obs_dataset {
-        ctx.create_subdir(&meta.name)
+    for (obs_meta, rinex) in &ctx.obs_dataset {
+        ctx.create_subdir(&obs_meta.meta.name)
             .unwrap_or_else(|e| panic!("failed to generate output dir: {}", e));
 
         let (rinex_a, rinex_b) = rinex.split(*t);
@@ -103,7 +103,7 @@ pub fn split(ctx: &QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), Err
             csv,
             short_rinex,
             gzip_encoding,
-            Some(meta.name.clone()),
+            Some(obs_meta.meta.name.clone()),
         )
         .unwrap_or_else(|e| panic!("file synthesis error: {}", e));
     }

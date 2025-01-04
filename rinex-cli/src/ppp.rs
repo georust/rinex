@@ -20,11 +20,11 @@ pub fn ppp(ctx: &QcContext, cli: &Cli, opts: &ArgMatches) {
         return ppp_cggtts(cfg, ctx, cli, opts);
     }
 
-    for meta in ctx.observations_meta() {
-        let meta_rx_orbit = ctx.meta_rx_orbit(meta);
+    for obs_meta in ctx.observations_meta() {
+        let meta_rx_orbit = ctx.rover_rx_orbit(&obs_meta.meta);
 
         let mut solver = ctx
-            .nav_pvt_solver(cfg.clone(), meta, meta_rx_orbit)
+            .nav_pvt_solver(cfg.clone(), obs_meta, meta_rx_orbit)
             .unwrap();
 
         while let Some(solution) = solver.next() {
@@ -47,9 +47,10 @@ pub fn ppp_cggtts(cfg: RTKConfig, ctx: &QcContext, cli: &Cli, opts: &ArgMatches)
     //    },
     //};
 
-    for meta in ctx.observations_meta() {
+    for obs_meta in ctx.observations_meta() {
+
         let mut solver = ctx
-            .nav_cggtts_solver(cfg.clone(), meta, None, Default::default())
+            .nav_cggtts_solver(cfg.clone(), obs_meta, None, Default::default())
             .unwrap();
 
         while let Some(track) = solver.next() {

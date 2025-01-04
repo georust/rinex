@@ -3,7 +3,7 @@ use log::{error, info};
 use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
-    context::{meta::MetaData, QcContext},
+    context::{meta::ObsMetaData, QcContext},
     navigation::{
         carrier_to_rtk, clock::ClockContext, orbit::OrbitalContext, signal::SignalSource,
     },
@@ -230,13 +230,13 @@ impl QcContext {
     /// and resolve all possible CGGTTS solutions for specifically selected rover.
     /// ## Inputs
     /// - cfg: [RTKConfig] setup
-    /// - meta: [MetaData] rover selector
+    /// - meta: [ObsMetaData] rover selector
     /// - rx_position_ecef_m: mandatory ground position expressed in ECEF (km)
     /// - tracking: [Duration] to be used by track scheduler
     pub fn nav_cggtts_solver<'a>(
         &'a self,
         cfg: RTKConfig,
-        meta: &MetaData,
+        meta: &ObsMetaData,
         rx_position_ecef_km: Option<(f64, f64, f64)>,
         tracking_duration: Duration,
     ) -> Result<NavCggttsSolver, QcError> {
@@ -244,8 +244,6 @@ impl QcContext {
         let eph_ctx = self.ephemeris_context().ok_or(QcError::EphemerisSource)?;
 
         // Obtain signal source
-        let meta = meta.to_rover_obs_meta();
-
         let signal = self
             .rover_signal_source(&meta)
             .ok_or(QcError::SignalSource)?;
@@ -309,7 +307,7 @@ mod test {
 
     use crate::{
         cfg::QcConfig,
-        context::{meta::MetaData, QcContext},
+        context::{meta::{ObsMetaData, MetaData}, QcContext},
     };
 
     use gnss_rtk::prelude::{Config as RTKConfig, Duration, Orbit};
@@ -334,11 +332,11 @@ mod test {
 
         let rtk_cfg = RTKConfig::default();
 
-        let meta = MetaData {
+        let meta = ObsMetaData::from_meta(MetaData {
             name: "ESBC00DNK".to_string(),
             extension: "crx.gz".to_string(),
             unique_id: Some("rcvr:SEPT POLARX5".to_string()),
-        };
+        });
 
         let _ = ctx
             .nav_cggtts_solver(rtk_cfg, &meta, None, Duration::from_seconds(60.0))

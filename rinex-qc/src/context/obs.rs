@@ -116,9 +116,16 @@ impl ObservationUniqueId {
 }
 
 impl QcContext {
-    /// True if QcObservationsDataSet is not empty
     pub fn has_observations(&self) -> bool {
         !self.obs_dataset.is_empty()
+    }
+
+    pub fn has_rover_observations(&self) -> bool {
+        self.observations_meta().filter(|k| k.is_rover).count() > 0
+    }
+
+    pub fn has_base_observations(&self) -> bool {
+        self.observations_meta().filter(|k| !k.is_rover).count() > 0
     }
 
     /// Define the following abstract name as a "rover".

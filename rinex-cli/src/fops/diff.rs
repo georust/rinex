@@ -39,8 +39,8 @@ pub fn diff(ctx: &mut QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), 
     // prepare for output
     match rinex_b.header.rinex_type {
         RinexType::ObservationData => {
-            for (meta, _) in &ctx.obs_dataset {
-                ctx.create_subdir(&meta.name)
+            for (obs_meta, _) in &ctx.obs_dataset {
+                ctx.create_subdir(&obs_meta.meta.name)
                     .unwrap_or_else(|e| panic!("failed to generate output dir: {}", e));
             }
         },
@@ -51,11 +51,11 @@ pub fn diff(ctx: &mut QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), 
     //  METEO; DORIS and OBS RINex
     match rinex_b.header.rinex_type {
         RinexType::ObservationData => {
-            for (meta, rinex) in &mut ctx.obs_dataset {
+            for (obs_meta, rinex) in &mut ctx.obs_dataset {
                 rinex.observation_substract_mut(&rinex_b);
                 let auto_generated_name = rinex.standard_filename(short_rinex_name, suffix, None);
 
-                let path = ctx.cfg.workspace.join(&meta.name).join(auto_generated_name);
+                let path = ctx.cfg.workspace.join(&obs_meta.meta.name).join(auto_generated_name);
 
                 #[cfg(feature = "csv")]
                 if csv {}

@@ -61,22 +61,45 @@ impl Render for QcSummary {
                             }
                         }
                         tr {
-                            th class="is-info" {
-                                "Rovers"
+                            @ if self.bases_sum.len() == 0 {
+                                @ if self.rovers_sum.len() == 1 {
+                                    th class="is-info" {
+                                        "Rover"
+                                    }
+                                } @ else {
+                                    th class="is-info" {
+                                        "Rovers"
+                                    }
+                                }
                             }
-                            @ for (_, rover) in self.rovers_sum.iter() {
+                        }
+                        @ for (_, rover) in self.rovers_sum.iter() {
+                            tr {
                                 td {
                                     (rover.render())
                                 }
                             }
                         }
-                        tr {
-                            th class="is-info" {
-                                "Bases"
+                        
+                        @ if !self.bases_sum.is_empty() {
+                            tr {
+                                td {
+                                    @ if self.bases_sum.len() == 1 {
+                                        th class="is-info" {
+                                            "Base Station"
+                                        }
+                                    } @ else {
+                                        th class="is-info" {
+                                            "Base Stations"
+                                        }
+                                    }
+                                }
                             }
                             @ for (_, base) in self.bases_sum.iter() {
-                                td {
-                                    (base.render())
+                                tr {
+                                    td {
+                                        (base.render())
+                                    }
                                 }
                             }
                         }

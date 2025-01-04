@@ -3,7 +3,7 @@ use log::{error, info};
 use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
-    context::{meta::MetaData, QcContext},
+    context::{meta::{MetaData, ObsMetaData}, QcContext},
     navigation::{
         carrier_from_rtk, carrier_to_rtk, clock::ClockContext, orbit::OrbitalContext,
         signal::SignalSource,
@@ -188,14 +188,13 @@ impl QcContext {
     pub fn nav_pvt_solver<'a>(
         &'a self,
         cfg: RTKConfig,
-        meta: &MetaData,
+        meta: &ObsMetaData,
         initial: Option<Orbit>,
     ) -> Result<NavPvtSolver, QcError> {
         // Obtain ephemeris context
         let eph_ctx = self.ephemeris_context().ok_or(QcError::EphemerisSource)?;
 
         // Obtain signal source
-        let meta = meta.to_rover_obs_meta();
         let signal = self
             .rover_signal_source(&meta)
             .ok_or(QcError::SignalSource)?;
