@@ -244,7 +244,11 @@ impl QcContext {
         let eph_ctx = self.ephemeris_context().ok_or(QcError::EphemerisSource)?;
 
         // Obtain signal source
-        let signal = self.signal_source(&meta).ok_or(QcError::SignalSource)?;
+        let meta = meta.to_rover_obs_meta();
+
+        let signal = self
+            .rover_signal_source(&meta)
+            .ok_or(QcError::SignalSource)?;
         let rinex = self.obs_dataset.get(&meta).ok_or(QcError::RxPosition)?;
 
         // Reference position: prefer user settings over RINex position

@@ -8,7 +8,7 @@ use rinex::prelude::Constellation;
 use std::collections::HashMap;
 
 use crate::{
-    context::{meta::MetaData, QcContext},
+    context::{meta::ObsMetaData, QcContext},
     prelude::{html, Markup, Render, Rinex},
 };
 
@@ -21,7 +21,7 @@ pub struct QcRoverSummary {
 }
 
 impl QcRoverSummary {
-    pub fn new(ctx: &QcContext, meta: &MetaData, rover_rinex: &Rinex) -> Self {
+    pub fn new(ctx: &QcContext, meta: &ObsMetaData, rover_rinex: &Rinex) -> Self {
         Self {
             navi: QcNaviSummary::new(ctx, meta, &rover_rinex),
             // timeframes: {

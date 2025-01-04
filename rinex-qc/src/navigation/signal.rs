@@ -1,4 +1,7 @@
-use crate::context::{meta::MetaData, QcContext};
+use crate::context::{
+    meta::{MetaData, ObsMetaData},
+    QcContext,
+};
 
 use rinex::prelude::{obs::SignalObservation, Epoch};
 
@@ -43,8 +46,21 @@ impl<'a> SignalSource<'a> {
 
 impl QcContext {
     /// Obtain [SignalSource] from this [QcContext] for this particular [MetaData].
-    pub fn signal_source(&self, meta: &MetaData) -> Option<SignalSource> {
-        let rinex = self.obs_dataset.get(meta)?;
+    pub fn rover_signal_source(&self, meta: &ObsMetaData) -> Option<SignalSource> {
+        let rinex = self.obs_dataset.get(&meta)?;
+        let iter = rinex.signal_observations_sampling_ok_iter();
+
+        Some(SignalSource {
+            iter,
+            t: None,
+            next: None,
+            pending: Vec::with_capacity(128),
+        })
+    }
+
+    /// Obtain [SignalSource] from this [QcContext] for this particular [MetaData].
+    pub fn base_station_signal_source(&self, meta: &MetaData) -> Option<SignalSource> {
+        let rinex = self.obs_dataset.get(&meta.to_base_obs_meta())?;
         let iter = rinex.signal_observations_sampling_ok_iter();
 
         Some(SignalSource {

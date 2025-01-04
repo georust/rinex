@@ -6,8 +6,6 @@ pub struct QcBrdcNavigationReport {
 
 impl Render for QcBrdcNavigationReport {
     fn render(&self) -> Markup {
-        html! {
-            
-        }
+        html! {}
     }
 }

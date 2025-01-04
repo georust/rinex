@@ -1,5 +1,5 @@
 use crate::{
-    context::{meta::MetaData, obs::ObservationUniqueId, QcContext},
+    context::{meta::ObsMetaData, obs::ObservationUniqueId, QcContext},
     prelude::{html, Markup, Render, Rinex},
 };
 
@@ -108,11 +108,11 @@ pub struct QcObservationSummary {
 }
 
 impl QcObservationSummary {
-    pub fn new(ctx: &QcContext, meta: MetaData, rinex: &Rinex) -> Self {
+    pub fn new(ctx: &QcContext, obs_meta: &ObsMetaData, rinex: &Rinex) -> Self {
         Self {
-            name: meta.name.to_string(),
+            name: obs_meta.meta.name.to_string(),
             format: {
-                let gzip = meta.extension.contains("gz");
+                let gzip = obs_meta.meta.extension.contains("gz");
                 if rinex.header.is_crinex() {
                     if gzip {
                         Format::GZipCRINEx
@@ -127,27 +127,48 @@ impl QcObservationSummary {
                     }
                 }
             },
-            designator: if let Some(unique_id) = &meta.unique_id {
+            designator: if let Some(unique_id) = &obs_meta.meta.unique_id {
                 let designator = ObservationUniqueId::from_str(&unique_id).unwrap();
                 Some(designator)
             } else {
                 None
             },
-            rx_position: if let Some(orbit) = ctx.meta_rx_orbit(&meta) {
-                let pos_vel = orbit.to_cartesian_pos_vel();
-                match orbit.latlongalt() {
-                    Ok(geodetic) => Some(RxPosition {
-                        source: RxPositionSource::RINEx,
-                        ecef_km: (pos_vel[0], pos_vel[1], pos_vel[2]),
-                        geodetic,
-                    }),
-                    Err(e) => {
-                        error!("(anise): orbit.latlongalt: {}", e);
+            rx_position: {
+                if obs_meta.is_rover {
+                    if let Some(orbit) = ctx.rover_rx_orbit(&obs_meta.meta) {
+                        let pos_vel = orbit.to_cartesian_pos_vel();
+                        match orbit.latlongalt() {
+                            Ok(geodetic) => Some(RxPosition {
+                                source: RxPositionSource::RINEx,
+                                ecef_km: (pos_vel[0], pos_vel[1], pos_vel[2]),
+                                geodetic,
+                            }),
+                            Err(e) => {
+                                error!("(anise): orbit.latlongalt: {}", e);
+                                None
+                            },
+                        }
+                    } else {
                         None
-                    },
+                    }
+                } else {
+                    if let Some(orbit) = ctx.base_rx_orbit(&obs_meta.meta) {
+                        let pos_vel = orbit.to_cartesian_pos_vel();
+                        match orbit.latlongalt() {
+                            Ok(geodetic) => Some(RxPosition {
+                                source: RxPositionSource::RINEx,
+                                ecef_km: (pos_vel[0], pos_vel[1], pos_vel[2]),
+                                geodetic,
+                            }),
+                            Err(e) => {
+                                error!("(anise): orbit.latlongalt: {}", e);
+                                None
+                            },
+                        }
+                    } else {
+                        None
+                    }
                 }
-            } else {
-                None
             },
         }
     }
@@ -244,9 +265,10 @@ impl QcObservationsSummary {
 
         for meta in metas.into_iter().unique() {
             if let Some(rinex) = ctx.obs_dataset.get(&meta) {
-                summaries.push(QcObservationSummary::new(ctx, meta.clone(), &rinex))
+                summaries.push(QcObservationSummary::new(ctx, meta, &rinex))
             }
         }
+
         Self {
             nb_fileset,
             summaries,

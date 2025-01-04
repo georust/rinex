@@ -1,7 +1,7 @@
 use maud::{html, Markup, Render};
 
 use crate::{
-    context::{meta::MetaData, QcContext},
+    context::{meta::ObsMetaData, QcContext},
     prelude::Rinex,
 };
 
@@ -106,10 +106,10 @@ pub struct QcNaviSummary {
 }
 
 impl QcNaviSummary {
-    pub fn new(ctx: &QcContext, meta: &MetaData, rover: &Rinex) -> Self {
+    pub fn new(ctx: &QcContext, obs_meta: &ObsMetaData, rover: &Rinex) -> Self {
         Self {
-            html_id: meta.name.to_string(),
-            tropo_model_optimization: ctx.allows_troposphere_model_optimization(meta),
+            html_id: obs_meta.meta.name.to_string(),
+            tropo_model_optimization: ctx.allows_troposphere_model_optimization(&obs_meta.meta),
             constellations_navi: {
                 let mut constellations_sum = HashMap::new();
                 for constellation in rover.constellations_iter() {

@@ -195,7 +195,10 @@ impl QcContext {
         let eph_ctx = self.ephemeris_context().ok_or(QcError::EphemerisSource)?;
 
         // Obtain signal source
-        let signal = self.signal_source(&meta).ok_or(QcError::SignalSource)?;
+        let meta = meta.to_rover_obs_meta();
+        let signal = self
+            .rover_signal_source(&meta)
+            .ok_or(QcError::SignalSource)?;
 
         // Deploy solver: share almanac & reference frame model
         let solver = Solver::new_almanac_frame(&cfg, initial, self.almanac.clone(), self.earth_cef);

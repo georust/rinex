@@ -27,26 +27,72 @@ struct Curve {
 /// [QcTimeFrame] is a general summary
 /// of the overal time frame represented by [QcContext]
 pub struct QcTimeFrame {
-    /// Context plot, per constellation
-    constell_plot: HashMap<Constellation, Plot>,
+    plot: Plot,
 }
 
 impl QcTimeFrame {
     pub fn new(
-        constellation: &Constellation,
-        ctx: &QcContext,
         meta: &MetaData,
         obs_rinex: &Rinex,
+        nav_set: &Option<Rinex>,
+        constellation: &Constellation,
     ) -> Self {
-        // X range (min, max)
-        let mut x_range = (Epoch::default(), Epoch::default());
 
-        // Y points range (min, max)
-        let mut y_range = (0.0, 0.0);
+        let html_id = format!("{:x}-time_frame", constellation);
+        let mut plot = Plot::timedomain_plot(html_id, "Time Frame", "", true);
 
-        let mut curves = HashMap::<CurvesKey, Curve>::new();
 
-        let mut buttons = Vec::<Button>::new();
+        // determine total amount of signals for this constellation
+        let mut signals = Vec::new();
+        let mut prn = Vec::new();
+        let (mut t_min_obs, mut t_max_obs) = (Epoch::default(), Epoch::default());
+
+        for (nth, (k, v)) in obs_rinex.signals_observation_iter().enumerate() {
+            if nth == 0 {
+                t_min_obs = k.epoch;
+            }
+            if v.sv.constellation == constellation {
+                if !signals.contains(v.observable) {
+                    signals.push(v.observable);
+                }
+                if !prn.contains(v.sv.prn) {
+                    prn.push(v.sv.prn);
+                }
+            }
+            t_max_obs = k.epoch;
+        }
+        
+        let t_range_obs = vec![t_min_obs, t_max_obs];
+
+        let signals_dy = 0.8 / signals.len() as f64;
+            
+        // draw thick line @ each prn
+        for (nth, prn) in prn.iter().enumerate() {
+
+            let curve = timedomain_chart(
+                &format!("{:x}-time_frame-prn{:02}", constellation, prn),
+                Mode::LineCurves,
+                MarkerSymbol::Dash,
+                &t_range_obs,
+                vec![(prn as f64, prn as f64)],
+                nth == 0,
+            );
+                
+            // design signals curve
+            for (nth_sig, sig) in signals.iter().enumerate() {
+                let mut y_sig = prn as f64 + 0.1;
+                y_sig += nth_sig as f64 * signals_dy; 
+
+                for (k, v) in obs_rinex.signals_observation_iter() {
+                    if v.sv.constellation == constellation {
+                        if v.sv.prn == prn && v.signal == sig {
+
+                        }
+                    }
+                }
+            }
+
+        }
 
         // buttons.push(
         //     ButtonBuilder::new()
@@ -70,25 +116,19 @@ impl QcTimeFrame {
 
         for (meta, rinex) in ctx.obs_dataset.iter() {}
 
-        let mut plot = Plot::timedomain_plot("time_frame_plot", "Time Frame", "", true);
-
-        if ctx.has_navigation_data() {
-            //Self::customize_with_nav_data(ctx, &mut plot);
+        if let Some(nav) = &nav_set {
+            s = s.augment_with_nav_set(&nav);
         }
 
-        //plot.add_custom_controls(buttons);
-
-        Self { constell_plot }
+        s
     }
 
     /// Customize plot in case we have Navigation data
-    fn customize_with_nav_data(
-        ctx: &QcContext,
-        x_range: (&mut Epoch, &mut Epoch),
-        y_range: (&mut f64, &mut f64),
-        plot: &mut Plot,
-    ) {
-        let nav_data = ctx.nav_dataset.as_ref().unwrap();
+    fn augment_with_nav_set(&self, nav_set: &Rinex) -> Self {
+        let mut s = self.clone();
+
+        // plot the ephemeris range
+        // plot updates of ionosphere model
     }
 }
 
@@ -108,6 +148,24 @@ impl Render for QcTimeFrame {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+pub struct QcTimeFrames {
+    pub pages: HashMap<Constellation, QcTimeFrame>,
+}
+
+impl QcTimeFrames {
+    pub fn new(meta: &MetaData, obs: &Rinex, nav_set: &Rinex) -> Self {
+        Self {
+            pages: {
+                let mut pages = HashMap::new();
+                for constellation in obs.constellation() {
+                    pages.insert(QcTimeFrame::new(meta, obs, nav_set, constellation));
+                }
+                pages
             }
         }
     }

@@ -1,9 +1,15 @@
 use crate::{
     cfg::preference::QcPreferedRoversSorting,
-    context::{meta::MetaData, QcContext},
+    context::{
+        meta::{MetaData, ObsMetaData},
+        QcContext,
+    },
     prelude::Rinex,
     QcCtxError,
 };
+
+use anise::math::Vector6;
+use rinex::prelude::Epoch;
 
 use std::collections::hash_map::Keys;
 
@@ -115,30 +121,95 @@ impl QcContext {
         !self.obs_dataset.is_empty()
     }
 
-    pub fn observations_meta(&self) -> Keys<'_, MetaData, Rinex> {
+    /// Define the following abstract name as a "rover".
+    /// This has no effect if no "base station" with following [MetaData] has previously defined.
+    pub fn define_rover(&mut self, meta: MetaData) {}
+
+    /// Define the following abstract name as a "base" station reference.
+    pub fn define_base(&mut self, meta: MetaData) {}
+
+    pub fn observations_meta(&self) -> Keys<'_, ObsMetaData, Rinex> {
         self.obs_dataset.keys()
     }
 
-    pub fn meta_rx_position_ecef(&self, meta: &MetaData) -> Option<(f64, f64, f64)> {
+    pub fn rover_rx_position_ecef(&self, meta: &MetaData) -> Option<(f64, f64, f64)> {
         for (k, v) in self.obs_dataset.iter() {
-            if k == meta {
-                return v.header.rx_position;
+            if k.is_rover {
+                if &k.meta == meta {
+                    return v.header.rx_position;
+                }
             }
         }
         None
     }
 
-    pub fn meta_rx_orbit(&self, meta: &MetaData) -> Option<Orbit> {
+    pub fn rover_rx_orbit(&self, meta: &MetaData) -> Option<Orbit> {
+        let t0 = self.rover_first_observation(&meta)?;
+        let (x_ecef_m, y_ecef_m, z_ecef_m) = self.rover_rx_position_ecef(meta)?;
+        let pos_vel = Vector6::new(
+            x_ecef_m / 1000.0,
+            y_ecef_m / 1000.0,
+            z_ecef_m / 1000.0,
+            0.0,
+            0.0,
+            0.0,
+        );
+        Some(Orbit::from_cartesian_pos_vel(pos_vel, t0, self.earth_cef))
+    }
+
+    pub fn rover_first_observation(&self, meta: &MetaData) -> Option<Epoch> {
         for (k, v) in self.obs_dataset.iter() {
-            if k == meta {
-                let t = v.first_epoch()?;
-                return v.header.rx_orbit(t, self.earth_cef);
+            if k.is_rover {
+                if &k.meta == meta {
+                    return v.first_epoch();
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn base_rx_position_ecef(&self, meta: &MetaData) -> Option<(f64, f64, f64)> {
+        for (k, v) in self.obs_dataset.iter() {
+            if !k.is_rover {
+                if &k.meta == meta {
+                    return v.header.rx_position;
+                }
             }
         }
         None
     }
 
-    /// Loads a new Observation [Rinex] into this [QcContext]
+    pub fn base_first_observation(&self, meta: &MetaData) -> Option<Epoch> {
+        for (k, v) in self.obs_dataset.iter() {
+            if !k.is_rover {
+                if &k.meta == meta {
+                    return v.first_epoch();
+                }
+            }
+        }
+        None
+    }
+
+    pub fn base_rx_orbit(&self, meta: &MetaData) -> Option<Orbit> {
+        let t0 = self.base_first_observation(&meta)?;
+        let (x_ecef_m, y_ecef_m, z_ecef_m) = self.base_rx_position_ecef(meta)?;
+        let pos_vel = Vector6::new(
+            x_ecef_m / 1000.0,
+            y_ecef_m / 1000.0,
+            z_ecef_m / 1000.0,
+            0.0,
+            0.0,
+            0.0,
+        );
+        Some(Orbit::from_cartesian_pos_vel(pos_vel, t0, self.earth_cef))
+    }
+
+    /// Loads a new Observation [Rinex] into this [QcContext].
+    /// NB: this is by default considered "rover" data, which is compliant
+    /// with direct n-D direct positioning. If you're interested in RTK (differential positioning),
+    /// you will have to provmide more Observation [Rinex] and manually
+    /// specify which one correspond to a base station.
     pub(crate) fn load_observation_rinex(
         &mut self,
         meta: &mut MetaData,
@@ -152,14 +223,17 @@ impl QcContext {
                 "{} designated by {} (prefered method)",
                 meta.name, unique_id
             );
+
             meta.set_unique_id(&format!("{:x}", unique_id));
         }
 
+        let obs_meta = ObsMetaData::from_meta(meta.clone());
+
         // Now proceed to stacking
-        if let Some(entry) = self.obs_dataset.get_mut(&meta) {
+        if let Some(entry) = self.obs_dataset.get_mut(&obs_meta) {
             entry.merge_mut(&data)?;
         } else {
-            self.obs_dataset.insert(meta.clone(), data);
+            self.obs_dataset.insert(obs_meta, data);
         }
 
         Ok(())
@@ -171,7 +245,10 @@ mod test {
 
     use crate::{
         cfg::{preference::QcPreferedRoversSorting, QcConfig},
-        context::{meta::MetaData, QcContext},
+        context::{
+            meta::{MetaData, ObsMetaData},
+            QcContext,
+        },
     };
 
     #[test]
@@ -191,10 +268,13 @@ mod test {
         assert!(ctx.has_observations());
         assert_eq!(ctx.obs_dataset.len(), 1);
 
-        let key = MetaData {
-            name: "ACOR00ESP_R_20213550000_01D_30S_MO".to_string(),
-            extension: "rnx".to_string(),
-            unique_id: Some("rcvr:LEICA GR50".to_string()),
+        let key = ObsMetaData {
+            is_rover: false,
+            meta: MetaData {
+                name: "ACOR00ESP_R_20213550000_01D_30S_MO".to_string(),
+                extension: "rnx".to_string(),
+                unique_id: Some("rcvr:LEICA GR50".to_string()),
+            },
         };
 
         assert!(
@@ -213,11 +293,11 @@ mod test {
         assert!(ctx.has_observations());
         assert_eq!(ctx.obs_dataset.len(), 1);
 
-        let key = MetaData {
+        let key = ObsMetaData::from_meta(MetaData {
             name: "ACOR00ESP_R_20213550000_01D_30S_MO".to_string(),
             extension: "rnx".to_string(),
             unique_id: Some("geo:ACOR-13434M001".to_string()),
-        };
+        });
 
         assert!(
             ctx.obs_dataset.get(&key).is_some(),
@@ -235,11 +315,11 @@ mod test {
         assert!(ctx.has_observations());
         assert_eq!(ctx.obs_dataset.len(), 1);
 
-        let key = MetaData {
+        let key = ObsMetaData::from_meta(MetaData {
             name: "ACOR00ESP_R_20213550000_01D_30S_MO".to_string(),
             extension: "rnx".to_string(),
             unique_id: Some("ant:LEIAT504        LEIS-103033".to_string()),
-        };
+        });
 
         assert!(
             ctx.obs_dataset.get(&key).is_some(),

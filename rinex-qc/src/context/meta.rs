@@ -4,6 +4,34 @@ use crate::QcCtxError;
 
 use rinex::prelude::ProductionAttributes as RINexProductionAttributes;
 
+/// [MetaData] used specifically in the case of signal "observations"
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ObsMetaData {
+    /// [MetaData]
+    pub meta: MetaData,
+    /// Whether this [MetaData] is considered "rover"
+    pub is_rover: bool,
+}
+
+impl ObsMetaData {
+    pub fn from_meta(meta: MetaData) -> Self {
+        Self {
+            meta,
+            is_rover: true,
+        }
+    }
+}
+
+impl std::fmt::Display for ObsMetaData {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.is_rover {
+            write!(f, "(ROVER) {}", self.meta)
+        } else {
+            write!(f, "{}", self.meta)
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MetaData {
     /// File name
@@ -68,6 +96,22 @@ impl MetaData {
     /// The unique identifier will identify the dataset uniquely
     pub fn set_unique_id(&mut self, unique_id: &str) {
         self.unique_id = Some(unique_id.to_string());
+    }
+
+    /// Convert this [MetaData] to Rover [ObsMetaData]
+    pub fn to_rover_obs_meta(&self) -> ObsMetaData {
+        ObsMetaData {
+            is_rover: true,
+            meta: self.clone(),
+        }
+    }
+
+    /// Convert this [MetaData] to Base [ObsMetaData]
+    pub fn to_base_obs_meta(&self) -> ObsMetaData {
+        ObsMetaData {
+            is_rover: false,
+            meta: self.clone(),
+        }
     }
 }
 

@@ -5,10 +5,7 @@ use std::collections::HashMap;
 
 use sp3::prelude::{Constellation, SP3, SV};
 
-use crate::{
-    context::QcContext,
-    report::shared::SamplingReport,
-};
+use crate::{context::QcContext, report::shared::SamplingReport};
 
 pub struct QcHighPrecisionPage {
     has_velocity: bool,
@@ -239,10 +236,11 @@ impl QcHighPrecisionNavigationReports {
     pub fn new(ctx: &QcContext) -> Self {
         let mut pages = HashMap::new();
         for (meta, sp3) in ctx.sp3_dataset.iter() {
-            pages.insert(meta.name.to_string(), QcHighPrecisionNavigationReport::new(sp3));
+            pages.insert(
+                meta.name.to_string(),
+                QcHighPrecisionNavigationReport::new(sp3),
+            );
         }
-        Self {
-            pages,
-        }
+        Self { pages }
     }
 }

@@ -34,11 +34,7 @@ use sp3::prelude::SP3;
 
 use crate::{
     cfg::{QcConfig, QcFrameModel},
-    context::{
-        // clock::ClockDataSet,
-        // sky::SkyContext,
-        meta::MetaData,
-    },
+    context::meta::{MetaData, ObsMetaData},
     report::QcReport,
     QcCtxError,
 };
@@ -53,8 +49,8 @@ pub struct QcContext {
     pub almanac: Almanac,
     /// ECEF frame to use during this session. Based off [Almanac].
     pub earth_cef: Frame,
-    /// Observation [Rinex] stored by [MetaData]
-    pub obs_dataset: HashMap<MetaData, Rinex>,
+    /// Observations [Rinex] stored by [MetaData]
+    pub obs_dataset: HashMap<ObsMetaData, Rinex>,
     /// Possible Navigation [Rinex]
     pub nav_dataset: Option<Rinex>,
     /// Possible IONEx [Rinex]
@@ -292,7 +288,7 @@ impl std::fmt::Debug for QcContext {
     /// Debug formatting, prints all loaded files per Product category.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (k, _) in &self.obs_dataset {
-            write!(f, "Observation RINEx: {}", k.name)?;
+            write!(f, "OBS RINEx: {}", k.meta.name)?;
         }
 
         for (k, _) in &self.meteo_dataset {

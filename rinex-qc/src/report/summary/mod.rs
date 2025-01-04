@@ -1,11 +1,13 @@
+mod base;
 mod general;
 mod rover;
 
+use base::QcBaseSummary;
 use general::QcGeneralSummary;
 use rover::QcRoverSummary;
 
 use crate::{
-    context::{meta::MetaData, QcContext},
+    context::{meta::ObsMetaData, QcContext},
     prelude::{html, Markup, Render},
 };
 
@@ -13,7 +15,8 @@ use std::collections::HashMap;
 
 pub struct QcSummary {
     general: QcGeneralSummary,
-    rovers_sum: HashMap<MetaData, QcRoverSummary>,
+    rovers_sum: HashMap<ObsMetaData, QcRoverSummary>,
+    bases_sum: HashMap<ObsMetaData, QcBaseSummary>,
 }
 
 impl QcSummary {
@@ -22,12 +25,25 @@ impl QcSummary {
             general: QcGeneralSummary::new(ctx),
             rovers_sum: {
                 let mut rovers = HashMap::new();
-                for (meta, rinex) in ctx.obs_dataset.iter() {
-                    let meta = meta.clone();
-                    let rover_summary = QcRoverSummary::new(ctx, &meta, &rinex);
-                    rovers.insert(meta.clone(), rover_summary);
+                for (meta, rover) in ctx.obs_dataset.iter() {
+                    if meta.is_rover {
+                        let meta = meta.clone();
+                        let rover_summary = QcRoverSummary::new(ctx, &meta, &rover);
+                        rovers.insert(meta.clone(), rover_summary);
+                    }
                 }
                 rovers
+            },
+            bases_sum: {
+                let mut bases = HashMap::new();
+                for (meta, base) in ctx.obs_dataset.iter() {
+                    if !meta.is_rover {
+                        let meta = meta.clone();
+                        let base_summary = QcBaseSummary::new(ctx, &meta, &base);
+                        bases.insert(meta.clone(), base_summary);
+                    }
+                }
+                bases
             },
         }
     }
