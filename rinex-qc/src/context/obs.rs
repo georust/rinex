@@ -275,13 +275,11 @@ mod test {
         assert!(ctx.has_observations());
         assert_eq!(ctx.obs_dataset.len(), 1);
 
-        let key = ObsMetaData::from_meta(
-            MetaData {
-                name: "ACOR00ESP_R_20213550000_01D_30S_MO".to_string(),
-                extension: "rnx".to_string(),
-                unique_id: Some("rcvr:LEICA GR50-1833574".to_string()),
-            }
-        );
+        let key = ObsMetaData::from_meta(MetaData {
+            name: "ACOR00ESP_R_20213550000_01D_30S_MO".to_string(),
+            extension: "rnx".to_string(),
+            unique_id: Some("rcvr:LEICA GR50-1833574".to_string()),
+        });
 
         assert!(
             ctx.obs_dataset.get(&key).is_some(),
@@ -334,7 +332,6 @@ mod test {
             "invalid gnss receiver indexing: {:?}",
             ctx.obs_dataset.keys().collect::<Vec<_>>(),
         );
-        
     }
 
     #[test]

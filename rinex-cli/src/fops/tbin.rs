@@ -36,7 +36,11 @@ pub fn tbin(ctx: &QcContext, cli: &Cli, submatches: &ArgMatches) -> Result<(), E
     for (obs_meta, rinex) in &ctx.obs_dataset {
         for split in rinex.split_even_dt(*dt).iter() {
             let auto_generated_name = split.standard_filename(short_name, suffix, None);
-            let path = ctx.cfg.workspace.join(&obs_meta.meta.name).join(auto_generated_name);
+            let path = ctx
+                .cfg
+                .workspace
+                .join(&obs_meta.meta.name)
+                .join(auto_generated_name);
             if gzip_encoding {
                 split.to_gzip_file(path)?;
             } else {

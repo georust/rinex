@@ -1,28 +1,26 @@
 use crate::report::obs::QcObservationsReport;
 
 use crate::{
-    prelude::{Markup, Render, html},
-    context::{QcContext, meta::MetaData},
+    context::{meta::MetaData, QcContext},
+    prelude::{html, Markup, Render},
 };
 
 use std::collections::HashMap;
 
 /// RINEX Observation Report shared by both ROVERs and BASEs
 pub struct QcRoversObservationsReport {
-   pub reports: HashMap<MetaData, QcObservationsReport>,
+    pub reports: HashMap<MetaData, QcObservationsReport>,
 }
 
 impl QcRoversObservationsReport {
     pub fn new(ctx: &QcContext) -> Self {
         let mut reports = HashMap::new();
-        for (k ,v) in ctx.obs_dataset.iter() {
+        for (k, v) in ctx.obs_dataset.iter() {
             if k.is_rover {
                 reports.insert(k.meta.clone(), QcObservationsReport::new(&v));
             }
         }
-        Self {
-            reports,
-        }
+        Self { reports }
     }
 }
 
@@ -34,7 +32,7 @@ impl Render for QcRoversObservationsReport {
                     tbody {
                         tr {
                             th class="is-info" {
-                                "File set"
+                                "File Set"
                             }
                             td {
                             }

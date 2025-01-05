@@ -1,20 +1,20 @@
 //! Generic analysis report
-use std::collections::HashMap;
 use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 
 // // shared analysis, that may apply to several products
 // mod shared;
 
 mod obs;
-use obs::{
-    QcRoversObservationsReport,
-    QcBasesObservationsReport,
-};
+use obs::{QcBasesObservationsReport, QcRoversObservationsReport};
 
 mod nav;
 use nav::QcBrdcNavigationReport;
 
 mod summary;
+use summary::QcSummary;
+
+mod solutions;
+use solutions::QcNavPostSolutions;
 
 #[cfg(feature = "sp3")]
 mod sp3;
@@ -24,16 +24,16 @@ use sp3::QcHighPrecisionNavigationReports;
 
 pub(crate) mod shared;
 
-use crate::{cfg::QcReportType, context::{QcContext, meta::MetaData}, report::summary::QcSummary};
+use crate::{cfg::QcReportType, context::QcContext};
 
 /// [QcExtraPage] you can add to customize [QcReport]
 pub struct QcExtraPage {
-    /// tab for pagination
-    pub tab: Box<dyn Render>,
-    /// content
-    pub content: Box<dyn Render>,
     /// HTML id
     pub html_id: String,
+    /// Menu for pagination
+    pub menu: Box<dyn Render>,
+    /// Page content
+    pub content: Box<dyn Render>,
 }
 
 /// [QcReport] is a generic structure to report complex analysis results
@@ -48,6 +48,8 @@ pub struct QcReport {
     brdc_nav: Option<QcBrdcNavigationReport>,
     /// SP3 high precision report
     sp3_nav: Option<QcHighPrecisionNavigationReports>,
+    /// Possible nav post solutions
+    solutions: Option<QcNavPostSolution>,
 }
 
 impl QcReport {
@@ -124,7 +126,7 @@ impl QcReport {
                     }
                     @ if let Some(rovers) = &self.rover_observations {
                         @ if let Some(bases) = &self.base_observations {
-                            @ if rovers.reports.len() == 1 { 
+                            @ if rovers.reports.len() == 1 {
                                 li {
                                     a id="qc-rover-observations" class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
                                         span class="icon" {
@@ -165,7 +167,7 @@ impl QcReport {
                                 }
                             }
                         } @ else {
-                            @ if rovers.reports.len() == 1 { 
+                            @ if rovers.reports.len() == 1 {
                                 li {
                                     a id="qc-rover-observations" class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
                                         span class="icon" {

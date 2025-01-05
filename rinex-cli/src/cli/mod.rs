@@ -442,9 +442,17 @@ Otherwise it gets automatically picked up."))
         hasher.finish()
     }
 
+    pub fn qc_custom_rover_opts(&self) -> QcCustomRoverOpts {
+        QcCustomRoverOpts::default()
+    }
+
     /// Returns QcConfig from command line
     pub fn qc_config(&self) -> QcConfig {
-        QcConfig::default().with_workspace(&self.workspace_path())
+        let mut cfg = QcConfig::default().with_workspace(&self.workspace_path());
+        cfg.solutions.ppp = true;
+        cfg.solutions.cggtts = true;
+
+        cfg
     }
 
     fn workspace_path(&self) -> String {

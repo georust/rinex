@@ -307,7 +307,10 @@ mod test {
 
     use crate::{
         cfg::QcConfig,
-        context::{meta::{ObsMetaData, MetaData}, QcContext},
+        context::{
+            meta::{MetaData, ObsMetaData},
+            QcContext,
+        },
     };
 
     use gnss_rtk::prelude::{Config as RTKConfig, Duration, Orbit};

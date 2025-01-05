@@ -3,7 +3,10 @@ use log::{error, info};
 use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
-    context::{meta::{MetaData, ObsMetaData}, QcContext},
+    context::{
+        meta::{MetaData, ObsMetaData},
+        QcContext,
+    },
     navigation::{
         carrier_from_rtk, carrier_to_rtk, clock::ClockContext, orbit::OrbitalContext,
         signal::SignalSource,

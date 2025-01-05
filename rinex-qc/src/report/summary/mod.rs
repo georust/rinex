@@ -80,7 +80,7 @@ impl Render for QcSummary {
                                 }
                             }
                         }
-                        
+
                         @ if !self.bases_sum.is_empty() {
                             tr {
                                 td {

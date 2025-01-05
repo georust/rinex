@@ -55,7 +55,11 @@ pub fn diff(ctx: &mut QcContext, cli: &Cli, matches: &ArgMatches) -> Result<(), 
                 rinex.observation_substract_mut(&rinex_b);
                 let auto_generated_name = rinex.standard_filename(short_rinex_name, suffix, None);
 
-                let path = ctx.cfg.workspace.join(&obs_meta.meta.name).join(auto_generated_name);
+                let path = ctx
+                    .cfg
+                    .workspace
+                    .join(&obs_meta.meta.name)
+                    .join(auto_generated_name);
 
                 #[cfg(feature = "csv")]
                 if csv {}

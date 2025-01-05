@@ -4,9 +4,6 @@ use navi::QcNaviSummary;
 // mod timeframe;
 // use timeframe::QcTimeFrame;
 
-use rinex::prelude::Constellation;
-use std::collections::HashMap;
-
 use crate::{
     context::{meta::ObsMetaData, QcContext},
     prelude::{html, Markup, Render, Rinex},

@@ -48,7 +48,6 @@ pub fn ppp_cggtts(cfg: RTKConfig, ctx: &QcContext, cli: &Cli, opts: &ArgMatches)
     //};
 
     for obs_meta in ctx.observations_meta() {
-
         let mut solver = ctx
             .nav_cggtts_solver(cfg.clone(), obs_meta, None, Default::default())
             .unwrap();

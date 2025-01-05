@@ -1,6 +1,6 @@
 use crate::{
     context::{meta::ObsMetaData, QcContext},
-    prelude::{html, Render, Markup},
+    prelude::{html, Markup, Render},
 };
 
 use rinex::prelude::Rinex;

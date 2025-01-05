@@ -9,11 +9,13 @@ pub mod navi;
 pub mod preference;
 pub mod report;
 pub mod rover;
+pub mod solutions;
 
 pub use navi::{QcFrameModel, QcNaviOpts};
 pub use preference::QcPreferedSettings;
 pub use report::{QcReportOpts, QcReportType};
 pub use rover::QcCustomRoverOpts;
+pub use solutions::QcSolutions;
 
 #[derive(Error, Debug)]
 pub enum QcConfigError {
@@ -39,6 +41,8 @@ pub struct QcConfig {
     pub navi: QcNaviOpts,
     #[serde(default)]
     pub rover: QcCustomRoverOpts,
+    #[serde(default)]
+    pub solutions: QcSolutions,
 }
 
 impl QcConfig {
@@ -84,6 +88,14 @@ impl Render for QcConfig {
                         }
                         td {
                             (self.rover.render())
+                        }
+                    }
+                    tr {
+                        th class="is-info" {
+                            "Solutions"
+                        }
+                        td {
+                            (self.solutions.render())
                         }
                     }
                 }
