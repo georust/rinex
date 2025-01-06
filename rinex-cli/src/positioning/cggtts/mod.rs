@@ -256,6 +256,16 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
 
                     // TODO: RTK
                     //candidate.set_remote_observations(remote);
+                    let target = &(*sv, observable.clone());
+
+                    let tracker = match trackers.get_mut(target) {
+                        None => {
+                            // initialize new tracker
+                            trackers.insert((*sv, observable.clone()), SVTracker::default());
+                            trackers.get_mut(target).unwrap()
+                        },
+                        Some(tracker) => tracker,
+                    };
 
                     match solver.resolve(*t, &vec![candidate]) {
                         Ok((t, pvt_solution)) => {
@@ -295,18 +305,6 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                                 msio,
                                 azimuth,
                                 elevation,
-                            };
-
-                            let target = &(*sv, observable.clone());
-
-                            let tracker = match trackers.get_mut(target) {
-                                None => {
-                                    // initialize new tracker
-                                    trackers
-                                        .insert((*sv, observable.clone()), SVTracker::default());
-                                    trackers.get_mut(target).unwrap()
-                                },
-                                Some(tracker) => tracker,
                             };
 
                             // // verify buffer continuity
@@ -398,9 +396,6 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                                             // TODO: most likely we should reset the SV signal tracker here
                                         },
                                     } //.fit()
-
-                                    // reset so we start a new track
-                                    tracker.reset();
                                 }
                                 // time to release a track
                                 else {
@@ -423,6 +418,10 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                             // }
                         },
                     } //.pvt resolve
+                      // after release, reset so we start a new track
+                    if should_release {
+                        tracker.reset();
+                    }
                 } // for all OBS
             } //.sv()
         }
