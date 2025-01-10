@@ -114,6 +114,7 @@ to operate the RINEX/SP3/RTK toolkit, until a GUI is made available.
 Use it to analyze data, perform file operations and resolve navigation solutions.")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
+                    .next_help_heading("Context")
                     .arg(Arg::new("filepath")
                         .long("fp")
                         .value_name("FILE")
@@ -182,6 +183,13 @@ but you can extend that with --depth. Refer to -f for more information."))
 By default the $RINEX_WORKSPACE variable is prefered if it is defined.
 You can also use this flag to customize it. 
 If none are defined, we will then try to create a local directory named \"WORKSPACE\" like it is possible in this very repo."))
+                .arg(Arg::new("jpl-bpc")
+                    .long("jpl-bpc")
+                    .action(ArgAction::SetTrue)
+                    .help("Force update or request upgrade to highest precision JPL daily model.
+Requires internet access on each deployment!
+Once downloaded (updated) a model is valid for a couple of days or weeks, but you should regularly update
+to obtain highest precision."))
         .next_help_heading("Output customization")
         .arg(
             Arg::new("output-name")
@@ -481,5 +489,10 @@ Otherwise it gets automatically picked up."))
     /// Customized / manually defined output to be generated
     pub fn custom_output_name(&self) -> Option<&String> {
         self.matches.get_one::<String>("output-name")
+    }
+
+    /// True if jpl_bpc_update is requested
+    pub fn jpl_bpc_update(&self) -> bool {
+        self.matches.get_flag("jpl-bpc")
     }
 }

@@ -39,10 +39,10 @@ use qc_traits::{
 /// Context Error
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("almanac error")]
-    Alamanac(#[from] AlmanacError),
-    #[error("almanac setup error")]
-    MetaAlamanac(#[from] MetaAlmanacError),
+    #[error("almanac error: {0}")]
+    Almanac(#[from] AlmanacError),
+    #[error("meta error: {0}")]
+    MetaAlmanac(#[from] MetaAlmanacError),
     #[error("planetary data error")]
     PlanetaryData(#[from] PlanetaryDataError),
     #[error("failed to extend gnss context")]
@@ -169,11 +169,11 @@ pub struct QcContext {
 }
 
 impl QcContext {
-    const ALMANAC_LOCAL_STRORAGE: &str = ".cache";
+    const ALMANAC_LOCAL_STORAGE: &str = ".cache";
 
     fn nyx_anise_de440s_bsp() -> MetaFile {
         MetaFile {
-            crc32: Some(1921414410),
+            crc32: Some(0x7286750a),
             uri: String::from("http://public-data.nyxspace.com/anise/de440s.bsp"),
         }
     }
@@ -194,96 +194,191 @@ impl QcContext {
         }
     }
 
-    /// Method to either download, retrieve or create
-    /// a basic [Almanac] and reference [Frame] to work with.
-    /// This will try to download the highest JPL model, and requires
-    /// internet access once a day.
-    /// If the JPL database cannot be accessed, we rely on an offline model.
-    fn build_almanac_frame_model() -> Result<(Almanac, Frame), Error> {
-        let mut initial_setup = false;
+    /// This [MetaAlmanac] solely relies on the nyx-space servers
+    fn low_prec_meta() -> MetaAlmanac {
+        MetaAlmanac {
+            files: vec![Self::nyx_anise_pck11_pca(), Self::nyx_anise_de440s_bsp()],
+        }
+    }
 
-        // Meta almanac for local storage management
+    /// This [MetaAlmanac] relies on the nyx-space servers
+    /// and the daily JPL update
+    fn high_prec_meta() -> MetaAlmanac {
+        MetaAlmanac {
+            files: vec![
+                Self::nyx_anise_de440s_bsp(),
+                Self::nyx_anise_pck11_pca(),
+                Self::nyx_anise_jpl_bpc(),
+            ],
+        }
+    }
+
+    /// Creates a new [QcContext].
+    /// Requires network access on first deployment ever (otherwise will fail)
+    /// because initial deployment will initiate a local storage
+    /// which makes future deployments much faster.
+    ///
+    /// ## Input
+    /// - "jpl_update" == false
+    /// When "update is set to false, this session will rely either on:
+    /// - previously downloaded high precision model
+    /// - previously downloaded low precision model (if "update" has never been used)
+    ///
+    /// - "jpl_update" == true
+    /// Each call will require valid internet access otherwise will fail.
+    /// We attempt the upgrade (or initial setup) of the highest precision model.
+    /// The model is valid for up to 3 months, in practice you can safely use it
+    /// for a couple of days or weeks, until network is available for a new update.
+    pub fn new(jpl_update: bool) -> Result<Self, Error> {
         let local_storage = format!(
             "{}/{}/anise.dhall",
             env!("CARGO_MANIFEST_DIR"),
-            Self::ALMANAC_LOCAL_STRORAGE
+            Self::ALMANAC_LOCAL_STORAGE
         );
 
-        let mut meta_almanac = match MetaAlmanac::new(local_storage.clone()) {
-            Ok(meta) => {
-                debug!("(anise) from local storage");
-                meta
-            },
-            Err(_) => {
-                debug!("(anise) local storage setup");
-                initial_setup = true;
-                MetaAlmanac {
-                    files: vec![
-                        Self::nyx_anise_de440s_bsp(),
-                        Self::nyx_anise_pck11_pca(),
-                        Self::nyx_anise_jpl_bpc(),
-                    ],
-                }
-            },
-        };
+        // if the "".dhall"" doesnt exist, this is first deployment ever
+        let anise_exist = Path::new(&local_storage).exists();
 
-        // download (if need be)
-        let almanac = meta_almanac.process(true)?;
+        let mut uses_jpl_model = false;
 
-        if initial_setup {
-            let updated = meta_almanac.dumps()?;
-
-            let _ = create_dir_all(&format!(
+        let almanac = if !anise_exist {
+            // prepare storage
+            create_dir_all(&format!(
                 "{}/{}",
                 env!("CARGO_MANIFEST_DIR"),
-                Self::ALMANAC_LOCAL_STRORAGE
-            ));
+                Self::ALMANAC_LOCAL_STORAGE
+            ))
+            .unwrap_or_else(|e| panic!("almanac storage setup error: {}", e));
 
-            let mut fd = File::create(&local_storage)
-                .unwrap_or_else(|e| panic!("almanac storage setup error: {}", e));
+            let almanac = Self::first_almanac_ever(&local_storage, jpl_update)?;
+            uses_jpl_model = true;
+            almanac
+        } else {
+            // using local storage
+            let mut meta = match MetaAlmanac::new(local_storage.clone()) {
+                Ok(meta) => meta,
+                Err(e) => {
+                    error!("(anise) failed to retrieve local storage!");
+                    return Err(Error::MetaAlmanac(e));
+                },
+            };
 
-            fd.write_all(updated.as_bytes())
-                .unwrap_or_else(|e| panic!("almanac storage setup error: {}", e));
+            // force JPL update
+            if jpl_update {
+                for file in &mut meta.files {
+                    if file.uri.contains("earth_latest_high_prec.bpc") {
+                        file.crc32 = None;
+                        uses_jpl_model = true;
+                        break;
+                    }
+                }
+
+                if !uses_jpl_model {
+                    meta.files.push(Self::nyx_anise_jpl_bpc());
+                }
+            }
+
+            match meta.process(true) {
+                Ok(almanac) => {
+                    if jpl_update {
+                        info!("(anise) jpl latest high precision model updated");
+
+                        // try to save for later (upgrading the local storage)
+                        match meta.dumps() {
+                            Ok(serialized) => {
+                                let mut fd = File::create(&local_storage).unwrap_or_else(|e| {
+                                    panic!("almanac storage setup error: {}", e)
+                                });
+
+                                fd.write_all(serialized.as_bytes()).unwrap_or_else(|e| {
+                                    panic!("almanac storage setup error: {}", e)
+                                });
+                            },
+                            Err(e) => {
+                                error!("(anise) almanac serialization failed: {}", e)
+                            },
+                        }
+                    } else {
+                        info!("(anise) using previous model");
+                    }
+                    almanac
+                },
+                Err(e) => {
+                    // upgrade failed
+                    error!("(anise) context setup error: {}", e);
+                    return Err(Error::Almanac(e));
+                },
+            }
+        };
+
+        // always try to obtain the ITRF93 frame
+        // which succeeds on ideal scenario, and may fail
+        // depending on deployment status
+        let earth_cef = if uses_jpl_model {
+            match almanac.frame_from_uid(EARTH_ITRF93) {
+                Ok(ecef) => {
+                    info!("(anise) deployed with high precision model");
+                    ecef
+                },
+                Err(e) => {
+                    error!("(anise) failed to deploy high precision model: {}", e);
+                    return Err(Error::PlanetaryData(e));
+                },
+            }
+        } else {
+            match almanac.frame_from_uid(IAU_EARTH_FRAME) {
+                Ok(itrf93) => {
+                    info!("(anise) deployed with low precision model");
+                    itrf93
+                },
+                Err(e) => {
+                    error!("(anise) failed to deploy low precision model: {}", e);
+                    return Err(Error::PlanetaryData(e));
+                },
+            }
+        };
+
+        Ok(Self {
+            earth_cef,
+            almanac,
+            files: Default::default(),
+            blob: Default::default(),
+        })
+    }
+
+    // Case of first deployment ever
+    fn first_almanac_ever(local_storage: &str, jpl_update: bool) -> Result<Almanac, Error> {
+        let mut meta = if jpl_update {
+            Self::high_prec_meta()
+        } else {
+            Self::low_prec_meta()
+        };
+
+        let almanac = meta.process(true)?;
+
+        if jpl_update {
+            info!("(anise) high precision almanac initiated");
+        } else {
+            info!("(anise) low precision almanac initiated");
         }
 
-        match almanac.frame_from_uid(EARTH_ITRF93) {
-            Ok(itrf93) => {
-                info!("highest precision context setup");
-                return Ok((almanac, itrf93));
+        // setup backup storage for faster future deployments
+        match meta.dumps() {
+            Ok(serialized) => {
+                // backup storage for faster future deployments
+                let mut fd = File::create(&local_storage)
+                    .unwrap_or_else(|e| panic!("almanac storage setup error: {}", e));
+
+                fd.write_all(serialized.as_bytes())
+                    .unwrap_or_else(|e| panic!("almanac storage setup error: {}", e));
             },
             Err(e) => {
-                error!("(anise) jpl_bpc: {}", e);
+                error!("(anise) serialization error: {}", e);
+                warn!("(anise) local storage not initiated");
             },
         }
 
-        let earth_cef = almanac.frame_from_uid(IAU_EARTH_FRAME)?;
-        warn!("deployed with offline model");
-        Ok((almanac, earth_cef))
-    }
-
-    /// Create a new QcContext for which we will try to
-    /// retrieve the latest and highest precision [Almanac]
-    /// and reference [Frame] to work with. If you prefer
-    /// to manualy specify those, prefer the other constructor.
-    pub fn new() -> Result<Self, Error> {
-        let (almanac, earth_cef) = Self::build_almanac_frame_model()?;
-        Ok(Self {
-            almanac,
-            earth_cef,
-            blob: HashMap::new(),
-            files: HashMap::new(),
-        })
-    }
-
-    /// Build new [QcContext] with given [Almanac] and desired [Frame],
-    /// which must be one of the available ECEF.
-    pub fn new_almanac(almanac: Almanac, frame: Frame) -> Result<Self, Error> {
-        Ok(Self {
-            almanac,
-            earth_cef: frame,
-            blob: HashMap::new(),
-            files: HashMap::new(),
-        })
+        Ok(almanac)
     }
 
     /// Returns main [TimeScale] for Self
