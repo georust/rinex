@@ -1,4 +1,4 @@
-use crate::prelude::{Markup, html, Render};
+use crate::prelude::{html, Markup, Render};
 
 mod summary;
 use summary::QcNavPostPPPSummary;

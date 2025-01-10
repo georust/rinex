@@ -1,7 +1,7 @@
 pub mod cggtts;
 pub mod ppp;
 
-use crate::prelude::{Render, html, Markup};
+use crate::prelude::{html, Markup, Render};
 
 pub struct QcNavPostSolutions {
     pub cggtts: Option<QcNavPostCggttsSolutions>,
@@ -10,7 +10,6 @@ pub struct QcNavPostSolutions {
 
 impl Render for QcNavPostSolutions {
     fn render(&self) -> Markup {
-        html! {
-        }
+        html! {}
     }
 }

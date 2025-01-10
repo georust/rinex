@@ -16,7 +16,17 @@ impl Render for QcSolutions {
                 table class="table is-bordered" {
                     tr {
                         th class="is-info" {
-                            "PPP"
+                            @ if self.ppp {
+                                button aria-label="PPP solutions attached to this report"
+                                data-balloon-pos="right" {
+                                    "PPP"
+                                }
+                            } @ else {
+                                button aria-label="PPP solutions not attached to this report"
+                                data-balloon-pos="right" {
+                                    "PPP"
+                                }
+                            }
                         }
                         @ if self.ppp {
                             td {
@@ -34,7 +44,17 @@ impl Render for QcSolutions {
                     }
                     tr {
                         th class="is-info" {
-                            "CGGTTS"
+                            @ if self.cggtts {
+                                button aria-label="CGGTTS solutions attached to this report"
+                                data-balloon-pos="right" {
+                                    "CGGTTS"
+                                }
+                            } @ else {
+                                button aria-label="CGGTTS solutions not attached to this report"
+                                data-balloon-pos="right" {
+                                    "CGGTTS"
+                                }
+                            }
                         }
                         @ if self.cggtts {
                             td {
