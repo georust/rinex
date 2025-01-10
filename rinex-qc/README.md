@@ -36,9 +36,11 @@ When built with `flate2` support, gzip compressed files can be naturally loaded:
 ```rust
 use rinex_qc::prelude::*;
 
+
 // Build a setup
-// This will deploy with latest Almanac set for high performances
-let mut ctx = QcContext::new()
+// This will not deploy with latest Almanac set for highest performances
+let update_model = false;
+let mut ctx = QcContext::new(update_model)
     .unwrap();
 
 let cfg = QcConfig::default(); // basic
@@ -66,7 +68,8 @@ Once again, gzip compressed files are naturally supported when built with `flate
 use rinex_qc::prelude::*;
 
 // Build a setup
-let mut ctx = QcContext::new()
+let update_model = false;
+let mut ctx = QcContext::new(update_model)
     .unwrap();
 
 let cfg = QcConfig::default(); // basic
@@ -92,8 +95,11 @@ force the consideration (along SP3) by using a custom `QcConfig`:
 use rinex_qc::prelude::*;
 
 // Build a setup
-let mut ctx = QcContext::new()
+let update_model = false;
+
+let mut ctx = QcContext::new(update_model)
     .unwrap();
+
 let cfg = QcConfig::default(); // basic
 ```
 
@@ -101,14 +107,15 @@ let cfg = QcConfig::default(); // basic
 
 PPP compliant contexts are made of RINEX files and SP3 files, for the same time frame.
 The QcSummary report will let you know how compliant your input context is
-and what may restrict performances:
+and what may restrict performances. 
+
 
 ```rust
 use rinex_qc::prelude::*;
 
 // basic setup
-let mut ctx = QcContext::new().unwrap();
-let cfg = QcConfig::default();
+let update_model = false;
+let mut ctx = QcContext::new(update_model).unwrap();
 ```
 
 ## Custom chapters
@@ -118,8 +125,8 @@ Format your custom chapters as `QcExtraPage` so you can create your own report!
 ```rust
 use rinex_qc::prelude::*;
 
-let mut ctx = QcContext::new().unwrap();
-let cfg = QcConfig::default(); // basic setup
+let update_model = false;
+let mut ctx = QcContext::new(update_model).unwrap();
 ```
 
 ## More info
