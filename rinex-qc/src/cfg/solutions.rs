@@ -28,28 +28,24 @@ impl Render for QcSolutions {
                 table class="table is-bordered" {
                     tr {
                         th class="is-info" {
-                            @ if self.ppp {
-                                button aria-label="PPP solutions attached to this report"
-                                data-balloon-pos="right" {
-                                    "PPP"
-                                }
-                            } @ else {
-                                button aria-label="PPP solutions not attached to this report"
-                                data-balloon-pos="right" {
-                                    "PPP"
-                                }
-                            }
+                            "PPP"
                         }
                         @ if self.ppp {
                             td {
-                                span class="icon" {
-                                    i class="fa-solid fa-circle-check" {}
+                                button aria-label="PPP solutions attached to this report"
+                                data-balloon-pos="right" {
+                                    span class="icon" {
+                                        i class="fa-solid fa-circle-check" {}
+                                    }
                                 }
                             }
                         } @ else {
                             td {
-                                span class="icon" {
-                                    i class="fa-solid fa-circle-xmark" {}
+                                button aria-label="PPP solutions not attached to this report"
+                                data-balloon-pos="right" {
+                                    span class="icon" {
+                                        i class="fa-solid fa-circle-xmark" {}
+                                    }
                                 }
                             }
                         }

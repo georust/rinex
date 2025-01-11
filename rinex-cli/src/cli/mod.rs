@@ -9,7 +9,13 @@ use std::{
 use itertools::Itertools;
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use rinex_qc::prelude::{QcConfig, QcContext, QcReportType};
+use rinex_qc::{
+    cfg::{
+        QcCustomRoverOpts, QcNaviOpts, QcPreferedClock, QcPreferedOrbit, QcPreferedRover,
+        QcPreferedRoversSorting, QcPreferedSettings, QcReportOpts, QcReportType, QcSolutions,
+    },
+    prelude::{QcConfig, QcContext},
+};
 
 mod fops;
 mod positioning;
@@ -42,20 +48,21 @@ impl Cli {
                 Command::new("rinex-cli")
                     .author("Guillaume W. Bres <guillaume.bressaix@gmail.com>")
                     .version(env!("CARGO_PKG_VERSION"))
-                    .about("RINex and SP3 post processing")
-                    .long_about("RINex-cli is a command line
-to post process RINex and possibly stacked SP3 data.
-It uses the RINex, SP3, RTK and Nyx-Space ecosystem.")
+                    .about("RINEX and SP3 post processing")
+                    .long_about("rinex-cli is a command line tool to post process
+RINEX and SP3 data. It is based on the combination
+of the RINE, SP3, RTK and Nyx libraries.")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
+                    .next_help_heading("Context (Data stacking & definitions)")
                     .arg(Arg::new("filepath")
                         .long("fp")
+                        .short('f')
                         .value_name("FILE")
                         .action(ArgAction::Append)
                         .required_unless_present("directory")
-                        .help("Load a single file. See --help")
-                        .long_help("Use this as many times as needed. 
-Available operations and following behavior highly depends on input data. 
+                        .help("Load a single file. At least one file is always expected. See --help for more information.")
+                        .long_help("Use --fp,-f for as many individual files you may need (whatever their kind).
 Supported formats are:
 - Observation RINEX
 - Navigation RINEX
@@ -70,12 +77,12 @@ Example (1): Load a single file
 rinex-cli \\
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 
-Example (2): define a PPP compliant context
+Example (2): define a PPP compliant context by stacking several files
 rinex-cli \\
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
-    --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \\
-    --fp test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \\ 
-    --fp test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \\
+    -f test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \\
+    -f test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz \\ 
+    -f test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz
 "))
                     .arg(Arg::new("directory")
                         .short('d')
@@ -83,24 +90,19 @@ rinex-cli \\
                         .value_name("DIRECTORY")
                         .action(ArgAction::Append)
                         .required_unless_present("filepath")
-                        .help("Directory recursivel loader. See --help.")
-                        .long_help("Use this as many times as needed. Default recursive depth is set to 5,
-but you can extend that with --depth. Refer to -f for more information."))
+                        .help("Use --dir,-d to stack all files contained in given directory. See --help for more information.")
+                        .long_help("Use --dir,-d as many times as you need, the total amount of files being unlimited. 
+The default recursive depth we search for is 5.
+Use --depth to increase this value.
+This makes the toolbox compliants with any folder organization.
+For example FORMAT/YEAR/DOY/Hours."))
                     .arg(Arg::new("depth")
                         .long("depth")
                         .action(ArgAction::Set)
                         .required(false)
-                        .value_parser(value_parser!(u8))
-                        .help("Extend maximal recursive search depth of -d. The default is 5.")
-                        .long_help("The default recursive depth already supports hierarchies like:
-/YEAR1
-     /DOY0
-          /STATION1
-     /DOY1
-          /STATION2
-/YEAR2
-     /DOY0
-          /STATION1"))
+                        .help("Custom --dir,-d maximal recursive depth")
+                        .value_parser(value_parser!(u8)))
+                    .next_help_heading("Session (custom preferences)")
                     .arg(Arg::new("quiet")
                         .short('q')
                         .long("quiet")
@@ -111,17 +113,18 @@ but you can extend that with --depth. Refer to -f for more information."))
                         .long("workspace")
                         .value_name("FOLDER")
                         .value_parser(value_parser!(PathBuf))
-                        .help("Define custom workspace location. See --help.")
-                        .long_help("The Workspace is where Output Products are to be generated.
-By default the $GEORUST_WORKSPACE variable is prefered.
-Use -w to manually define it and avoid using the environment variable.
-When no workspace is defined, we simply create a local folder."))
+                        .help("Define custom workspace location. See --help for more information.")
+                        .long_help("Workspace is where Output Products are to be generated.
+Whether they are text files or HTML reports.
+The $GEORUST_WORKSPACE variable is automatically picked up by this application and always prefered.
+Use --workspace,-w to define it at runtime if you prefer.
+When no workspace is defined, we simply a create local folder."))
                     .arg(Arg::new("zip")
                         .long("zip")
                         .action(ArgAction::SetTrue)
-                        .help("Gzip compress your output directly.
-NB: this applies to all output product, whether they are data files like RINex or HTML reports."))
-        .next_help_heading("Preprocessing")
+                        .help("Gzip compress any output directly.
+This may apply to both text files and HTML reports!"))
+        .next_help_heading("Preprocessor (Filter Designer)")
             .arg(Arg::new("gps-filter")
                 .short('G')
                 .action(ArgAction::SetTrue)
@@ -174,15 +177,6 @@ NB: this applies to all output product, whether they are data files like RINex o
                 .help("Customize output file or report name.
 In analysis opmode, report is named index.html by default, this will redefine that.
 In file operations (filegen, etc..) we can manually define output filenames with this option."))
-        .arg(
-            Arg::new("report-force")
-                .short('f')
-                .long("force")
-                .action(ArgAction::SetTrue)
-                .help("Force report synthesis.
-By default, report synthesis happens once per input set (file combnation and cli options).
-Use this option to force report regeneration.
-This has no effect on file operations that do not synthesize a report."))
             .next_help_heading("RINEX Data (specific)")
                 .arg(
                     Arg::new("rnx2crx")
@@ -361,47 +355,32 @@ Otherwise it gets automatically picked up."))
         self.matches.get_flag("crx2rnx")
     }
 
-    // /*
-    //  * faillible 3D coordinates parsing
-    //  * it's better to panic if the descriptor is badly format
-    //  * then continuing with possible other coordinates than the
-    //  * ones desired by user
-    //  */
-    // fn parse_3d_coordinates(desc: &String) -> (f64, f64, f64) {
-    //     let content = desc.split(',').collect::<Vec<&str>>();
-    //     if content.len() < 3 {
-    //         panic!("expecting x, y and z coordinates (3D)");
-    //     }
-    //     let x = f64::from_str(content[0].trim())
-    //         .unwrap_or_else(|_| panic!("failed to parse x coordinates"));
-    //     let y = f64::from_str(content[1].trim())
-    //         .unwrap_or_else(|_| panic!("failed to parse y coordinates"));
-    //     let z = f64::from_str(content[2].trim())
-    //         .unwrap_or_else(|_| panic!("failed to parse z coordinates"));
-    //     (x, y, z)
-    // }
+    // Parse 3d coordinates from command line
+    fn parse_3d_coordinates(desc: &String) -> (f64, f64, f64) {
+        let content = desc.split(',').collect::<Vec<&str>>();
+        if content.len() < 3 {
+            panic!("expecting x, y and z coordinates (3D)");
+        }
+        let x = f64::from_str(content[0].trim())
+            .unwrap_or_else(|_| panic!("failed to parse x coordinates"));
+        let y = f64::from_str(content[1].trim())
+            .unwrap_or_else(|_| panic!("failed to parse y coordinates"));
+        let z = f64::from_str(content[2].trim())
+            .unwrap_or_else(|_| panic!("failed to parse z coordinates"));
+        (x, y, z)
+    }
 
-    // fn manual_ecef(&self) -> Option<(f64, f64, f64)> {
-    //     let desc = self.matches.get_one::<String>("rx-ecef")?;
-    //     let ecef = Self::parse_3d_coordinates(desc);
-    //     Some(ecef)
-    // }
+    fn manual_rx_ecef(&self) -> Option<(f64, f64, f64)> {
+        let desc = self.matches.get_one::<String>("rx-ecef")?;
+        let ecef = Self::parse_3d_coordinates(desc);
+        Some(ecef)
+    }
 
-    // fn manual_geodetic(&self) -> Option<(f64, f64, f64)> {
-    //     let desc = self.matches.get_one::<String>("rx-geo")?;
-    //     let geo = Self::parse_3d_coordinates(desc);
-    //     Some(geo)
-    // }
-
-    // /// Returns RX Position possibly specified by user
-    // pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
-    //     if let Some(position) = self.manual_ecef() {
-    //         Some(position)
-    //     } else {
-    //         self.manual_geodetic()
-    //             .map(|position| GroundPosition::from_geodetic(position).to_ecef_wgs84())
-    //     }
-    // }
+    fn manual_rx_geodetic(&self) -> Option<(f64, f64, f64)> {
+        let desc = self.matches.get_one::<String>("rx-geo")?;
+        let geo = Self::parse_3d_coordinates(desc);
+        Some(geo)
+    }
 
     /// True if File Operations to generate data is being deployed
     pub fn has_fops_output_product(&self) -> bool {
@@ -415,44 +394,59 @@ Otherwise it gets automatically picked up."))
         )
     }
 
-    /*
-     * We hash all vital CLI information.
-     * This helps in determining whether we need to update an existing report
-     * or not.
-     */
-    pub fn hash(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        let mut string = self
-            .rover_directories()
-            .into_iter()
-            .sorted()
-            .chain(self.rover_files().into_iter().sorted())
-            .chain(self.preprocessing().into_iter().sorted())
-            .join(",");
-        if let Some(custom) = self.custom_output_name() {
-            string.push_str(custom);
-        }
-        // if let Some(geo) = self.manual_geodetic() {
-        //     string.push_str(&format!("{:?}", geo));
-        // }
-        // if let Some(ecef) = self.manual_ecef() {
-        //     string.push_str(&format!("{:?}", ecef));
-        // }
-        string.hash(&mut hasher);
-        hasher.finish()
-    }
-
-    pub fn qc_custom_rover_opts(&self) -> QcCustomRoverOpts {
-        QcCustomRoverOpts::default()
-    }
-
     /// Returns QcConfig from command line
     pub fn qc_config(&self) -> QcConfig {
-        let mut cfg = QcConfig::default().with_workspace(&self.workspace_path());
-        cfg.solutions.ppp = true;
-        cfg.solutions.cggtts = true;
+        QcConfig::default()
+            .with_workspace(&self.workspace_path())
+            .with_preferences(self.prefered_settings())
+            .with_rover_settings(self.rover_settings())
+            .with_report_preferences(self.report_preferences())
+            .with_solutions(self.solutions())
+    }
 
-        cfg
+    fn prefered_settings(&self) -> QcPreferedSettings {
+        QcPreferedSettings {
+            clk_source: QcPreferedClock::RINEx,
+            orbit_source: QcPreferedOrbit::RINEx,
+            rovers_sorting: QcPreferedRoversSorting::Receiver,
+        }
+    }
+
+    fn solutions(&self) -> QcSolutions {
+        QcSolutions {
+            ppp: false,
+            cggtts: false,
+        }
+    }
+
+    fn report_preferences(&self) -> QcReportOpts {
+        QcReportOpts {
+            report_type: if self.matches.get_flag("summary") {
+                QcReportType::Summary
+            } else {
+                QcReportType::Full
+            },
+            signal_combinations: false,
+        }
+    }
+
+    fn rover_settings(&self) -> QcCustomRoverOpts {
+        QcCustomRoverOpts {
+            manual_rx_ecef_km: if let Some((x_ecef_km, y_ecef_km, z_ecef_km)) =
+                self.manual_rx_ecef()
+            {
+                Some((x_ecef_km, y_ecef_km, z_ecef_km))
+            } else if let Some((lat_ddeg, long_ddeg, alt_km)) = self.manual_rx_geodetic() {
+                panic!("not supported yet. Use ECEF specification");
+            } else {
+                None
+            },
+            prefered_rover: self.prefered_rover(),
+        }
+    }
+
+    fn prefered_rover(&self) -> QcPreferedRover {
+        QcPreferedRover::Any
     }
 
     fn workspace_path(&self) -> String {

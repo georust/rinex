@@ -38,9 +38,8 @@ impl std::fmt::Display for QcPreferedRover {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct QcCustomRoverOpts {
-    /// Manual RX position that will apply to the Rover/User data set specifically
-    /// and not any other
-    pub manual_rx_position: Option<(f64, f64, f64)>,
+    /// Manual RX position expressed as ECEF coordinates in km.
+    pub manual_rx_ecef_km: Option<(f64, f64, f64)>,
     /// Prefered rover, for which we will solve solutions
     pub prefered_rover: QcPreferedRover,
 }
@@ -54,12 +53,12 @@ impl Render for QcCustomRoverOpts {
                         th {
                             "Reference position"
                         }
-                        @if let Some(manual) = self.manual_rx_position {
+                        @if let Some(manual) = self.manual_rx_ecef_km {
                             td {
                                 "Manual (User Defined)"
                             }
                             td {
-                                (format!("{:.3E}m {:.3E}m {:.3E}m", manual.0, manual.1, manual.2))
+                                (format!("{:.3E} km {:.3E} km {:.3E} km", manual.0, manual.1, manual.2))
                             }
                         } else {
                             td {

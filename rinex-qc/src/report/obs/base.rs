@@ -27,20 +27,24 @@ impl QcBasesObservationsReport {
 impl Render for QcBasesObservationsReport {
     fn render(&self) -> Markup {
         html! {
-            div class="table-container" {
+            div class="table-container" id="qc-base-observations" style="display:none" {
                 table class="table is-bordered" {
                     tbody {
                         tr {
                             th class="is-info" {
-                                "File set"
+                                "Base Stations"
                             }
                             td {
+                                select id="qc-base-obs-selector" onclick="onQcBaseObsSelection()" {
+                                    @ for base in self.reports.keys() {
+                                        option value=(base.name) {}
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-
         }
     }
 }

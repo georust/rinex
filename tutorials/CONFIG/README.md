@@ -7,9 +7,6 @@ When no configuration script is passed: we rely on the default script.
 The default script is stored in this very folder, which might be a starting point
 for your, or help you understand the default behavior.
 
-- [default.json](./default.json) is the default `rinex-cli --cfg`uration.
-These are the parameters the application deploys, if no configuration script is passed.
-
 - [documentation.json (DO-NOT-USE)](./documentation.json) is
 a fully documented (one explanation per field) `rinex-cli --cfg`uration script.
 Because Json do not allow comments, this file cannot be used directly.
@@ -18,10 +15,15 @@ Because Json do not allow comments, this file cannot be used directly.
 that has SP3 prefered over Broadcast Radio Navigation. It is sometimes
 used in our tutorials
 
-- [Survey](./survey) are configuration dedicated to static geodetic surveying.  
-They apply to the `ppp --cfg`uration option. In static surveying, we want to determine
-the very precise location of a static GNSS receiver, without apriori knowledge.
-It is for example, the prerequisite to designing a new RTK reference station.
+- [Custom signal preferences](SIGNALS/README.md) are simple
+configurations that apply to signal quality control, reporting
+and analysis. For example, this contains a config script
+that enables all possible signal analysis.
+
+- [Surveying confugurations](./SURVEY/README.md) that may apply
+to precise geodetic applications. Static surveying without apriori knowledge
+for example, may apply to RTK reference station calibrations. This also
+covers CGGTTS applications that fall in the static surveying category.
 
 - [RTK](./rtk) are configuration scripts dedicated to 2D (single base single rover)
 differential positioning. Use them in conjonction of our [RTK examples](https://github.com/georust/rinex/main/tree/tutorials).

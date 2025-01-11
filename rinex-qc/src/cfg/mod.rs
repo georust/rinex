@@ -12,9 +12,11 @@ pub mod rover;
 pub mod solutions;
 
 pub use navi::{QcFrameModel, QcNaviOpts};
-pub use preference::QcPreferedSettings;
+pub use preference::{
+    QcPreferedClock, QcPreferedOrbit, QcPreferedRoversSorting, QcPreferedSettings,
+};
 pub use report::{QcReportOpts, QcReportType};
-pub use rover::QcCustomRoverOpts;
+pub use rover::{QcCustomRoverOpts, QcPreferedRover};
 pub use solutions::QcSolutions;
 
 #[cfg(feature = "nav")]
@@ -74,6 +76,30 @@ pub struct QcConfig {
 }
 
 impl QcConfig {
+    pub fn with_preferences(&self, preferences: QcPreferedSettings) -> Self {
+        let mut s = self.clone();
+        s.preference = preferences;
+        s
+    }
+
+    pub fn with_rover_settings(&self, preferences: QcCustomRoverOpts) -> Self {
+        let mut s = self.clone();
+        s.rover = preferences;
+        s
+    }
+
+    pub fn with_report_preferences(&self, preferences: QcReportOpts) -> Self {
+        let mut s = self.clone();
+        s.report = preferences;
+        s
+    }
+
+    pub fn with_solutions(&self, solutions: QcSolutions) -> Self {
+        let mut s = self.clone();
+        s.solutions = solutions;
+        s
+    }
+
     /// Creates a new [QcConfig] with custom workspace location.
     pub fn with_workspace<P: AsRef<Path>>(&self, path: P) -> Self {
         let mut s = self.clone();
@@ -81,11 +107,27 @@ impl QcConfig {
         s
     }
 
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
+    pub fn with_navi_settings(&self, navi: QcNaviOpts) -> Self {
+        let mut s = self.clone();
+        s.navi = navi;
+        s
+    }
+
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
+    pub fn with_rtk_config(&self, cfg: RTKConfig) -> Self {
+        let mut s = self.clone();
+        s.rtk_config = Some(cfg);
+        s
+    }
+
     /// Returns internal [RTKConfig] in any case
     #[cfg(feature = "nav")]
     pub(crate) fn rtk_config(&self) -> RTKConfig {
-        if let Some(rtk_config) = self.rtk_config {
-            rtk_config
+        if let Some(rtk_config) = &self.rtk_config {
+            rtk_config.clone()
         } else {
             RTKConfig::default()
         }

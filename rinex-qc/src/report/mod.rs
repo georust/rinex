@@ -4,8 +4,15 @@ use maud::{html, Markup, PreEscaped, Render, DOCTYPE};
 // // shared analysis, that may apply to several products
 // mod shared;
 
+use crate::context::meta::MetaData;
+
+use std::collections::HashMap;
+
 mod obs;
 use obs::{QcBasesObservationsReport, QcRoversObservationsReport};
+
+mod combinations;
+use combinations::QcSignalCombinationsReport;
 
 mod nav;
 use nav::QcBrdcNavigationReport;
@@ -13,12 +20,16 @@ use nav::QcBrdcNavigationReport;
 mod summary;
 use summary::QcSummary;
 
+#[cfg(feature = "nav")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
 mod solutions;
-use solutions::QcNavPostSolutions;
 
 #[cfg(feature = "sp3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
 mod sp3;
+
+#[cfg(feature = "nav")]
+use solutions::QcNavPostSolutions;
 
 #[cfg(feature = "sp3")]
 use sp3::QcHighPrecisionNavigationReports;
@@ -48,6 +59,9 @@ pub struct QcReport {
     /// "Base stations" observations report
     base_observations: Option<QcBasesObservationsReport>,
 
+    /// possible signal combinations
+    signal_combinations: HashMap<MetaData, QcSignalCombinationsReport>,
+
     /// Possible "BRDC" Navigation report
     brdc_nav: Option<QcBrdcNavigationReport>,
 
@@ -59,6 +73,8 @@ pub struct QcReport {
 
     /// Possibly attached [QcNavPostSolutions], depending on
     /// [QcConfig] applied at synthesis time.
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
     solutions: Option<QcNavPostSolutions>,
 }
 
@@ -87,6 +103,18 @@ impl QcReport {
                     } else {
                         None
                     }
+                },
+                signal_combinations: if ctx.cfg.report.signal_combinations {
+                    let mut map = HashMap::new();
+                    for (obs_meta, rinex) in ctx.obs_dataset.iter() {
+                        map.insert(
+                            obs_meta.meta.clone(),
+                            QcSignalCombinationsReport::new(&rinex),
+                        );
+                    }
+                    map
+                } else {
+                    Default::default()
                 },
                 brdc_nav: if ctx.has_navigation_data() {
                     None
@@ -118,17 +146,13 @@ impl QcReport {
             brdc_nav: None,
             base_observations: Default::default(),
             rover_observations: Default::default(),
+            signal_combinations: Default::default(),
             #[cfg(feature = "sp3")]
             sp3_nav: None,
             #[cfg(feature = "nav")]
             solutions: None,
         }
     }
-
-    // /// Add a custom chapter to the report
-    // pub fn add_chapter(&mut self, chapter: QcExtraPage) {
-    //     self.custom_chapters.push(chapter);
-    // }
 
     /// Generates a menu bar to nagivate
     fn html_menu_bar(&self) -> Markup {
@@ -139,7 +163,7 @@ impl QcReport {
                 }
                 ul class="menu-list" {
                     li {
-                        a id="qc-summary" class="qc-sidemenu" onclick="onQcSummaryClicks()" {
+                        a class="qc-sidemenu" onclick="onQcSummaryClicks()" {
                             span class="icon" {
                                 i class="fa fa-home" {}
                             }
@@ -147,108 +171,91 @@ impl QcReport {
                         }
                     }
                     @ if let Some(rovers) = &self.rover_observations {
-                        @ if let Some(bases) = &self.base_observations {
-                            @ if rovers.reports.len() == 1 {
-                                li {
-                                    a id="qc-rover-observations" class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
-                                        span class="icon" {
-                                            i class="fa-solid fa-tower-broadcast" {}
-                                        }
-                                        "ROVER Observations"
+                        @ if rovers.reports.len() == 1 {
+                            li {
+                                a class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
+                                    span class="icon" {
+                                        i class="fa-solid fa-tower-broadcast" {}
                                     }
-                                }
-                            } @ else {
-                                li {
-                                    a id="qc-rover-observations" class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
-                                        span class="icon" {
-                                            i class="fa-solid fa-tower-broadcast" {}
-                                        }
-                                        "ROVERs Observations"
-                                    }
-                                }
-
-                            }
-                            @ if bases.reports.len() == 1 {
-                                li {
-                                    a id="qc-base-observations" class="qc-sidemenu" onclick="onQcBaseObservationsClicks()" {
-                                        span class="icon" {
-                                            i class="fa-solid fa-tower-broadcast" {}
-                                        }
-                                        "Base station"
-                                    }
-                                }
-
-                            } else {
-                                li {
-                                    a id="qc-base-observations" class="qc-sidemenu" onclick="onQcBaseObservationsClicks()" {
-                                        span class="icon" {
-                                            i class="fa-solid fa-tower-broadcast" {}
-                                        }
-                                        "Base stations"
-                                    }
+                                    "Rover"
                                 }
                             }
                         } @ else {
-                            @ if rovers.reports.len() == 1 {
-                                li {
-                                    a id="qc-rover-observations" class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
-                                        span class="icon" {
-                                            i class="fa-solid fa-tower-broadcast" {}
-                                        }
-                                        "Observations"
+                            li {
+                                a class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
+                                    span class="icon" {
+                                        i class="fa-solid fa-tower-broadcast" {}
                                     }
-                                }
-                            } @ else {
-                                li {
-                                    a id="qc-rover-observations" class="qc-sidemenu" onclick="onQcRoverObservationsClicks()" {
-                                        span class="icon" {
-                                            i class="fa-solid fa-tower-broadcast" {}
-                                        }
-                                        "Observation"
-                                    }
+                                    "Rovers"
                                 }
                             }
-                        }
-                    } @ else {
-                        @ if let Some(bases) = &self.base_observations {
-                            @ if bases.reports.len() == 1 {
-                                li {
-                                    a id="qc-base-observations" class="qc-sidemenu" onclick="onQcBaseObservationsClicks()" {
-                                        span class="icon" {
-                                            i class="fa-solid fa-tower-broadcast" {}
-                                        }
-                                        "Base station"
-                                    }
-                                }
 
-                            } else {
-                                li {
-                                    a id="qc-base-observations" class="qc-sidemenu" onclick="onQcBaseObservationsClicks()" {
-                                        span class="icon" {
-                                            i class="fa-solid fa-tower-broadcast" {}
-                                        }
-                                        "Base stations"
+                        }
+                    }
+                    @ if let Some(bases) = &self.base_observations {
+                        @ if bases.reports.len() == 1 {
+                            li {
+                                a class="qc-sidemenu" onclick="onQcBaseObservationsClicks()" {
+                                    span class="icon" {
+                                        i class="fa-solid fa-tower-broadcast" {}
                                     }
+                                    "Base station"
+                                }
+                            }
+
+                        } else {
+                            li {
+                                a class="qc-sidemenu" onclick="onQcBaseObservationsClicks()" {
+                                    span class="icon" {
+                                        i class="fa-solid fa-tower-broadcast" {}
+                                    }
+                                    "Base stations"
                                 }
                             }
                         }
                     }
+                    @ if !self.signal_combinations.is_empty() {
+                        li {
+                            a class="qc-sidemenu" onclick="onQcSignalCombinationsClicks()" {
+                                span class="icon" {
+                                    i class="fa-solid fa-tower-broadcast" {}
+                                }
+                                "Signal Combinations"
+                            }
+                        }
+                    }
+
                     @ if self.brdc_nav.is_some() {
-                        a id="qc-navigation" class="qc-sidemenu" onclick="onQcNavigationClicks()" {
+                        a class="qc-sidemenu" onclick="onQcNavigationClicks()" {
                             span class="icon" {
                                 i class="fa-solid fa-satellite-dish" {}
                             }
                             "Broadcast Navigation (BRDC)"
                         }
                     }
-                    @ if self.sp3_nav.is_some() {
-                        a id="qc-navigation" class="qc-sidemenu" onclick="onQcHighPrecisionOrbitsClicks()" {
-                            span class="icon" {
-                                i class="fa-solid fa-satellite-dish" {}
+
+                    @ if cfg!(feature = "sp3") {
+                        @ if self.sp3_nav.is_some() {
+                            a class="qc-sidemenu" onclick="onQcHighPrecisionOrbitsClicks()" {
+                                span class="icon" {
+                                    i class="fa-solid fa-satellite-dish" {}
+                                }
+                                "High Precision Orbits (SP3)"
                             }
-                            "High Precision Orbits (Sp3)"
                         }
                     }
+
+                    @ if cfg!(feature = "nav") {
+                        @ if self.solutions.is_some() {
+                            a class="qc-sidemenu" onclick="onQcNavSolutionsClicks()" {
+                                span class="icon" {
+                                    i class="fa-solid fa-location-crosshairs" {}
+                                }
+                                "Solutions"
+                            }
+                        }
+                    }
+
                     p class="menu-label" {
                         a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {
                             "Wiki"

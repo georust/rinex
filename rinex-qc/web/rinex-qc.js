@@ -12,7 +12,7 @@ function showContentByDocumentId(id) {
     }
 }
 
-function hideShowContentByDocumentId(sectionId) {
+function toggleVisiblityByDocumentId(sectionId) {
     var content = document.getElementById(sectionId);
     if (content.display == 'none' || content.display == "") {
         content.style.display = "block";
@@ -21,92 +21,84 @@ function hideShowContentByDocumentId(sectionId) {
     }
 }
 
-function toggleElementVisibilityByDocumentId(id) {
-    console.log("toggling " + id);
-    var content = document.getElementById(id);
-    if (content.style.display == 'none' || content.style.display == "") {
-        content.style.display = "block";
-    } else {
-        content.style.display = "none";
-    }
+function getQcSummary() {
+    return document.getElementById("qc-summary");
 }
 
-function getHeroContentById(id) {
-    var heros = document.getElementsByClassName("section");
-    for (var hero of heros) {
-        console.log("hero: " + hero.id);
-        if (hero.id == id) {
-            return hero;
-        }
-    }
-    return null;
+function getQcRoverObservations() {
+    return document.getElementById("qc-rover-observations");
 }
 
-function getQcSummaryHero() {
-    return getHeroContentById("qc-summary");
-}
-
-function getQcObservationsHero() {
-    return getHeroContentById("qc-observations");
+function getQcBaseStationsObservations() {
+    return document.getElementById("qc-base-observations");
 }
 
 function showQcSummary() {
-    console.log("show: qc-summary");
-    let hero = getQcSummaryHero();
+    let hero = getQcSummary();
     hero.style.display = 'block';
 }
 
 function hideQcSummary() {
-    console.log("hide: qc-summary");
-    let hero = getQcSummaryHero();
+    let hero = getQcSummary();
     hero.style.display = 'none';
 }
 
-
-function showQcObservations() {
-    var hero = getQcSummaryHero();
-    hero.display.style = 'none';
-
-    var hero = getQcObservationsHero();
-    if (hero != null) {
-        hero.display.style = 'block';
-    }
-}
-
 function onQcSummaryClicks() {
-    var hero = getQcSummaryHero();
-    hero.style = 'block';
+    showQcSummary();
 
-    var hero = getQcObservationsHero();
+    var hero = getQcRoverObservations();
+    if (hero != null) {
+        hero.style = 'none';
+    }
+
+    var hero = getQcBaseStationsObservations();
     if (hero != null) {
         hero.style = 'none';
     }
 }
 
-function onQcObservationsClicks() {
-    var hero = getQcSummaryHero();
-    hero.style = 'none';
+function onQcRoverObsSelection(opts) {
+    console.log("opts: " + opts);
+}
 
-    var hero = getQcObservationsHero();
+function onQcRoverObservationsClicks() {
+    hideQcSummary();
+
+    var hero = getQcRoverObservations();
     if (hero != null) {
         hero.style = 'block';
+    } else {
+        console.log("is null");
+    }
+
+    var hero = getQcBaseStationsObservations();
+    if (hero != null) {
+        hero.style = 'none';
+    } 
+}
+
+function onQcBaseObservationsClicks() {
+    hideQcSummary();
+
+    var hero = getQcRoverObservations();
+    if (hero != null) {
+        hero.style = 'none';
+    } 
+
+    var hero = getQcBaseStationsObservations();
+    if (hero != null) {
+        hero.style = 'none';
+    } else {
+        console.log("is null");
     }
 }
 
-// function showQcSelectedGnssRx(rx) {
-//     console.log("showing: " +rx);
-//     var gnss_receivers = document.getElementsByClassName("qc-obs-receiver");
-//     for (var gnss_rx of gnss_receivers) {
-//         if (gnss_rx.id == rx) {
-//             gnss_rx.style.display = 'block';
-//         } else {
-//             gnss_rx.style.display = 'none';
-//         }
-//     }
-// }
-
 function onQcNaviSummaryConstellationChanges(changes) {
     console.log("YES changes: " + changes.target.value);
+}
+
+function onQcNaviSummarySelectionChanges(opts) {
+    console.log("CHANGES: "+ opts);
 }
 
 function buildPageListeners() {
@@ -128,20 +120,6 @@ function buildPageListeners() {
                     fields.style.display = "none";
                 }
             }
-        }
-    }
-    
-    // qc-sidemenu listeners
-    let qc_side_menu = document.getElementsByClassName("qc-sidemenu");
-    for (item of qc_side_menu) {
-        var item_id = item.id;
-        console.log("qc-sidemenu item: " + item_id);
-
-        if (item_id == "qc-observations") {
-            item.e
-            item.onchange = function(changes) {
-                console.log(changes.target.value);
-            };
         }
     }
 }

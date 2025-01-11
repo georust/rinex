@@ -8,7 +8,7 @@ extern crate log;
 extern crate gnss_rs as gnss;
 extern crate rinex_qc_traits as qc_traits;
 
-mod cfg;
+pub mod cfg;
 
 pub mod plot;
 
@@ -21,11 +21,12 @@ mod navigation;
 
 pub mod prelude {
     pub use crate::{
-        cfg::{QcConfig, QcConfigError, QcReportType},
+        cfg::QcConfig,
         context::QcContext,
         report::{QcExtraPage, QcReport},
         QcError,
     };
+
     // Pub re-export
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
 

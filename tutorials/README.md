@@ -43,9 +43,14 @@ The [CGGTTS](./CGGTTS) section focuses on the post processed _timing oriented_ n
 
 ## Other
 
-When operating the toolbox, it might be very useful, sometimes vital, to use the debug traces
-and understand what they mean. [This page](./Logs.md) teaches how to unlock the debug traces
-and their meaning.
+Other topics or pages that are important demonstrations:
+
+- The [Configuration script](./CONFIG/README.md) is discussed in this page,
+which also offers many configurations that these tutorials may use.
+
+- When operating the toolbox, the log traces may prove vital.
+This is particularly true for advanced operations. [The Logs page](./Logs) teaches how to
+take advantage of the sessions log
 
 ## Frequently Asked Questions (FAQ)
 

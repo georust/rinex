@@ -27,14 +27,19 @@ impl QcRoversObservationsReport {
 impl Render for QcRoversObservationsReport {
     fn render(&self) -> Markup {
         html! {
-            div class="table-container" {
+            div class="table-container" id="qc-rover-observations" style="display:none" {
                 table class="table is-bordered" {
                     tbody {
                         tr {
                             th class="is-info" {
-                                "File Set"
+                                "Rovers"
                             }
                             td {
+                                select id="qc-rover-obs-selector" onclick="onQcRoverObsSelection()" {
+                                    @ for rover in self.reports.keys() {
+                                        option value=(rover.name) {}
+                                    }
+                                }
                             }
                         }
                     }

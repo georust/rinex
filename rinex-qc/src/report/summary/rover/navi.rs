@@ -177,7 +177,7 @@ impl Render for QcNaviSummary {
                                 }
                                 // constellation selector
                                 td {
-                                    select class="qc-navi-sum-selector" id=(&self.html_id) {
+                                    select id=(&self.html_id) onclick="onQcNaviSummarySelectionChanges()" {
                                         @ for constellation in self.constellations_navi.keys().sorted() {
                                             option value=(constellation.to_string()) {
                                                 (constellation.to_string())

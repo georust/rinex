@@ -25,6 +25,16 @@ The library does not support the following format (as of today):
 
 - DORIS RINEx
 
+## Crate features
+
+This library has many features:
+
+- `flate2` unlocks Gzip decompression native support
+- `sp3` unlocks the SP3 format support
+- `nav` unlocks post processed Navigation and a few methods
+to bridge with the ANISE library
+- `cggtts` + `nav` unlocks post processed CGGTTS solutions solver
+
 ## Workspace
 
 A session is tied to a Workspace, defined in the Configuration script.  

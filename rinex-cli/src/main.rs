@@ -76,6 +76,9 @@ fn user_data_parsing(
 ) -> QcContext {
     let cfg = cli.qc_config();
 
+    debug!("Qc configuration script");
+    debug!("{:#?}", cfg);
+
     let mut ctx =
         QcContext::new(cfg).unwrap_or_else(|e| panic!("failed to initialize new context {}", e));
 

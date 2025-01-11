@@ -1,6 +1,16 @@
 Static surveying
 ================
 
+The following Qc configuration will automatically integrate
+PPP (and/or) CGGTTS solutions to the synthesized report.
+
+## CGGTTS
+
+Notes on CGGTTS:
+
+* since CGGTTS is intended in static applications,
+only the following scripts may truly apply to CGGTTS solutions solving
+
 Configuration scripts, load any of these with `ppp -c`.  
 
 These scripts use high interpolation orders, which is compatible with long periods of signal observations.  

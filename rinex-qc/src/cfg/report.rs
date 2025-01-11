@@ -37,8 +37,12 @@ impl std::fmt::Display for QcReportType {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct QcReportOpts {
+    /// Select [QcReportType] (reporting style)
     #[serde(default, rename(deserialize = "type"))]
     pub report_type: QcReportType,
+    /// Select whether signal combinations should be evaluated
+    /// or not (heaviest/slowest operation)
+    pub signal_combinations: bool,
 }
 
 impl Render for QcReportOpts {
@@ -47,11 +51,19 @@ impl Render for QcReportOpts {
             div class="table-container" {
                 table class="table is-bordered" {
                     tr {
-                        th {
+                        th class="is-info" {
                             "Report Type"
                         }
                         td {
                             (self.report_type.to_string())
+                        }
+                    }
+                    tr {
+                        th class="is-info" {
+                            "Signal combinations"
+                        }
+                        td {
+                            (self.signal_combinations.to_string())
                         }
                     }
                 }
