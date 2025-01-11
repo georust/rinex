@@ -74,7 +74,6 @@ fn user_data_parsing(
     max_depth: usize,
     is_rover: bool,
 ) -> QcContext {
-
     let cfg = cli.qc_config();
 
     let mut ctx =

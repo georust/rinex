@@ -16,6 +16,7 @@ mod context;
 mod report;
 
 #[cfg(feature = "nav")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
 mod navigation;
 
 pub mod prelude {

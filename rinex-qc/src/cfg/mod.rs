@@ -17,6 +17,9 @@ pub use report::{QcReportOpts, QcReportType};
 pub use rover::QcCustomRoverOpts;
 pub use solutions::QcSolutions;
 
+#[cfg(feature = "nav")]
+use gnss_rtk::prelude::Config as RTKConfig;
+
 #[derive(Error, Debug)]
 pub enum QcConfigError {
     #[error("invalid prefered orbital source")]
@@ -31,25 +34,61 @@ pub enum QcConfigError {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct QcConfig {
+    /// Custom workspace location.
+    /// This is where any report may be generated.
     #[serde(default)]
     pub workspace: PathBuf,
+
+    /// Report rendition preferences.
     #[serde(default)]
     pub preference: QcPreferedSettings,
+
+    /// Report rendition preferences.
     #[serde(default)]
     pub report: QcReportOpts,
+
+    /// Navigation preferences.    
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
     #[serde(default)]
     pub navi: QcNaviOpts,
+
+    /// Custom "rover" preferences that may serve
+    /// more than just navigation.
     #[serde(default)]
     pub rover: QcCustomRoverOpts,
+
+    /// Custom navigation solver options.
+    /// Used in post processed navigations, mostly when
+    /// auto-integrating navigation solutions to analysis reports.
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
+    pub rtk_config: Option<RTKConfig>,
+
+    /// Report synthesis will automatically attach
+    /// the following solutions. By default, we do no attach any.
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
     #[serde(default)]
     pub solutions: QcSolutions,
 }
 
 impl QcConfig {
+    /// Creates a new [QcConfig] with custom workspace location.
     pub fn with_workspace<P: AsRef<Path>>(&self, path: P) -> Self {
         let mut s = self.clone();
         s.workspace = path.as_ref().to_path_buf();
         s
+    }
+
+    /// Returns internal [RTKConfig] in any case
+    #[cfg(feature = "nav")]
+    pub(crate) fn rtk_config(&self) -> RTKConfig {
+        if let Some(rtk_config) = self.rtk_config {
+            rtk_config
+        } else {
+            RTKConfig::default()
+        }
     }
 }
 
@@ -90,12 +129,14 @@ impl Render for QcConfig {
                             (self.rover.render())
                         }
                     }
-                    tr {
-                        th class="is-info" {
-                            "Solutions"
-                        }
-                        td {
-                            (self.solutions.render())
+                    @ if cfg!(feature = "nav") {
+                        tr {
+                            th class="is-info" {
+                                "Solutions"
+                            }
+                            td {
+                                (self.solutions.render())
+                            }
                         }
                     }
                 }

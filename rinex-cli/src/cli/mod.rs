@@ -442,7 +442,7 @@ Otherwise it gets automatically picked up."))
         hasher.finish()
     }
 
-    pub fn qc_custom_rover_opts(&self) -> QcCustomRoverOpts {
+    pub fn qc_custom_rover_opts(&self) -> QcCustomRoverOpts {
         QcCustomRoverOpts::default()
     }
 

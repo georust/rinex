@@ -135,8 +135,19 @@ impl QcContext {
     /// Define the following abstract name as a "base" station reference.
     pub fn define_base(&mut self, meta: MetaData) {}
 
+    /// [ObsMetaData] iterator, whatever their type
     pub fn observations_meta(&self) -> Keys<'_, ObsMetaData, Rinex> {
         self.obs_dataset.keys()
+    }
+
+    /// Rover [ObsMetaData] iterator specifically
+    pub fn rover_observations_meta(&self) -> Box<dyn Iterator<Item = &ObsMetaData> + '_> {
+        Box::new(self.obs_dataset.keys().filter(|meta| meta.is_rover))
+    }
+
+    /// Base stations [ObsMetaData] iterator specifically
+    pub fn base_observations_meta(&self) -> Box<dyn Iterator<Item = &ObsMetaData> + '_> {
+        Box::new(self.obs_dataset.keys().filter(|meta| !meta.is_rover))
     }
 
     pub fn rover_rx_position_ecef(&self, meta: &MetaData) -> Option<(f64, f64, f64)> {

@@ -17,6 +17,7 @@ mod solutions;
 use solutions::QcNavPostSolutions;
 
 #[cfg(feature = "sp3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
 mod sp3;
 
 #[cfg(feature = "sp3")]
@@ -38,24 +39,36 @@ pub struct QcExtraPage {
 
 /// [QcReport] is a generic structure to report complex analysis results
 pub struct QcReport {
-    /// Summary report (always present)
+    /// [QcSummary] report (always present)
     summary: QcSummary,
-    /// ROVER Observations report
+
+    /// "Rover" observations report
     rover_observations: Option<QcRoversObservationsReport>,
-    /// BASE Observations report
+
+    /// "Base stations" observations report
     base_observations: Option<QcBasesObservationsReport>,
-    /// BRDC Navigation report
+
+    /// Possible "BRDC" Navigation report
     brdc_nav: Option<QcBrdcNavigationReport>,
-    /// SP3 high precision report
+
+    /// SP3 (high precision orbital) report any time
+    /// [SP3] present at synthesis time
+    #[cfg(feature = "sp3")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     sp3_nav: Option<QcHighPrecisionNavigationReports>,
-    /// Possible nav post solutions
-    solutions: Option<QcNavPostSolution>,
+
+    /// Possibly attached [QcNavPostSolutions], depending on
+    /// [QcConfig] applied at synthesis time.
+    solutions: Option<QcNavPostSolutions>,
 }
 
 impl QcReport {
-    /// Builds a new GNSS report, ready to be rendered
+    /// Synthsize a complete GNSS report from the dataset.
+    /// [QcReport] is then ready to be rendered in the desired format.
     pub fn new(ctx: &QcContext) -> Self {
+        let has_solutions = ctx.cfg.solutions.is_some();
         let summary_only = ctx.cfg.report.report_type == QcReportType::Summary;
+
         if summary_only {
             Self::summary_only(ctx)
         } else {
@@ -86,11 +99,18 @@ impl QcReport {
                 } else {
                     None
                 },
+                #[cfg(feature = "nav")]
+                solutions: if has_solutions {
+                    Some(QcNavPostSolutions::new(ctx))
+                } else {
+                    None
+                },
             }
         }
     }
 
-    /// Generates a summary only report
+    /// Generates a summary report (shortest and quickest rendition).
+    /// Use this to summarize and visualize what your dataset permits.
     pub fn summary_only(ctx: &QcContext) -> Self {
         let summary = QcSummary::new(&ctx);
         Self {
@@ -100,6 +120,8 @@ impl QcReport {
             rover_observations: Default::default(),
             #[cfg(feature = "sp3")]
             sp3_nav: None,
+            #[cfg(feature = "nav")]
+            solutions: None,
         }
     }
 

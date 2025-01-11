@@ -60,7 +60,9 @@ ctx.load_file("../test_resources/OBS/V3/DUTH0630.22O")
 
 ## SP3 input
 
-When built with the `sp3` feature, SP3 data sets may be loaded as well.
+When built with the `sp3` feature, SP3 data may be loaded into the pool as well.
+This will enable high precision post processed navigation. Standard SP3 data
+is always indexed correctly in the pool (by publisher Agency):
 
 ```rust
 use rinex_qc::prelude::*;
@@ -78,7 +80,9 @@ ctx.load_file("../test_resources/SP3/sio06492.sp3")
 
 ## Gzip files
 
-Build the library with `flate2` feature to support gzip compressed files natively:
+Build the library with `flate2` feature to support gzip compressed files natively.
+The file extension must be `.gz` for this to work correctly. This applies to any
+file format supported by the library:
 
 ```rust
 use rinex_qc::prelude::QcContext;
@@ -125,6 +129,12 @@ let _ = report.render().into_string();
 ## Custom chapters
 
 The `Qc` report can be enhanced with custom chapters, that only need you to provide the rendition implementation.
+
+Basic example:
+
+```rust
+TODO
+```
 
 ## Post processed navigation
 
@@ -413,3 +423,15 @@ while let Some(track) = solver.next() {
     
 }
 ```
+
+Integrating Navigation solutions
+================================
+
+You have two options to integrate Nav solutions to your Qc report:
+
+1. Create your own custom chapter that works from the solutions you just resolved,
+and attach it to your report. This is how we used to do it, and it is still viable
+2. Request the report synthesizer, through the Config script, to attach
+the solutions directly for you. In this case the Config script is all we have to
+render and navigate, so it must integrate the RTK config in case it needs to be customized!
+refer to the chapters about the Config script.

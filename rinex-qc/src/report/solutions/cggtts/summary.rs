@@ -1,39 +1,28 @@
-struct Summary {
+use cggtts::prelude::{CommonViewClass, Duration, Epoch, Track, SV};
+
+use anise::prelude::Orbit;
+use itertools::Itertools;
+
+use crate::prelude::{html, Markup, Render};
+
+#[derive(Default)]
+pub struct Summary {
+    is_first: bool,
     last_epoch: Epoch,
     first_epoch: Epoch,
-    duration: Duration,
     satellites: Vec<SV>,
     trk_duration: Duration,
     cv_class: CommonViewClass,
-    ground_pos: GroundPosition,
+    initial_rx_orbit: Option<Orbit>,
 }
 
 impl Summary {
-    fn new(ctx: &Context, solutions: &Vec<Track>) -> Self {
-        let mut trk_duration = Duration::default();
-        let mut cv_class = CommonViewClass::default();
-        let (mut first_epoch, mut last_epoch) = (Epoch::default(), Epoch::default());
-        let satellites = solutions
-            .iter()
-            .map(|trk| trk.sv)
-            .unique()
-            .collect::<Vec<_>>();
-        for (trk_index, track) in solutions.iter().enumerate() {
-            if trk_index == 0 {
-                cv_class = track.class;
-                first_epoch = track.epoch;
-                trk_duration = track.duration;
-            }
-            last_epoch = track.epoch;
-        }
-        Self {
-            satellites,
-            trk_duration,
-            cv_class,
-            first_epoch,
-            last_epoch,
-            duration: last_epoch - first_epoch,
-            ground_pos: ctx.data.reference_position().unwrap(),
+    /// Take new [Track] (just resolved) into account
+    pub fn new_track(&mut self, trk: &Track) {
+        if self.is_first {
+            self.first_epoch = trk.epoch;
+        } else {
+            self.first_epoch = trk.epoch;
         }
     }
 }
@@ -62,11 +51,11 @@ impl Render for Summary {
                         }
                         tr {
                             th class="is-info" {
-                                "Position"
+                                "Reference position"
                             }
-                            td {
-                                (self.ground_pos.render())
-                            }
+                            // td {
+                            //     (self.initial_rx_orbit.render())
+                            // }
                         }
                         tr {
                             th class="is-info" {
@@ -97,7 +86,7 @@ impl Render for Summary {
                                 "Duration"
                             }
                             td {
-                                (self.duration.to_string())
+                                ((self.first_epoch - self.last_epoch).to_string())
                             }
                         }
                     }
