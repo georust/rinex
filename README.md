@@ -42,11 +42,11 @@ and keep an eye on the `#rinex` channel on Discord.
 
 - Navigation is currently not feasible with Glonass and IRNSS (applications/ ppp solver).
 - QZSS navigation has not been tested yet
-- PPP solver and Navigation in general using SBAS is not 100 % feasible yet
-- RTK navigation is not feasible yet (work in progress) 
-- Our applications do not accept proprietary formats like Septentrio for example
-- BINEX support is currently work in progress.
-Library exists and works, not integrated to applications yet.
+- Enhanced navigation with SBAS is not 100% feasible yet
+- RTK (differential navigation) is not 100% feasible yet
+- Our applications do not accept proprietary formats like Septentrio for example.
+Some solutions may be developped in the future.
+- BINEX support is currently partial and work in progress.
 
 ## Citation and referencing
 
@@ -58,6 +58,7 @@ Getting started
 ===============
 
 [Follow our tutorials](./tutorials) to get started.   
+
 We recommend starting with basic examples and following the topics you are interested in.
 
 Relevant Ecosystems
@@ -83,15 +84,14 @@ mostly for testing and demonstration purposes.
 
 * [`BIN2RNX`](bin2rnx/) is an application to collect a BINEX stream into RINEX files.
 * [`CRX2RNX`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX).
-It is a light application that you can combined to `rinex-cli` for a complete workflow.
-* [`RINEX-Cli`](rinex-cli/) is our main application.
-It is a Cli and is not a GUI. A GUI will be developped once
-all most vital post processing has been achieved.
-If you want to see this happen sooner, contact us either on Discord or Github.com
-and help us start this topic.
-This application combines some of `teqc` and `anubis` features. 
-It allows post processed navigation, it integrates a special CGGTTS solutions solver.
-All solutions our synthesized as an HTML geodetic report, which is our main solution to this day.
+It is a small application that may be operated by itself, or be combined to `rinex-cli` for a complete 
+processing pipeline.
+* [`RINEX-Cli`](rinex-cli/) is our main application.  
+It is a Cli and is not a GUI, which will be developped later (not a current pending topic).   
+If you want to see a GUI version happen sooner, feel free to contact us and join the effort.   
+This application combines some of `teqc` and `anubis` features.   
+It allows post processed navigation like `rtklib` and integrates a special CGGTTS solutions solver.  
+The analysis report is currently rendered in HTML.  
 The application is auto-generated for a few architectures, you can directly
 [download it from Github.com](https://github.com/georust/rinex/releases)
 * [`RNX2BIN`](rnx2bin/) dumps one RINEX or CRINEX into a binary file
@@ -111,17 +111,16 @@ It allows post processing of all these file formats
 * [`RINEX-Qc`](rinex-qc/) is a our GNSS post processing library.
 It allows considering a complex fileset of RINEX, possibly enhanced with
 SP3. It generates a geodetic report from all of that.
-* [`SINEX`](sinex/) is a core
+* [`SINEX`](sinex/) is core library dedicated to this special format.
 * [`SP3`](sp3/) High Precision Orbits (by IGS) parsing. 
 It allows post processing for PPP.
 
 ### Other 
 
 * [`logs`](logs/) is dedicated to store sessions log, if you work within this workspace directly.
-* [`tutorials`](tutorials/) is a superset of scripts (Linux/MacOS compatible)
-to get started quickly. The examples span pretty much everything our applications allow.
+* [`tutorials`](tutorials/) will help you get started rapidly. The environment is
+compatible with the latest release.
 * [`tools`](tools/) are utility scripts and development tools
-
 
 RINEX-Cli
 =========
@@ -152,24 +151,26 @@ File format and applications
 
 This table summarizes all supported formats and how they are managed in the applications.
 
-`Indexing`: gives how this dataset is indexed in their respective core libraries.   
-`Qc Indexing`: gives how this dataset is indexed and managed by the [Qc library](rinex-qc/).
+`Library Indexing`: gives how this dataset is indexed in the respective core library.   
+`Qc Indexing`: gives how this dataset is indexed and managed by the [Qc library](rinex-qc/).  
+`TimeScale`: gives what [TimeScale](https://docs.rs/hifitime/latest/enum.TimeScale.html) may be encountered 
+during time domain indexing of this file format.  
 
-| Type                       | Parser            | Writer              |  CLI                 |      Content         | RINEX Indexing       | Timescale  |
+| Type                       | Parser            | Writer              |  CLI                 |      Content         | Library Indexing     | Qc Indexing | Timescale  |
 |----------------------------|-------------------|---------------------|----------------------|----------------------|----------------------| -----------|
-| Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | [NavKey]() | SV System time broadcasting this message |
-| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | GNSS (any) |
+| Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | [NavKey]() | [NavSorting]() | [SV](https://docs.rs/gnss-rs/latest/gnss_rs/sv/struct.SV.html) system time |
+| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | [ObsSorting]() | GNSS (any) |
 |  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | GNSS (any) |
-|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Meteo sensors data (Temperature, Moisture..) | [MeteoKey]() | UTC | 
-|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :heavy_check_mark: :chart_with_upwards_trend:  | Precise SV and Reference Clock states |  Epoch | GNSS (any) |
-| SP3                        | :heavy_check_mark: | :construction: Work in progress | :heavy_check_mark: :chart_with_upwards_trend: | High precision SV orbital state | Epoch            | GNSS (any) |
-|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   | Precise RX/SV Antenna calibration | `antex::Antenna` | :heavy_minus_sign: |
-|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: | Ionosphere Electron density | Epoch | UTC |
-|  DORIS RINEX               | :heavy_check_mark:|  :construction:     | :heavy_check_mark:   | Temperature, Moisture, Pseudo Range and Phase observations | Epoch | TAI |
+|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Meteo sensors data (Temperature, Moisture..) | [MeteoKey]() | [MeteoSorting]() | [UTC](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html#variant.UTC) | 
+|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :heavy_check_mark: :chart_with_upwards_trend:  | Precise SV and Reference Clock states |  Epoch |  [ClockSorting]()  | GNSS (any) |
+| SP3                        | :heavy_check_mark: | :construction: Work in progress | :heavy_check_mark: :chart_with_upwards_trend: | High precision SV orbital state | [SP3Key]()   |   [SP3Sorting]()  |  Any GNSS |
+|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   | Precise RX/SV Antenna calibration | `antex::Antenna` | :heavy_minus_sign:  | :heavy_minus_sign: |
+|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: | Ionosphere Electron density | [IONEXKey]() |  [IONEX]()  | UTC |
+|  DORIS RINEX               | :heavy_check_mark:|  :construction:     | :heavy_check_mark:   | Temperature, Moisture, Pseudo Range and Phase observations | [DORISKEy]() | :construction:  |  [TAI](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html#variant.TAI) |
 | BINEX                      | :construction: (a)| :construction:      |
-|  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | Epoch | :question: |
-|  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           | Troposphere modeling | Epoch | :question: |
-|  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           | Bias estimates, like DCB.. | Epoch | :question: |
+|  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | :construction:  | :construction: | :construction: |
+|  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           | Troposphere modeling | Epoch | :question: | :construction: |
+|  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           | Bias estimates, like DCB.. | Epoch | :question: | :construction: |
 
 :heavy_check_mark: all revisions supported.   
 :construction: : work in progress.  
