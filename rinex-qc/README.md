@@ -1,4 +1,4 @@
-RINEx / GNSS QC
+RINEX / GNSS QC
 ===============
 
 The `Qc` library, standing for Quality Control, is a GNSS post processing core library.  
@@ -10,11 +10,11 @@ and other similar GNSS post processing tasks.
 The `Qc` library currently manages many formats, and more may be introduced
 in the future.
 
-The following RINEx formats are supported:
+The following RINEX formats are supported:
 
-- Observation RINEx
-- Navigation RINEx
-- Meteo RINEx
+- Observation RINEX
+- Navigation RINEX
+- Meteo RINEX
 - IONEx
 
 Other supported formats:
@@ -23,7 +23,7 @@ Other supported formats:
 
 The library does not support the following format (as of today):
 
-- DORIS RINEx
+- DORIS RINEX
 
 ## Crate features
 
@@ -50,9 +50,9 @@ frame model. If Internet access is not feasible, it will rely on lower precision
 The `Qc` library uses the RUST Logger internally, it will most notably let you know
 how you could "enhance" your input data.
 
-## RINEx input
+## RINEX input
 
-Stack any supported RINEx to form a complex dataset very easily:
+Stack any supported RINEX to form a complex dataset very easily:
 
 ```rust
 use rinex_qc::prelude::*;
@@ -105,17 +105,22 @@ ctx.load_gzip_file("../test_resources/OBS/V3/240506_glacier_station.obs.gz")
     .unwrap();
 ```
 
+## Analysis
+
+To analyze your dataset, simply invoke the `QcContext.analyze()` method.   
+The analysis to be performed is highly dependent on the provided data
+and on the configuration script. It can be either very quick
+or very long. Especially when post-processed navigation solutions are requested.
+
+`QcContext` analysis is infaillible. The complexity is the only variation.
+
 ## Reporting
 
-One of the major purposes of the `Qc` library, is to render a geodetic report
-that will allow analyzing the superset in detail. The reported content is highly dependent
-on the input context obviously. The `Qc` report will help you understand your dataset as well,
-for example, it will let you know if the dataset is compatible with post processed navigation.
+Once analysis has been performed, you can generate a report.
+We currently support the HTML format to render the analysis report. 
+Like analysis synthesis, reporting is always feasible.
 
-Report rendition is always feasible and will always work, as long as the input context is not empty.  
-We currently support HTML rendering, which makes the library compatible with a web server and browser.
-
-In the following example, we load signal observations that we can then render:
+Example:
 
 ```rust
 use rinex_qc::prelude::*;
@@ -132,7 +137,8 @@ ctx.load_gzip_file(
     .unwrap();
 
 // Generate a report
-let report = QcReport::new(&ctx, cfg);
+let report = ctx.analyze().report();
+
 let _ = report.render().into_string();
 ```
 
@@ -164,12 +170,12 @@ let cfg = QcConfig::default();
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINEx
+// stack a RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINEx
+// stack a BRDC RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -199,12 +205,12 @@ let cfg = QcConfig::default();
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINEx
+// stack a RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINEx
+// stack a BRDC RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -238,12 +244,12 @@ let cfg = QcConfig::default();
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINEx
+// stack a RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINEx
+// stack a BRDC RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -283,12 +289,12 @@ let cfg = QcConfig::default()
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINEx
+// stack a RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINEx
+// stack a BRDC RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -327,7 +333,7 @@ ctx.load_gzip_file(
     .unwrap();
 ```
 
-It is more common to prefer Clock RINEx for that purpose. The `Qc` library
+It is more common to prefer Clock RINEX for that purpose. The `Qc` library
 allows that once again. Simply provide that file:
 
 ```rust
@@ -339,18 +345,18 @@ use rinex_qc::prelude::*;
 // interpretation.
 let cfg = QcConfig::default()
     .with_prefered_orbit(QcPreferedOrbit::SP3)
-    .with_prefered_clock(QcPreferedClock::RINEx);
+    .with_prefered_clock(QcPreferedClock::RINEX);
 
 // deploy
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINEx
+// stack a RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINEx
+// stack a BRDC RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -360,7 +366,7 @@ ctx.load_gzip_file(
     "../test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
     .unwrap();
 
-// stack a Clock RINEx
+// stack a Clock RINEX
 ctx.load_gzip_file(
     "../test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz")
     .unwrap();
@@ -397,18 +403,18 @@ use rinex_qc::prelude::*;
 // interpretation.
 let cfg = QcConfig::default()
     .with_prefered_orbit(QcPreferedOrbit::SP3)
-    .with_prefered_clock(QcPreferedClock::RINEx);
+    .with_prefered_clock(QcPreferedClock::RINEX);
 
 // deploy
 let mut ctx = QcContext::new(cfg)
     .unwrap();
 
-// stack a RINEx
+// stack a RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
 
-// stack a BRDC RINEx
+// stack a BRDC RINEX
 ctx.load_gzip_file(
     "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
     .unwrap();
@@ -418,7 +424,7 @@ ctx.load_gzip_file(
     "../test_resources/SP3/GRG0MGXFIN_20201770000_01D_15M_ORB.SP3.gz")
     .unwrap();
 
-// stack a Clock RINEx
+// stack a Clock RINEX
 ctx.load_gzip_file(
     "../test_resources/CLK/V3/GRG0MGXFIN_20201770000_01D_30S_CLK.CLK.gz")
     .unwrap();

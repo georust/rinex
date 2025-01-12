@@ -5,14 +5,15 @@ use std::collections::HashMap;
 
 use sp3::prelude::{Constellation, SP3, SV};
 
-use crate::{context::QcContext, report::shared::SamplingReport};
+use crate::{context::QcContext, //report::shared::SamplingReport
+};
 
 pub struct QcHighPrecisionPage {
     has_velocity: bool,
     has_clock: bool,
     has_clock_drift: bool,
     satellites: Vec<SV>,
-    sampling: SamplingReport,
+    // sampling: SamplingReport,
 }
 
 impl Render for QcHighPrecisionPage {
@@ -81,14 +82,6 @@ impl Render for QcHighPrecisionPage {
                             (self.satellites.iter().sorted().join(", "))
                         }
                     }
-                    tr {
-                        th class="is-info" {
-                            "Sampling"
-                        }
-                        td {
-                            (self.sampling.render())
-                        }
-                    }
                 }
             }
         }
@@ -128,7 +121,7 @@ impl QcHighPrecisionNavigationReport {
                         constellation,
                         QcHighPrecisionPage {
                             has_clock: focused.sv_clock().count() > 0,
-                            sampling: SamplingReport::from_sp3(&focused),
+                            // sampling: SamplingReport::from_sp3(&focused),
                             has_velocity: focused.sv_velocities().count() > 0,
                             has_clock_drift: focused.sv_clock_rate().count() > 0,
                             satellites,

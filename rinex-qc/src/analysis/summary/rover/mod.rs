@@ -1,4 +1,4 @@
-mod navi;
+pub(crate) mod navi;
 use navi::QcNaviSummary;
 
 // mod timeframe;
@@ -6,13 +6,13 @@ use navi::QcNaviSummary;
 
 use crate::{
     context::{meta::ObsMetaData, QcContext},
-    prelude::{html, Markup, Render, Rinex},
+    prelude::Rinex,
 };
 
 /// [QcRoverSummary] is a general report, per rover in the dataset
 pub struct QcRoverSummary {
     /// NAVi summary
-    navi: QcNaviSummary,
+    pub navi: QcNaviSummary,
     //     /// QcTimeFrames per Constellation
     //     timeframes: HashMap<Constellation, QcTimeFrame>,
 }
@@ -33,34 +33,6 @@ impl QcRoverSummary {
             //     // }
             //     timeframes
             // },
-        }
-    }
-}
-
-impl Render for QcRoverSummary {
-    fn render(&self) -> Markup {
-        html! {
-            div class="table-container" {
-                table class="table is-bordered" {
-                    tbody {
-                        tr {
-                            th class="is-info" {
-                                button aria-label="NB: summary report does not account for the time frame,
-only files & constellations relationship.\n
-Use the timeframe analysis to actually confirm the summary report"
-                                data-balloon-pos="right" {
-                                    b {
-                                        "Compliancy"
-                                    }
-                                }
-                            }
-                            td {
-                                (self.navi.render())
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }

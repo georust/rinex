@@ -13,7 +13,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "qc")]
-use maud::{html, Markup, Render};
+use qc_traits::{html, Markup, QcHtmlReporting};
 
 /// GNSS receiver description
 #[derive(Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -173,7 +173,7 @@ impl Antenna {
 }
 
 #[cfg(feature = "qc")]
-impl Render for Antenna {
+impl QcHtmlReporting for Antenna {
     fn render(&self) -> Markup {
         html! {
             table class="table is-bordered" {
@@ -238,7 +238,7 @@ impl Render for Antenna {
 }
 
 #[cfg(feature = "qc")]
-impl Render for Receiver {
+impl QcHtmlReporting for Receiver {
     fn render(&self) -> Markup {
         html! {
             div class="table-container" {

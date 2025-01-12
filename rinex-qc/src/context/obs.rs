@@ -135,6 +135,12 @@ impl QcContext {
     /// Define the following abstract name as a "base" station reference.
     pub fn define_base(&mut self, meta: MetaData) {}
 
+    /// "Swap" rover / bases definitions:
+    /// - All previously defined base stations become "rovers"
+    /// - All previousy defined rovers become "base stations"
+    /// This has no effect if at least one base station was previously defined.
+    pub fn swap_rover_base_definitions(&mut self) {}
+
     /// [ObsMetaData] iterator, whatever their type
     pub fn observations_meta(&self) -> Keys<'_, ObsMetaData, Rinex> {
         self.obs_dataset.keys()

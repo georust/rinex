@@ -22,22 +22,3 @@ pub struct QcNaviOpts {
     #[serde(default)]
     pub frame_model: QcFrameModel,
 }
-
-impl Render for QcNaviOpts {
-    fn render(&self) -> Markup {
-        html! {
-            div class="table-container" {
-                table class="table is-bordered" {
-                    tr {
-                        th {
-                            "Frame Model"
-                        }
-                        td {
-                            (self.frame_model.to_string())
-                        }
-                    }
-                }
-            }
-        }
-    }
-}

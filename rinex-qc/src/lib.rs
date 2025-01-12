@@ -10,25 +10,23 @@ extern crate rinex_qc_traits as qc_traits;
 
 pub mod cfg;
 
-pub mod plot;
-
+mod analysis;
 mod context;
-mod report;
 
 #[cfg(feature = "nav")]
 #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
 mod navigation;
 
-pub mod prelude {
-    pub use crate::{
-        cfg::QcConfig,
-        context::QcContext,
-        report::{QcExtraPage, QcReport},
-        QcError,
-    };
+#[cfg(feature = "html")]
+#[cfg_attr(docsrs, doc(cfg(feature = "html")))]
+pub mod html;
 
-    // Pub re-export
-    pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
+pub mod prelude {
+    pub use crate::{analysis::QcAnalysis, cfg::QcConfig, context::QcContext, QcError};
+
+    pub use qc_traits::{Filter, Merge, MergeError, Preprocessing, Repair, RepairTrait, Split};
+
+    pub use rinex::prelude::{Error as RinexError, Rinex};
 
     #[cfg(feature = "nav")]
     pub use gnss_rtk::prelude::{Config as RTKConfig, Method as RTKMethod, PVTSolutionType};
@@ -36,11 +34,21 @@ pub mod prelude {
     #[cfg(feature = "nav")]
     pub use cggtts::prelude::Track as CggttsTrack;
 
-    pub use maud::{html, Markup, Render};
-    pub use qc_traits::{Filter, Merge, MergeError, Preprocessing, Repair, RepairTrait, Split};
-    pub use rinex::prelude::{nav::Almanac, Error as RinexError, Rinex};
+    #[cfg(feature = "nav")]
+    pub use rinex::prelude::nav::{Almanac, Orbit};
+
+    #[cfg(feature = "html")]
+    pub use maud::{html, Markup};
+
+    #[cfg(feature = "html")]
+    pub use crate::html::plot::{Marker, MarkerSymbol, Mode, Plot};
+
+    #[cfg(feature = "html")]
+    pub use qc_traits::QcHtmlReporting;
+
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};
+
     pub use std::path::Path;
 }
 

@@ -1,7 +1,5 @@
-use thiserror::Error;
-
-use maud::{html, Markup, Render};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use std::path::{Path, PathBuf};
 
@@ -134,59 +132,6 @@ impl QcConfig {
     }
 }
 
-impl Render for QcConfig {
-    fn render(&self) -> Markup {
-        html! {
-            div class="table-container" {
-                table class="table is-bordered" {
-                    tr {
-                        th class="is-info" {
-                            "Reporting"
-                        }
-                        td {
-                            (self.report.render())
-                        }
-                    }
-                    tr {
-                        th class="is-info" {
-                            "Preference"
-                        }
-                        td {
-                            (self.preference.render())
-                        }
-                    }
-                    tr {
-                        th class="is-info" {
-                            "Navigation settings"
-                        }
-                        td {
-                            (self.navi.render())
-                        }
-                    }
-                    tr {
-                        th class="is-info" {
-                            "Rover settings"
-                        }
-                        td {
-                            (self.rover.render())
-                        }
-                    }
-                    @ if cfg!(feature = "nav") {
-                        tr {
-                            th class="is-info" {
-                                "Solutions"
-                            }
-                            td {
-                                (self.solutions.render())
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use serde_json;
@@ -205,8 +150,7 @@ mod test {
 
     #[test]
     fn manual_reference_json_config() {
-        let mut cfg = QcConfig::default();
-
+        let cfg = QcConfig::default();
         let mut fd = File::create("manual-ref.json").unwrap();
 
         let content = serde_json::to_string_pretty(&cfg).unwrap();

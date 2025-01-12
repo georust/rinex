@@ -1,7 +1,4 @@
-use crate::{
-    cfg::QcConfigError,
-    prelude::{html, Markup, Render},
-};
+use crate::cfg::QcConfigError;
 
 use serde::{Deserialize, Serialize};
 
@@ -125,39 +122,4 @@ pub struct QcPreferedSettings {
     pub orbit_source: QcPreferedOrbit,
     /// Prefered classification (indexing) method
     pub rovers_sorting: QcPreferedRoversSorting,
-}
-
-impl Render for QcPreferedSettings {
-    fn render(&self) -> Markup {
-        html! {
-            div class="table-container" {
-                table class="table is-bordered" {
-                    tr {
-                        th class="is-info" {
-                            "Clock source"
-                        }
-                        td {
-                            (self.clk_source.to_string())
-                        }
-                    }
-                    tr {
-                        th class="is-info" {
-                            "Orbit source"
-                        }
-                        td {
-                            (self.orbit_source.to_string())
-                        }
-                    }
-                    tr {
-                        th class="is-info" {
-                            "Rovers sorting"
-                        }
-                        td {
-                            (self.rovers_sorting.to_string())
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

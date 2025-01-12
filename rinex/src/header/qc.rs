@@ -1,8 +1,9 @@
 use crate::header::Header;
-use maud::{html, Markup, Render};
+
+use qc_traits::{html, Markup, QcHtmlReporting};
 
 #[cfg(feature = "qc")]
-impl Render for Header {
+impl QcHtmlReporting for Header {
     fn render(&self) -> Markup {
         html! {
             tr {

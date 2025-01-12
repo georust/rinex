@@ -13,25 +13,22 @@ rust-version = "1.64"
 
 [features]
 
-# Default features
-#  - sp3: PPP compatible
-#  - flate2: gzip support
 default = [
-  "sp3",
-  "flate2",
-  "nav",
-  "cggtts",
+  "all",
 ]
 
-# Support of SP3 High Precision Orbital attibutes,
-# which is required by PPP high precision post processed navigation.
+# Enable all features at once
+all = [
+    "html",
+    "sp3",
+    "flate2",
+    "nav",
+    "cggtts",
+]
+
+# Support of SP3 High Precision Orbital fileset.
+# This will enable true PPP.
 sp3 = ["dep:sp3"]
-
-# Support for post process navigation
-nav = ["dep:gnss-rtk"]
-
-# Support for special timing solutions solver
-cggtts = ["dep:cggtts"]
 
 # flate2 features allows to stack User Data from
 # .gzip compressed files natively
@@ -40,10 +37,28 @@ flate2 = [
     "rinex/flate2",
 ]
 
-# Unlock graphical analysis (plots rendering), otherwise reports are solely text based
-# plot = [
-#     "dep:plotly", 
-# ]
+# unlock HTML report rendition. This is enabled by default,
+# since HTML is the only format currently supported.
+html = [
+    "dep:maud",
+    "dep:plotly",
+    "rinex-qc-traits/html",
+]
+
+# Support for post processed navigation solutions.
+# Allows to integrate the solutions to the analysis.
+nav = [
+    "rinex/nav",
+    "dep:gnss-rtk",
+    "dep:anise",
+]
+
+# Support special timing solutions.
+# Allows to integrate the solutions to the analysis.
+cggtts = [
+    "dep:gnss-rtk", 
+    "dep:cggtts",
+]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -51,7 +66,6 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
 [dependencies]
 log = "0.4"
-maud = "0.26"
 map_3d = "0.1.5"
 regex = "1"
 thiserror = "2"
@@ -60,13 +74,11 @@ itertools = "0.14.0"
 strum_macros = "0.26"
 hifitime = "4.0.0"
 gnss-rs = { version = "2.3.1", features = ["serde"] }
-anise = { version = "0.5.2", features = ["embed_ephem"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
-plotly = "0.12"
-# plotly = { path = "../../plotly-rs/plotly" }
-# plotly = { git = "https://github.com/gwbres/plotly", branch = "scattergeo"} 
-
+maud = { version = "0.26", optional = true }
+plotly = { version = "0.12", optional = true }
+anise = { version = "0.5.2", features = ["embed_ephem"], optional = true }
 
 # gnss-rtk = { version = "=0.7.4", features = ["serde"], optional = true }
 gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"], optional = true }
@@ -76,7 +88,7 @@ gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"], optional = tr
 cggtts = { path = "../../cggtts/cggtts", features = ["serde"], optional = true }
 # cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = ["serde", "scheduler"], optional = true }
 
-rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["full"] }
+rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["serde"] }
 rinex-qc-traits = { path = "../qc-traits", version = "=0.2.1", features = ["processing"] }
 
 sp3 = { path = "../sp3", version = "=1.1.0-alpha-1", features = ["qc", "processing", "serde"], optional = true }

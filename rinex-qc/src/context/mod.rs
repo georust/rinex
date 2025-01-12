@@ -20,7 +20,6 @@ pub(crate) mod meta;
 pub(crate) mod meteo;
 pub(crate) mod nav;
 pub(crate) mod obs;
-pub(crate) mod report;
 pub(crate) mod rnx;
 pub(crate) mod session;
 pub(crate) mod tropo;
@@ -33,9 +32,9 @@ pub(crate) mod sp3_data;
 use sp3::prelude::SP3;
 
 use crate::{
+    analysis::QcAnalysis,
     cfg::{QcConfig, QcFrameModel},
     context::meta::{MetaData, ObsMetaData},
-    report::QcReport,
     QcCtxError,
 };
 
@@ -45,18 +44,25 @@ use crate::{
 pub struct QcContext {
     /// [QcConfig] used to deploy this [QcContext]
     pub cfg: QcConfig,
+
     /// Latest Almanac to use during this session.
     pub almanac: Almanac,
+
     /// ECEF frame to use during this session. Based off [Almanac].
     pub earth_cef: Frame,
+
     /// Observations [Rinex] stored by [MetaData]
     pub obs_dataset: HashMap<ObsMetaData, Rinex>,
+
     /// Possible Navigation [Rinex]
     pub nav_dataset: Option<Rinex>,
+
     /// Possible IONEx [Rinex]
     pub ionex_dataset: Option<Rinex>,
+
     /// Meteo [Rinex] stored by [MetaData]
     pub meteo_dataset: HashMap<MetaData, Rinex>,
+
     /// Possible [SP3] fileset
     #[cfg(feature = "sp3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
@@ -131,7 +137,6 @@ impl QcContext {
 
         if initial_setup {
             let updated = meta_almanac.dumps()?;
-
             let _ = create_dir_all(&format!(
                 "{}/{}",
                 env!("CARGO_MANIFEST_DIR"),
@@ -276,11 +281,9 @@ impl QcContext {
         }
     }
 
-    /// Run all analysis requested by the [QcConfig]uration script
-    /// and wrap them into a [QcReport]. Once the report is synthesize,
-    /// you can render it in the format you want to.
-    pub fn report_synthesis(&self) -> QcReport {
-        QcReport::new(self)
+    /// Analyze complete dataset
+    pub fn analyze(&self) -> QcAnalysis {
+        QcAnalysis::new(self)
     }
 }
 

@@ -43,39 +43,3 @@ pub struct QcCustomRoverOpts {
     /// Prefered rover, for which we will solve solutions
     pub prefered_rover: QcPreferedRover,
 }
-
-impl Render for QcCustomRoverOpts {
-    fn render(&self) -> Markup {
-        html! {
-            div class="table-container" {
-                table class="table is-bordered" {
-                    tr {
-                        th {
-                            "Reference position"
-                        }
-                        @if let Some(manual) = self.manual_rx_ecef_km {
-                            td {
-                                "Manual (User Defined)"
-                            }
-                            td {
-                                (format!("{:.3E} km {:.3E} km {:.3E} km", manual.0, manual.1, manual.2))
-                            }
-                        } else {
-                            td {
-                                "RINEx"
-                            }
-                        }
-                    }
-                    tr {
-                        th class="is-info" {
-                            "Prefered Rover"
-                        }
-                        td {
-                            (self.prefered_rover.to_string())
-                        }
-                    }
-                }
-            }
-        }
-    }
-}

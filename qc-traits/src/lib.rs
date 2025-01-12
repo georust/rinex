@@ -14,3 +14,13 @@ pub use processing::{
     Decimate, DecimationError, DecimationFilter, DecimationFilterType, Filter, FilterItem,
     MaskError, MaskFilter, MaskOperand, Masking, Preprocessing, Repair, RepairTrait, Split,
 };
+
+#[cfg(feature = "html")]
+pub use maud::{html, Markup};
+
+/// HTML reporting
+#[cfg(feature = "html")]
+#[cfg_attr(docsrs, doc(cfg(feature = "html")))]
+pub trait QcHtmlReporting {
+    fn render(&self) -> Markup;
+}

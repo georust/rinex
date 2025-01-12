@@ -71,10 +71,35 @@ impl QcNavPostSolutions {
         for obs_meta in ctx.rover_observations_meta() {
             if obs_meta.meta.name == rover_label {
                 if ctx.cfg.solutions.ppp {
-                    debug!("integrating {} PPP solutions", obs_meta.meta.name);
+                    match ctx.nav_pvt_solver(ctx.cfg.rtk_config(), obs_meta, None) {
+                        Ok(mut solver) => {
+                            debug!("attaching {} PPP solutions", obs_meta.meta.name);
+                            for solution in solver {
+                                debug!("{:?}", solution);
+                            }
+                        },
+                        Err(e) => {
+                            error!("ppp error: {}", e);
+                        },
+                    }
                 }
                 if ctx.cfg.solutions.cggtts {
-                    debug!("integrating {} CGGTTS solutions", obs_meta.meta.name);
+                    match ctx.nav_cggtts_solver(
+                        ctx.cfg.rtk_config(),
+                        obs_meta,
+                        None,
+                        Default::default(),
+                    ) {
+                        Ok(mut solver) => {
+                            debug!("attaching {} CGGTTS solutions", obs_meta.meta.name);
+                            for track in solver {
+                                debug!("{:?}", track);
+                            }
+                        },
+                        Err(e) => {
+                            error!("cggtts error: {}", e);
+                        },
+                    }
                 }
             }
         }

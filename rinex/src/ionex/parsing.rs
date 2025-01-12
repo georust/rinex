@@ -278,7 +278,7 @@ mod test {
     };
 
     use crate::{
-        ionex::{quantized, IonexKey, QuantizedCoordinates, Record},
+        ionex::{IonexKey, QuantizedCoordinates, Record},
         prelude::Epoch,
     };
 

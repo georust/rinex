@@ -7,30 +7,23 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Copy, Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ClockObservation {
-    /// Clock offset to GNSS constellation, which is defined in
-    /// Header section.
+    /// Offset to system time, in seconds.
     pub offset_s: f64,
-    /// Clock drift in [s/s]
-    pub drift_s_s: f64,
-    /// Clock drift rate in [s/s^2]
-    pub drift_rate_s_s2: f64,
-    /// Previous [Epoch] of observation
-    timeof_obs: Option<Epoch>,
+    /// Possible clock drift estimate in s.s⁻¹
+    pub drift_s_s: Option<f64>,
+    /// Past [Epoch] of observation
+    past_epoch: Option<Epoch>,
 }
 
 impl ClockObservation {
     /// Update fields with new offset [s].
     pub fn set_offset_s(&mut self, timeof_obs: Epoch, offset_s: f64) {
-        if let Some(past) = self.timeof_obs {
+        if let Some(past) = self.past_epoch {
             let dt_s = (timeof_obs - past).to_seconds();
-            let drift_s_s = self.drift_s_s;
-            self.drift_s_s = (offset_s - self.offset_s) / dt_s;
-            self.drift_rate_s_s2 = (self.drift_s_s - drift_s_s) / dt_s;
-        } else {
-            self.drift_s_s = 0.0;
-            self.drift_rate_s_s2 = 0.0;
+            self.drift_s_s = Some((offset_s - self.offset_s) / dt_s);
         }
-        self.timeof_obs = Some(timeof_obs);
+
+        self.past_epoch = Some(timeof_obs);
         self.offset_s = offset_s;
     }
 

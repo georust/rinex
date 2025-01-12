@@ -1,5 +1,7 @@
+//! HTML plot helpers
+
 use hifitime::Epoch;
-use maud::{html, Markup, PreEscaped, Render};
+use maud::{html, Markup, PreEscaped};
 use plotly::{
     common::HoverInfo,
     layout::{
@@ -16,6 +18,7 @@ use plotly::{
     Trace,
 };
 
+use qc_traits::QcHtmlReporting;
 use serde::Serialize;
 
 pub use plotly::{
@@ -78,7 +81,7 @@ pub struct Plot {
     plot_id: String,
 }
 
-impl Render for Plot {
+impl QcHtmlReporting for Plot {
     fn render(&self) -> Markup {
         html! {
             div id=(&self.plot_id) {

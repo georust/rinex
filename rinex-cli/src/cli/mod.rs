@@ -414,8 +414,8 @@ Otherwise it gets automatically picked up."))
 
     fn solutions(&self) -> QcSolutions {
         QcSolutions {
-            ppp: false,
-            cggtts: false,
+            ppp: true,
+            cggtts: true,
         }
     }
 

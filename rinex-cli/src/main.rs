@@ -19,7 +19,7 @@ use preprocessing::preprocess;
 // use report::Report;
 
 use rinex_qc::{
-    prelude::{MergeError, QcContext, QcExtraPage, Render},
+    prelude::{MergeError, QcContext, QcHtmlReporting},
     QcCtxError, QcError,
 };
 
@@ -227,8 +227,6 @@ pub fn main() -> Result<(), Error> {
         }
     }
 
-    let mut extra_pages = Vec::<QcExtraPage>::new();
-
     // Exclusive opmodes (mostlye file operations)
     // We handle them right here and exit early.
     // Avoids proceed to report synthesis (default opmode).
@@ -268,8 +266,8 @@ pub fn main() -> Result<(), Error> {
 
     // Report synthesis opmode (=Default opmode)
 
-    let report = ctx.qc_context.report_synthesis();
-    let html = report.render().into_string();
+    let analysis = ctx.qc_context.analyze();
+    let html = analysis.render().into_string();
 
     let mut fd = ctx
         .qc_context
