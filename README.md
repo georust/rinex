@@ -149,28 +149,25 @@ The `SP3` lib supports rev D.
 RINEX Format and applications
 =============================
 
-This table summarizes the RINEX format we support. 
-It also gives a better understanding of what they contain and what they're used for.   
-`Record Indexing` gives the internal structure that is used as the Epoch Indexer, in the *RINEX* lib. 
-In otherwords, this is how this particular type of dataset is sorted and iterated.  
-*Timescale* gives the general Hifitime Timescale the Epochs are expressed in.  
-It is important to understand that as well.
+This table summarizes the RINEX formats and how they are
+managed in the applications.
 
-| Type                      | Parser             | Writer                                                  | CLI                                            | Content                                                                         | Record Indexing  | Record Iteration                         | Timescale |
-| ------------------------- | ------------------ | ------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------- | ---------------- | ---------------------------------------- |
-| Navigation  (NAV)         | :heavy_check_mark: | :construction:                                          | :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models                                                  | Epoch            | SV System time broadcasting this message |
-| Observation (OBS)         | :heavy_check_mark: | :heavy_check_mark:                                      | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI                                               | Epoch            | GNSS (any)                               |
-| CRINEX  (Compressed OBS)  | :heavy_check_mark: | RNX2CRX1 :heavy_check_mark: RNX2CRX3 :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI                                               | Epoch            | GNSS (any)                               |
-| Meteorological data (MET) | :heavy_check_mark: | :heavy_check_mark:                                      | :heavy_check_mark: :chart_with_upwards_trend:  | Meteo sensors data (Temperature, Moisture..)                                    | Epoch            | UTC                                      |
-| Clocks (CLK)              | :heavy_check_mark: | :construction:                                          | :heavy_check_mark: :chart_with_upwards_trend:  | Precise SV and Reference Clock states                                           | Epoch            | GNSS (any)                               |
-| Antenna (ATX)             | :heavy_check_mark: | :construction:                                          | :construction:                                 | Precise RX/SV Antenna calibration                                               | `antex::Antenna` | :heavy_minus_sign:                       |
-| Ionosphere Maps  (IONEX)  | :heavy_check_mark: | :construction:                                          | :heavy_check_mark:  :chart_with_upwards_trend: | Ionosphere Electron density                                                     | Epoch            | UTC                                      |
-| DORIS RINEX               | :heavy_check_mark: | :construction:                                          | :heavy_check_mark:                             | Temperature, Moisture, Pseudo Range and Phase observations                      | Epoch            | TAI                                      |
-| SINEX  (SNX)              | :construction:     | :construction:                                          | :heavy_minus_sign:                             | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | Epoch            | :question:                               |
-| Troposphere  (TRO)        | :construction:     | :construction:                                          | :question:                                     | Troposphere modeling                                                            | Epoch            | :question:                               |
-| Bias  (BIA)               | :heavy_check_mark: | :construction:                                          | :question:                                     | Bias estimates, like DCB..                                                      | Epoch            | :question:                               |
+| Type                       | Parser            | Writer              |  CLI                 |      Content         | RINEX Index          | Timescale  |
+|----------------------------|-------------------|---------------------|----------------------|----------------------|----------------------| -----------|
+| Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | Epoch | SV System time broadcasting this message |
+| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS (any) |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS (any) |
+|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Meteo sensors data (Temperature, Moisture..) | Epoch | UTC | 
+|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :heavy_check_mark: :chart_with_upwards_trend:  | Precise SV and Reference Clock states |  Epoch | GNSS (any) |
+|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   | Precise RX/SV Antenna calibration | `antex::Antenna` | :heavy_minus_sign: |
+|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: | Ionosphere Electron density | Epoch | UTC |
+|  DORIS RINEX               | :heavy_check_mark:|  :construction:     | :heavy_check_mark:   | Temperature, Moisture, Pseudo Range and Phase observations | Epoch | TAI |
+|  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | Epoch | :question: |
+|  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           | Troposphere modeling | Epoch | :question: |
+|  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           | Bias estimates, like DCB.. | Epoch | :question: |
 
-:heavy_check_mark: all revisions are supported   
+:heavy_check_mark: means all revisions supported   
+
 :construction: : Work in Progress   
 
 __CLI__ : possibility to [load this format](https://github.com/georust/rinex/wiki/file-loading) in the apps.  
