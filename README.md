@@ -162,9 +162,12 @@ during time domain indexing of this file format.
 __CLI__ : supported by the [Qc Library](./rinex-qc)   
 __CLI__ + :chart_with_upwards_trend: [Qc Reporting](./rinex-qc) will generate one or several graphs  
 
-| Type                       | Parser              | Writer              |  CLI                                           | Content                                         | Library Indexing     | Qc Indexing    | Timescale  |
-|----------------------------|---------------------|---------------------|------------------------------------------------|-------------------------------------------------|----------------------| ---------------| -----------|  
-| Observation (OBS)          | :heavy_check_mark:  | :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Phase, Pseudo Range, Doppler, SSI               | [ObsKey]()           | [ObsSorting]() | GNSS (any) |
+| Type                               | Parser              | Writer              |  CLI                                           | Content                                         | Library Indexing     | Qc Indexing    | Timescale  |
+|----------------------------|---------------------|---------------------|------------------------------------------------|------------------------------------------------------------------------------|----------------------| ---------------| ------------------------------------------------------------------------------|  
+| Observation RINEX (OBS)            | :heavy_check_mark:  | :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Phase, Pseudo Range, Doppler, SSI                               | [ObsKey]()           | [ObsSorting]() | [Any GNSS](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html)           |
+| Compact Observation RINEX (CRINEX) | :heavy_check_mark:  | :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Phase, Pseudo Range, Doppler, SSI                               | [ObsKey]()           | [ObsSorting]() | [Any GNSS](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html)           |
+| Navigation RINEX (NAV/BRDC)        | :heavy_check_mark:  | :construction:     | :heavy_check_mark:  :chart_with_upwards_trend:  | Ephemerides, Ionosphere Models, System Time, Earth Orientations | [NavKey]()           | [NavSorting]() | [SV](https://docs.rs/gnss-rs/latest/gnss_rs/sv/struct.SV.html) system time         |
+
 
 
 BINEX (a): some frames are supported, not all of them. Refer to [BINEX](./binex).
