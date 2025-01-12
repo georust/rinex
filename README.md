@@ -161,16 +161,6 @@ during time domain indexing of this file format.
 | Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | [NavKey]() | [NavSorting]() | [SV](https://docs.rs/gnss-rs/latest/gnss_rs/sv/struct.SV.html) system time |
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | [ObsSorting]() | GNSS (any) |
 |  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | GNSS (any) |
-|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Meteo sensors data (Temperature, Moisture..) | [MeteoKey]() | [MeteoSorting]() | [UTC](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html#variant.UTC) | 
-|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :heavy_check_mark: :chart_with_upwards_trend:  | Precise SV and Reference Clock states |  Epoch |  [ClockSorting]()  | GNSS (any) |
-| SP3                        | :heavy_check_mark: | :construction: Work in progress | :heavy_check_mark: :chart_with_upwards_trend: | High precision SV orbital state | [SP3Key]()   |   [SP3Sorting]()  |  Any GNSS |
-|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   | Precise RX/SV Antenna calibration | `antex::Antenna` | :heavy_minus_sign:  | :heavy_minus_sign: |
-|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: | Ionosphere Electron density | [IONEXKey]() |  [IONEX]()  | UTC |
-|  DORIS RINEX               | :heavy_check_mark:|  :construction:     | :heavy_check_mark:   | Temperature, Moisture, Pseudo Range and Phase observations | [DORISKEy]() | :construction:  |  [TAI](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html#variant.TAI) |
-| BINEX                      | :construction: (a)| :construction:      |
-|  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | :construction:  | :construction: | :construction: |
-|  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           | Troposphere modeling | Epoch | :question: | :construction: |
-|  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           | Bias estimates, like DCB.. | Epoch | :question: | :construction: |
 
 :heavy_check_mark: all revisions supported.   
 :construction: : work in progress.  
