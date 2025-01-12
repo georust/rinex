@@ -171,7 +171,7 @@ __CLI__ + :chart_with_upwards_trend: [Qc Reporting](./rinex-qc) will generate on
 | Meteo RINEX                        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: :chart_with_upwards_trend:    | Meteo sensor measurements                                       | [MeteoKey]()         | :construction: | [UTC](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html#variant.UTC)    |
 | SP3                                | :heavy_check_mark: | :construction:      | :heavy_check_mark: :chart_with_upwards_trend:   | High precision orbital state                                    | [SP3Key]()           | [SP3Sorting]() | [Any GNSS](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html)           |
 | DORIS (special RINEX)              | :heavy_check_mark: | :heavy_check_mark: | :construction:                                   | High precision DORIS stations observation from space           | [DorisKey]()          | :construction: | [TAI](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html#variant.TAI)    |
-
+| BINEX (Binary RINEX)               | partial (a)       | :construction:    | :construction:                                     | Binary messages                                | [BINEX frames](https://docs.rs/binex/latest/binex/prelude/enum.Record.html) | :construction: | :construction: | [Any GNSS](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html)           |
 
 BINEX (a): some frames are supported, not all of them. Refer to [BINEX](./binex).
 
