@@ -154,18 +154,18 @@ This table summarizes all supported formats and how they are managed in the appl
 `Library Indexing`: gives how this dataset is indexed in the respective core library.   
 `Qc Indexing`: gives how this dataset is indexed and managed by the [Qc library](rinex-qc/).  
 `TimeScale`: gives what [TimeScale](https://docs.rs/hifitime/latest/enum.TimeScale.html) may be encountered 
-during time domain indexing of this file format.  
-
-| Type                       | Parser            | Writer              |  CLI                 |      Content         | Library Indexing     | Qc Indexing | Timescale  |
-|----------------------------|-------------------|---------------------|----------------------|----------------------|----------------------| -----------|
-| Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | [NavKey]() | [NavSorting]() | [SV](https://docs.rs/gnss-rs/latest/gnss_rs/sv/struct.SV.html) system time |
-| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | [ObsSorting]() | GNSS (any) |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | [ObsSorting]() | GNSS (any) |
-
+during time domain indexing of this file format.   
 :heavy_check_mark: all revisions supported.   
 :construction: : work in progress.  
 __CLI__ : supported by the [Qc Library](./rinex-qc)
 __CLI__ + :chart_with_upwards_trend: [Qc Reporting](./rinex-qc) may generate data visualization
+
+| Type                       | Parser            | Writer              |  CLI                                            |      Content                                    | Library Indexing     | Qc Indexing | Timescale  |
+|----------------------------|-------------------|---------------------|-------------------------------------------------|----------------------|----------------------| -----------|
+| Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models                  | [NavKey]()           | [NavSorting]() | [SV](https://docs.rs/gnss-rs/latest/gnss_rs/sv/struct.SV.html) system time |
+| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark:  :chart_with_upwards_trend:  | Phase, Pseudo Range, Doppler, SSI               | [ObsKey]()           | [ObsSorting]() | GNSS (any) |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| :construction:      | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI              | [ObsKey]()           | [ObsSorting]() | GNSS (any) |
+
 
 BINEX (a): some frames are supported, not all of them. Refer to [BINEX](./binex).
 
