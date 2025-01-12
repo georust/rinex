@@ -160,7 +160,7 @@ during time domain indexing of this file format.
 |----------------------------|-------------------|---------------------|----------------------|----------------------|----------------------| -----------|
 | Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | [NavKey]() | [NavSorting]() | [SV](https://docs.rs/gnss-rs/latest/gnss_rs/sv/struct.SV.html) system time |
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | [ObsSorting]() | GNSS (any) |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | GNSS (any) |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | [ObsSorting]() | GNSS (any) |
 
 :heavy_check_mark: all revisions supported.   
 :construction: : work in progress.  
