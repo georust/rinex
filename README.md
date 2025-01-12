@@ -54,7 +54,14 @@ If you need to reference this work, please use the following model:
 
 `GeoRust RINEX Team (2024), RINEX: analysis and processing (Apache-2/MIT), https://georust.org`
 
-## Relevant Ecosystem
+Getting started
+===============
+
+[Follow our tutorials](./tutorials) to get started.   
+We recommend starting with basic examples and following the topics you are interested in.
+
+Relevant Ecosystems
+===================
 
 * [IGS Network](https://network.igs.org/): browse and monitor any IGS station status
 * [Nyx-space](https://github.com/nyx-space/nyx): Navigation and Orbital calculations in Rust
@@ -63,13 +70,6 @@ If you need to reference this work, please use the following model:
 * [Geo](https://github.com/georust/geo): Geospatial primitives and algorithms, in Rust
 - [RTK-RS](https://github.com/rtk-rs/gnss-rtk): Precise Positioning (calculations) in Rust
 * [GNSS](https://github.com/rtk-rs/gnss) in Rust
-
-## Getting started
-
-- [Read our wiki introduction](https://github.com/georust/rinex/wiki) and learn
-how to load your dataset
-- [Browse our tutorials](https://github.com/georust/rinex/wiki) and find what you're interested in
-- [Refer to our config scripts example](./tutorials/CONFIG) for advanced operations
 
 Repo architecture
 =================
@@ -126,22 +126,23 @@ to get started quickly. The examples span pretty much everything our application
 RINEX-Cli
 =========
 
-`rinex-cli` is our main application, build it without any features to obtain its smallest form.
+`rinex-cli` is our main application. Like all applications contained in this repo, it is automatically
+generated [upon Release](https://github.com/georust/rinex/releases).
 
-Available options are:
+`rinex-cli` supports many options that are closely tied to the [Qc options](./rinex-qc):
 
-- `kml`: allows formatting PPP solutions as KML tracks
-- `gpx`: allows formatting PPP solutions as GPX tracks
-- `cggtts`: enable CGGTTS solutions solver
+- `nav`: will enable post processed navigations
+- `cggtts`: enables the special CGGTTS solutions
+- `kml`: allows to render the PPP solutions as KML tracks
+- `gpx`: allows to render the PPP solutions as GPX tracks
 
-`rinex-cli` always generates logs, whether you see them or not is up to your environment.  
-But activating the `log` feature of `rinex-cli` actually turns internal dependency logging 
-(like the `RINEX` lib itself) for debugging / testing purposes.
+Make sure to read how to [activate the application logs](./tutorials/Logs.md) when
+performing advanced operations.
 
 Formats & revisions
 ===================
 
-The `RINEX` lib supports RINEX V4, including the new Navigation frames.  
+The `RINEX` lib supports RINEX V4, that includes the new navigation frames.  
 It also supports IONEX and Clock RINEX in their latest revisions. 
 
 The `SP3` lib supports rev D.
