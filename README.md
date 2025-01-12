@@ -146,42 +146,42 @@ It also supports IONEX and Clock RINEX in their latest revisions.
 
 The `SP3` lib supports rev D.
 
-RINEX Format and applications
-=============================
+File format and applications
+============================
 
-This table summarizes the RINEX formats and how they are
-managed in the applications.
+This table summarizes all supported formats and how they are managed in the applications.
 
-| Type                       | Parser            | Writer              |  CLI                 |      Content         | RINEX Index          | Timescale  |
+`Indexing`: gives how this dataset is indexed in their respective core libraries.   
+`Qc Indexing`: gives how this dataset is indexed and managed by the [Qc library](rinex-qc/).
+
+| Type                       | Parser            | Writer              |  CLI                 |      Content         | RINEX Indexing       | Timescale  |
 |----------------------------|-------------------|---------------------|----------------------|----------------------|----------------------| -----------|
-| Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | Epoch | SV System time broadcasting this message |
-| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS (any) |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | Epoch | GNSS (any) |
-|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Meteo sensors data (Temperature, Moisture..) | Epoch | UTC | 
+| Navigation  (NAV)          | :heavy_check_mark:| :construction:      |  :heavy_check_mark: :chart_with_upwards_trend:  | Ephemerides, Ionosphere models | [NavKey]() | SV System time broadcasting this message |
+| Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: | Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | GNSS (any) |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  Phase, Pseudo Range, Doppler, SSI | [ObsKey]() | GNSS (any) |
+|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Meteo sensors data (Temperature, Moisture..) | [MeteoKey]() | UTC | 
 |  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :heavy_check_mark: :chart_with_upwards_trend:  | Precise SV and Reference Clock states |  Epoch | GNSS (any) |
+| SP3                        | :heavy_check_mark: | :construction: Work in progress | :heavy_check_mark: :chart_with_upwards_trend: | High precision SV orbital state | Epoch            | GNSS (any) |
 |  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   | Precise RX/SV Antenna calibration | `antex::Antenna` | :heavy_minus_sign: |
 |  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: | Ionosphere Electron density | Epoch | UTC |
 |  DORIS RINEX               | :heavy_check_mark:|  :construction:     | :heavy_check_mark:   | Temperature, Moisture, Pseudo Range and Phase observations | Epoch | TAI |
+| BINEX                      | :construction: (a)| :construction:      |
 |  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/) | Epoch | :question: |
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           | Troposphere modeling | Epoch | :question: |
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           | Bias estimates, like DCB.. | Epoch | :question: |
 
-:heavy_check_mark: means all revisions supported   
+:heavy_check_mark: all revisions supported.   
+:construction: : work in progress.  
+__CLI__ : supported by the [Qc Library](./rinex-qc)
+__CLI__ + :chart_with_upwards_trend: [Qc Reporting](./rinex-qc) may generate data visualization
 
-:construction: : Work in Progress   
-
-__CLI__ : possibility to [load this format](https://github.com/georust/rinex/wiki/file-loading) in the apps.  
-__CLI__ + :chart_with_upwards_trend: : possibility to [project or extract and plot](https://github.com/georust/rinex/wiki/graph-mode) this format.
-
+BINEX (a): some frames are supported, not all of them. Refer to [BINEX](./binex).
 
 Other formats
 =============
 
-`RINEX-Cli` accepts more than RINEX data.  
-
 | Type | Parser             | Writer                          | CLI                                           | Content                         | Record Iteration | Timescale  |
 | ---- | ------------------ | ------------------------------- | --------------------------------------------- | ------------------------------- | ---------------- | ---------- |
-| SP3  | :heavy_check_mark: | :construction: Work in progress | :heavy_check_mark: :chart_with_upwards_trend: | High precision SV orbital state | Epoch            | GNSS (any) |
 
 File name Restrictions
 ======================
