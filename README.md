@@ -167,7 +167,8 @@ __CLI__ + :chart_with_upwards_trend: [Qc Reporting](./rinex-qc) will generate on
 | Observation RINEX (OBS)            | :heavy_check_mark:  | :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Phase, Pseudo Range, Doppler, SSI                               | [ObsKey]()           | [ObsSorting]() | [Any GNSS](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html)           |
 | Compact Observation RINEX (CRINEX) | :heavy_check_mark:  | :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | Phase, Pseudo Range, Doppler, SSI                               | [ObsKey]()           | [ObsSorting]() | [Any GNSS](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html)           |
 | Navigation RINEX (NAV/BRDC)        | :heavy_check_mark:  | :construction:     | :heavy_check_mark:  :chart_with_upwards_trend:  | Ephemerides, Ionosphere Models, System Time, Earth Orientations | [NavKey]()           | [NavSorting]() | [SV](https://docs.rs/gnss-rs/latest/gnss_rs/sv/struct.SV.html) system time         |
-
+| Ionosphere Maps (IONEX)            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: :chart_with_upwards_trend:    | Ionosphere TEC projection                                       | [IonexKey]()         | :construction: | [UTC](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html#variant.UTC)    |
+| Meteo RINEX                        | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: :chart_with_upwards_trend:    | Meteo sensor measurements                                       | [MeteoKey]()         | :construction: | [UTC](https://docs.rs/hifitime/latest/hifitime/enum.TimeScale.html#variant.UTC)    |
 
 
 BINEX (a): some frames are supported, not all of them. Refer to [BINEX](./binex).
