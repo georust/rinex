@@ -317,10 +317,10 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                  * OBSERVATION: Receiver Clock
                  */
                 PacketRef::NavClock(pkt) => {
-                    let bias = pkt.clk_b();
-                    let drift = pkt.clk_d();
+                    //let bias = pkt.clk_b();
+                    //let drift = pkt.clk_d();
                     //clock.with_offset_s(t, bias);
-                    clock.drift_s_s = drift.into();
+                    //clock.drift_s_s = drift.into();
                     // pkt.t_acc(); // phase accuracy
                     // pkt.f_acc(); // frequency accuracy
                 },
