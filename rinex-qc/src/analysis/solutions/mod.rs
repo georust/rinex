@@ -67,7 +67,7 @@ impl QcNavPostSolutions {
                 if ctx.cfg.solutions.ppp {
                     match ctx.nav_pvt_solver(ctx.cfg.rtk_config(), obs_meta, None) {
                         Ok(mut solver) => {
-                            debug!("attaching {} PPP solutions", obs_meta.meta.name);
+                            debug!("solving {} PPP solutions", obs_meta.meta.name);
                             for solution in solver {
                                 debug!("{:?}", solution);
                             }
@@ -107,7 +107,17 @@ impl QcNavPostSolutions {
     ) {
         for obs_meta in ctx.rover_observations_meta() {
             if ctx.cfg.solutions.ppp {
-                debug!("integrating {} PPP solutions", obs_meta.meta.name);
+                match ctx.nav_pvt_solver(ctx.cfg.rtk_config(), obs_meta, None) {
+                    Ok(mut solver) => {
+                        debug!("solving {} PPP solutions", obs_meta.meta.name);
+                        for solution in solver {
+                            debug!("{:?}", solution);
+                        }
+                    },
+                    Err(e) => {
+                        error!("failed to deploy PPP solver: {}", e);
+                    },
+                }
             }
             if ctx.cfg.solutions.cggtts {
                 debug!("integrating {} CGGTTS solutions", obs_meta.meta.name);

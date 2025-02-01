@@ -21,6 +21,25 @@ off using a second carrier or second constellation to do so: this is always the 
 Navigation V4 allows new high level operations like Earth orientation modeling and accurate compensations,
 and Constellation timescale analysis.
 
+## Toolbox configuration
+
+1. I don't understand how to configure the toolbox properly
+
+Toolbox custom configuration is fully optional. Any configuration script may be omitted,
+in this case, the toolbox operates with the default settings. In several cases, the default settings
+will rarely exhibit the expected results. If you [unlock the debug traces](), the toolbox
+will let you know which configuration was used in your session.
+
+The toolbox accepts one general configuration script, with `--cfg,-c` that allows
+defining your Qc preferences. It also selects whether post processed navigation solutions
+should be resolved or not, as they are part of your Qc analysis. Refer to [this section]()
+for more information about the Qc preferences and configuration script.
+
+In the case of post processed navigation (whatever its kind), due to the complexity of the task
+(mostly due to number of parameters), this section integrates its own configuration (sub section
+of the configuration script). Refer to [the navigation section]() that teaches
+how to integrate solutions and customize the solver.
+
 ## PPP (Precise Navigation)
 
 1. What is PPP ?
@@ -64,6 +83,17 @@ them for you in the analysis report. Refer to:
 - [Qc options]()
 - [PPP (NavPost) solutions]()
 
+When the PPP solver deploys (is unlocked), it lets you know:
+
+```
+[2025-02-01T11:30:39Z DEBUG rinex_qc::analysis::solutions] solving MOJN00DNK PPP solutions
+```
+
+Since we can physically resolve the solutions (position / attitude) of any GNSS receiver,
+this is closely related to your [Qc options and preferences](). The default [Rover preference]()
+is set to `Any (*)`. In this case, when operating under RTK or defining several GNSS receiver,
+we will resolve all their attitudes. If you define a prefered rover, _only this one is to be resolved_.
+
 3. I have a hard time solving PPP solutions
 
 First verify that your input fileset is compliant with at least one navigation technique,
@@ -71,10 +101,10 @@ by rendering a QC summary.
 
 Then, unlock the application logs to figure out what the solver might complain about:
 
-1. is it complaining at deploy time ?
-2. is it complaining at each epoch ? in this case you might have
+- Is it complaining at deploy time ?
+- Is it complaining at each epoch ? in this case you might have
 an invalid setup with respect to your data
-3. depending on your input setup, deployment requirements may be hardened
+- Depending on your input setup, deployment requirements may be hardened
 for a few iterations. The solver will let you know. If you don't respect that, it is physically
 impossible to hope for deployment
 
@@ -135,20 +165,37 @@ For the simple reason that solutions are produced for any SV in sight. Simply
 reduce the number of SV and/or constellations in your input (with `-P` for example, or using
 different datasets) to reduce the number of solutions that we can resolve.
 
-## IONEx
+4. I'm having a hard time solving any CGGTTS solutions.
 
-1. Does the toolbox support the IONEx format ?
+Prior running the CGGTTS solver (which is more "advanced" than simple PPP), it might be a good idea
+to start with pure PPP. 
+
+CGGTTS solution solving requires [(x, y, z) initial coordinates definition](./CONFIG/SURVEY/README.md) at all times.
+If `(x, y, z)` triplet coordinates of your GNSS receiver is not somehow defined (you have several options at your disposal),
+your setup is not compatible with CGGTTS solutions solving. 
+
+This makes the PPP solver easier to deploy, and the CGGTTS solver harder to deploy. 
+One typical consequence of that, would be a PPP solver deployed without apriori knowledge (this is called [full survey mode]())
+and CGGTTS unable to deploy:
+
+```
+TODO: log traces
+```
+
+## IONEX
+
+1. Does the toolbox support the `IONEX` format ?
 
 Yes. All RINEx formats are currently supported (on the parsing side) and soon
 on the formatting side. 
 
-2. What does IONEx have to offer ?
+2. What does IONEX have to offer ?
 
-Loading a IONEx along your other RINEx may serve many purposes.
-Our toolbox allows IONEx analysis by itself, which serves Ionosphere status
-analysis. The next releases of our toolbox may help synthesize IONEx from observation
+Loading a IONEX along your other RINEx may serve many purposes.
+Our toolbox allows IONEX analysis by itself, which serves Ionosphere status
+analysis. The next releases of our toolbox may help synthesize IONEX from observation
 RINEx as well. Finally, in the context of PPP navigation, IONEX might be useful when working
 with V3 RINEx, because it can serve as a ionosphere model updater.
 
 On the other side, you can more deeply analyze your Observation RINEx if you
-have a IONEx for that day.
+have a IONEX for that day.

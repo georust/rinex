@@ -1,6 +1,6 @@
 use std::{
     collections::hash_map::DefaultHasher,
-    fs::File,
+    fs::{read_to_string, File},
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
     str::FromStr,
@@ -103,6 +103,12 @@ For example FORMAT/YEAR/DOY/Hours."))
                         .help("Custom --dir,-d maximal recursive depth")
                         .value_parser(value_parser!(u8)))
                     .next_help_heading("Session (custom preferences)")
+                    .arg(Arg::new("cfg")
+                        .long("cfg")
+                        .short('c')
+                        .value_name("FILE (json)")
+                        .help("Load custom config script. Refer to tutorials/README")
+                    )
                     .arg(Arg::new("quiet")
                         .short('q')
                         .long("quiet")
@@ -396,12 +402,20 @@ Otherwise it gets automatically picked up."))
 
     /// Returns QcConfig from command line
     pub fn qc_config(&self) -> QcConfig {
-        QcConfig::default()
-            .with_workspace(&self.workspace_path())
-            .with_preferences(self.prefered_settings())
-            .with_rover_settings(self.rover_settings())
-            .with_report_preferences(self.report_preferences())
-            .with_solutions(self.solutions())
+        if let Some(cfg) = self.matches.get_one::<String>("cfg") {
+            let content = read_to_string(cfg)
+                .unwrap_or_else(|e| panic!("failed to read custom configuration: {}", e));
+            let cfg: QcConfig = serde_json::from_str(&content)
+                .unwrap_or_else(|e| panic!("invalid custom configuration: {}", e));
+            cfg
+        } else {
+            QcConfig::default()
+                .with_workspace(&self.workspace_path())
+                .with_preferences(self.prefered_settings())
+                .with_rover_settings(self.rover_settings())
+                .with_report_preferences(self.report_preferences())
+                .with_solutions(self.solutions())
+        }
     }
 
     fn prefered_settings(&self) -> QcPreferedSettings {

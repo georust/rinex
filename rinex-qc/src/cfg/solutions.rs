@@ -4,8 +4,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct QcSolutions {
     /// Automatically attach PPP solutions
+    #[serde(default)]
     pub ppp: bool,
     /// Automatically attach CGGTTS solutions
+    #[serde(default)]
     pub cggtts: bool,
 }
 
