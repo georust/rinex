@@ -45,7 +45,7 @@ pub fn format<W: Write>(
         .as_ref()
         .ok_or(FormattingError::UndefinedObservables)?;
 
-    let stations = &header.stations;
+    let _stations = &header.stations;
 
     for (k, v) in record.iter() {
         format_epoch(w, &k, v.clock_extrapolated, &v.clock)?;

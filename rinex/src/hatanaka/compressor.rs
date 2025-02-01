@@ -5,7 +5,7 @@ use std::io::Write;
 use crate::{
     epoch::epoch_decompose as epoch_decomposition,
     error::FormattingError,
-    hatanaka::{NumDiff, TextDiff},
+    hatanaka::TextDiff,
     observation::{HeaderFields, Record},
     BufWriter,
 };
@@ -20,8 +20,8 @@ pub struct CompressorExpert<const M: usize> {
     epoch_buf: String,
     /// Epoch [TextDiff]
     epoch_diff: TextDiff,
-    /// Clock [NumDiff]
-    clock_diff: NumDiff<M>,
+    // /// Clock [NumDiff]
+    // clock_diff: NumDiff<M>,
 }
 
 impl<const M: usize> Default for CompressorExpert<M> {
@@ -30,7 +30,7 @@ impl<const M: usize> Default for CompressorExpert<M> {
             epoch_reinit: true,
             epoch_buf: String::with_capacity(128),
             epoch_diff: TextDiff::new(""),
-            clock_diff: NumDiff::<M>::new(0, 3),
+            // clock_diff: NumDiff::<M>::new(0, 3),
         }
     }
 }
@@ -89,7 +89,7 @@ impl<const M: usize> CompressorExpert<M> {
                 // following header specs
                 if let Some(observables) = header.codes.get(&sv.constellation) {
                     for observable in observables.iter() {
-                        if let Some(observation) = v
+                        if let Some(_observation) = v
                             .signals
                             .iter()
                             .filter(|sig| sig.sv == *sv && &sig.observable == observable)

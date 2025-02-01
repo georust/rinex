@@ -41,7 +41,7 @@ impl<'a, R: Read> Iterator for BIN2RNX<'a, R> {
                 if self.active {
                     match msg.record {
                         Record::EphemerisFrame(fr) => {
-                            let nav = self.nav_rinex.record.as_mut_nav().unwrap();
+                            //let nav = self.nav_rinex.record.as_mut_nav().unwrap();
                             match fr {
                                 EphemerisFrame::GAL(_) => {},
                                 EphemerisFrame::GLO(_) => {},

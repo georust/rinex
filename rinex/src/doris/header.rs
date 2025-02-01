@@ -15,9 +15,6 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "processing")]
-use crate::prelude::TimeScale;
-
-#[cfg(feature = "processing")]
 use qc_traits::{FilterItem, MaskFilter, MaskOperand};
 
 /// DORIS specific header fields
@@ -90,15 +87,15 @@ impl HeaderFields {
 
 #[cfg(feature = "processing")]
 impl HeaderFields {
-    fn timescale(&self) -> TimeScale {
-        match self.timeof_first_obs {
-            Some(ts) => ts.time_scale,
-            None => match self.timeof_last_obs {
-                Some(ts) => ts.time_scale,
-                None => TimeScale::GPST,
-            },
-        }
-    }
+    // fn timescale(&self) -> TimeScale {
+    //     match self.timeof_first_obs {
+    //         Some(ts) => ts.time_scale,
+    //         None => match self.timeof_last_obs {
+    //             Some(ts) => ts.time_scale,
+    //             None => TimeScale::GPST,
+    //         },
+    //     }
+    // }
 
     pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
         match f.operand {

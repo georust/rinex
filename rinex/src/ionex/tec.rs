@@ -82,11 +82,11 @@ impl TEC {
         Some(rms.real_value())
     }
 
-    /// Returns possible altitude offset [km]
-    pub(crate) fn height_offset_km(&self) -> Option<f64> {
-        let height = self.height?;
-        Some(height.real_value())
-    }
+    // /// Returns possible altitude offset [km]
+    // pub(crate) fn height_offset_km(&self) -> Option<f64> {
+    //     let height = self.height?;
+    //     Some(height.real_value())
+    // }
 }
 
 #[cfg(feature = "qc")]

@@ -15,8 +15,9 @@ pub struct QuantizedCoordinates {
 }
 
 impl QuantizedCoordinates {
+    #[cfg(test)]
     /// Builds new [IonexMapCoordinates] from coordinates expressed in ddeg
-    pub(crate) fn new(
+    pub fn new(
         lat_ddeg: f64,
         lat_exponent: i8,
         long_ddeg: f64,

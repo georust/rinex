@@ -426,7 +426,6 @@ mod test {
       .312000000000e+01  .000000000000e+00  .232830643654e-09  .000000000000e+00
       .469330000000e+06 0.000000000000e+00 0.000000000000e+00 0.000000000000e+00";
 
-        let version = Version::new(3, 0);
         let (key, frame) = parse_epoch(&header, content).unwrap();
 
         assert_eq!(key.sv.prn, 1);
@@ -583,7 +582,6 @@ mod test {
       .595546582031e+04  .278496932983e+01  .000000000000e+00  .500000000000e+01
       .214479208984e+05 -.131077289581e+01 -.279396772385e-08  .000000000000e+00";
 
-        let version = Version::new(3, 0);
         let (key, frame) = parse_epoch(&header, content).unwrap();
 
         assert_eq!(
