@@ -426,7 +426,6 @@ Otherwise it gets automatically picked up."))
             } else {
                 QcReportType::Full
             },
-            signal_combinations: false,
         }
     }
 

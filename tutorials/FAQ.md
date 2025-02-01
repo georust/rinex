@@ -1,7 +1,7 @@
 Frequently Asked Questions
 ==========================
 
-## RINEx (Receiver Indepdent Ex-change format)
+## RINEX (Receiver Indepdent Ex-change format)
 
 1. Is the toolbox V4 compatible ?
 
@@ -54,7 +54,17 @@ as your physical observations. We call this scenario `Ultra-PPP` in our summary.
 The Navigation compliance section of QC Summary is where to look at to understand
 what your input fileset has to offer.
 
-2. I have a hard time solving PPP solutions
+2. How do I solve PPP solutions ?
+
+PPP solutions are obtained by loading a compatible dataset into the toolbox
+and asking the `Qc` to resolve navigation solutions (post processing) and integrate
+them for you in the analysis report. Refer to:
+
+- [Loading data into the toolbox]()
+- [Qc options]()
+- [PPP (NavPost) solutions]()
+
+3. I have a hard time solving PPP solutions
 
 First verify that your input fileset is compliant with at least one navigation technique,
 by rendering a QC summary. 

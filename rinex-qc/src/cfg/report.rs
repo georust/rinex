@@ -40,7 +40,4 @@ pub struct QcReportOpts {
     /// Select [QcReportType] (reporting style)
     #[serde(default, rename(deserialize = "type"))]
     pub report_type: QcReportType,
-    /// Select whether signal combinations should be evaluated
-    /// or not (heaviest/slowest operation)
-    pub signal_combinations: bool,
 }

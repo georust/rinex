@@ -10,7 +10,6 @@ use std::{io::Error as IoError, path::Path};
 //mod analysis;
 mod cli;
 mod fops;
-mod ppp;
 mod preprocessing;
 
 use preprocessing::preprocess;
@@ -25,12 +24,9 @@ use rinex_qc::{
 
 use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
 
-use crate::{
-    fops::{
-        diff as fops_diff, filegen as fops_filegen, merge as fops_merge, split as fops_split,
-        tbin as fops_tbin,
-    },
-    ppp::ppp,
+use crate::fops::{
+    diff as fops_diff, filegen as fops_filegen, merge as fops_merge, split as fops_split,
+    tbin as fops_tbin,
 };
 
 use walkdir::WalkDir;
@@ -250,12 +246,6 @@ pub fn main() -> Result<(), Error> {
         Some(("diff", submatches)) => {
             fops_diff(&mut ctx.qc_context, &cli, submatches)?;
             return Ok(());
-        },
-        Some(("ppp", submatches)) => {
-            // PPP is a report customization: do not abort this process.
-            // It is infaillible: the report being generated is either augmented or not.
-            // The whole process generates debug traces.
-            ppp(&ctx.qc_context, &cli, submatches);
         },
         // Some(("rtk", submatches)) => {
         //     let chapter = positioning::precise_positioning(&cli, &ctx, true, submatches)?;

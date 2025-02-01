@@ -51,14 +51,6 @@ impl QcHtmlReporting for QcReportOpts {
                             (self.report_type.to_string())
                         }
                     }
-                    tr {
-                        th class="is-info" {
-                            "Signal combinations"
-                        }
-                        td {
-                            (self.signal_combinations.to_string())
-                        }
-                    }
                 }
             }
         }

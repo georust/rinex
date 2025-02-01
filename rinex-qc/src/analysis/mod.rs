@@ -4,22 +4,22 @@ use maud::{html, Markup};
 // // shared analysis, that may apply to several products
 // mod shared;
 
-pub(crate) mod obs;
+pub mod obs;
 use obs::{QcBasesObservationsAnalysis, QcRoversObservationAnalysis};
 
-pub(crate) mod summary;
+pub mod summary;
 use summary::QcSummary;
 
-// #[cfg(feature = "nav")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
-// mod solutions;
+#[cfg(feature = "nav")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
+pub mod solutions;
 
 // #[cfg(feature = "sp3")]
 // #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
 // mod sp3;
 
-// #[cfg(feature = "nav")]
-// use solutions::QcNavPostSolutions;
+#[cfg(feature = "nav")]
+use solutions::QcNavPostSolutions;
 
 // #[cfg(feature = "sp3")]
 // use sp3::QcHighPrecisionNavigationReports;
@@ -47,12 +47,11 @@ pub struct QcAnalysis {
     // #[cfg(feature = "sp3")]
     // #[cfg_attr(docsrs, doc(cfg(feature = "sp3")))]
     // sp3_nav: Option<QcHighPrecisionNavigationReports>,
-
-    // /// Possibly attached [QcNavPostSolutions], depending on
-    // /// [QcConfig] applied at synthesis time.
-    // #[cfg(feature = "nav")]
-    // #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
-    // solutions: Option<QcNavPostSolutions>,
+    /// Possibly attached [QcNavPostSolutions], depending on
+    /// [QcConfig] applied at synthesis time.
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
+    solutions: Option<QcNavPostSolutions>,
 }
 
 impl QcAnalysis {
@@ -98,13 +97,12 @@ impl QcAnalysis {
             // } else {
             //     None
             // },
-
-            // #[cfg(feature = "nav")]
-            // solutions: if has_solutions {
-            //     Some(QcNavPostSolutions::new(ctx))
-            // } else {
-            //     None
-            // },
+            #[cfg(feature = "nav")]
+            solutions: if has_solutions {
+                Some(QcNavPostSolutions::new(ctx))
+            } else {
+                None
+            },
         }
     }
 
@@ -114,13 +112,10 @@ impl QcAnalysis {
         let summary = QcSummary::new(&ctx);
         Self {
             summary,
-            // brdc_nav: None,
             base_stations_analysis: Default::default(),
             rovers_analysis: Default::default(),
-            // #[cfg(feature = "sp3")]
-            // sp3_nav: None,
-            // #[cfg(feature = "nav")]
-            // solutions: None,
+            #[cfg(feature = "nav")]
+            solutions: None,
         }
     }
 
