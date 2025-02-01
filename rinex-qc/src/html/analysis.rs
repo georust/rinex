@@ -58,6 +58,19 @@ impl QcHtmlReporting for QcAnalysis {
                                     }
                                 }
                             }//class=hero
+                            @ if cfg!(feature = "nav") {
+                                @ if let Some(solutions) = &self.solutions {
+                                    @ for (meta, nav_post_ppp_solutions) in solutions.ppp.iter() {
+                                        div class="hero is-fullheight" {
+                                            div class="section" id=(&format!("{}-ppp-solutions", meta.name)) style="display:block" {
+                                                div class="container is-main" {
+                                                    (nav_post_ppp_solutions.render())
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         } // class=columns
                     }
                     // minimum JS required

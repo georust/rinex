@@ -1,13 +1,9 @@
 use crate::analysis::solutions::QcNavPostSolutions;
 use crate::prelude::{html, Markup, QcAnalysis, QcHtmlReporting};
 
-use maud::{PreEscaped, DOCTYPE};
+mod ppp;
 
-impl QcHtmlReporting for QcNavPostSolutions {
-    fn render(&self) -> Markup {
-        html! {}
-    }
-}
+use maud::{PreEscaped, DOCTYPE};
 
 // impl Render for QcNavPostSolutions {
 //     fn render(&self) -> Markup {

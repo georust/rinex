@@ -12,7 +12,7 @@ pub struct Summary {
 
 impl Summary {
     /// Latch new [PVTSolution] that has just been resolved
-    pub fn new_solution(&mut self, t: Epoch, solution: PVTSolution) {
+    pub fn new_solution(&mut self, t: Epoch, _solution: PVTSolution) {
         if self.is_first {
             self.first_epoch = t;
         } else {

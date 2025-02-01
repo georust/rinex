@@ -34,8 +34,8 @@ impl QcNaviSummary {
                     };
 
                     let brdc_strategy_compatible = nav_constellations.contains(&constellation);
-                    let mut ppp_strategy_compatible = false;
-                    let mut ultra_ppp_strategy_compatible = false;
+                    let ppp_strategy_compatible = false;
+                    let ultra_ppp_strategy_compatible = false;
 
                     #[cfg(feature = "sp3")]
                     if brdc_strategy_compatible {

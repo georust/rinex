@@ -3,13 +3,9 @@ use log::{error, info};
 use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
-    context::{
-        meta::{MetaData, ObsMetaData},
-        QcContext,
-    },
+    context::{meta::ObsMetaData, QcContext},
     navigation::{
-        carrier_from_rtk, carrier_to_rtk, clock::ClockContext, orbit::OrbitalContext,
-        signal::SignalSource,
+        carrier_to_rtk, clock::ClockContext, orbit::OrbitalContext, signal::SignalSource,
     },
     QcError,
 };
@@ -17,11 +13,11 @@ use crate::{
 use itertools::Itertools;
 
 use gnss_rtk::prelude::{
-    Candidate, Carrier as RTKCarrier, ClockCorrection, Config as RTKConfig, Epoch,
-    Error as RTKError, Frame, Observation, Orbit, OrbitSource, PVTSolution, Solver, SV,
+    Candidate, Carrier as RTKCarrier, ClockCorrection, Config as RTKConfig, Error as RTKError,
+    Observation, Orbit, OrbitSource, PVTSolution, Solver, SV,
 };
 
-use rinex::prelude::{obs::SignalObservation, Carrier, Observable};
+use rinex::prelude::Observable;
 
 use super::eph::EphemerisContext;
 
@@ -52,7 +48,7 @@ impl<'a> Iterator for NavPvtSolver<'a> {
         let orbit = OrbitalContext::new(&self.eph_ctx);
 
         // clock snapshot
-        let clock = ClockContext::new(&self.eph_ctx);
+        let _clock = ClockContext::new(&self.eph_ctx);
 
         // gather candidates
         let (t, signals) = collected.unwrap();

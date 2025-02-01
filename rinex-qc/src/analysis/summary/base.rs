@@ -5,7 +5,7 @@ use rinex::prelude::Rinex;
 pub struct QcBaseSummary {}
 
 impl QcBaseSummary {
-    pub fn new(ctx: &QcContext, meta: &ObsMetaData, rinex: &Rinex) -> Self {
+    pub fn new(_ctx: &QcContext, _meta: &ObsMetaData, _rinex: &Rinex) -> Self {
         Self {}
     }
 }

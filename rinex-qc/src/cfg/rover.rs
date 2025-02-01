@@ -1,4 +1,3 @@
-use maud::{html, Markup, Render};
 use serde::{Deserialize, Serialize};
 
 use crate::cfg::QcConfigError;

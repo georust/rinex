@@ -51,7 +51,7 @@ pub struct QcAnalysis {
     /// [QcConfig] applied at synthesis time.
     #[cfg(feature = "nav")]
     #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
-    solutions: Option<QcNavPostSolutions>,
+    pub(crate) solutions: Option<QcNavPostSolutions>,
 }
 
 impl QcAnalysis {
@@ -201,16 +201,16 @@ impl QcAnalysis {
                     //     }
                     // }
 
-                    // @ if cfg!(feature = "nav") {
-                    //     @ if self.solutions.is_some() {
-                    //         a class="qc-sidemenu" onclick="onQcNavSolutionsClicks()" {
-                    //             span class="icon" {
-                    //                 i class="fa-solid fa-location-crosshairs" {}
-                    //             }
-                    //             "Solutions"
-                    //         }
-                    //     }
-                    // }
+                    @ if cfg!(feature = "nav") {
+                        @ if self.solutions.is_some() {
+                            a class="qc-sidemenu" onclick="onQcNavSolutionsClicks()" {
+                                span class="icon" {
+                                    i class="fa-solid fa-location-crosshairs" {}
+                                }
+                                "Solutions"
+                            }
+                        }
+                    }
 
                     p class="menu-label" {
                         a href="https://github.com/georust/rinex/wiki" style="margin-left:29px" {

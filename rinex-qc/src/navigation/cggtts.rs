@@ -10,17 +10,14 @@ use crate::{
     QcError, QcRtkCggttsError,
 };
 
-use hifitime::Unit;
-
 use itertools::Itertools;
 
 use gnss_rtk::prelude::{
     Candidate, Carrier as RTKCarrier, ClockCorrection, Config as RTKConfig, Duration, Epoch,
-    Error as RTKError, Frame, IonosphereBias as RTKIonosphereBias, Observation, Orbit, PVTSolution,
-    Solver, SPEED_OF_LIGHT_M_S, SV,
+    IonosphereBias as RTKIonosphereBias, Observation, Orbit, Solver, SPEED_OF_LIGHT_M_S,
 };
 
-use rinex::prelude::{obs::SignalObservation, Carrier, Observable};
+use rinex::prelude::Observable;
 
 use super::eph::EphemerisContext;
 
@@ -55,7 +52,7 @@ impl<'a> Iterator for NavCggttsSolver<'a> {
         }
 
         // clock snapshot
-        let clock = ClockContext::new(&self.eph_ctx);
+        let _clock = ClockContext::new(&self.eph_ctx);
 
         // gather candidates
         let (t, signals) = collected.unwrap();
@@ -152,7 +149,7 @@ impl<'a> Iterator for NavCggttsSolver<'a> {
 
             let mut candidate = Candidate::new(*sv, t, observations);
 
-            if let Some((toc, toe, eph)) = self.eph_ctx.borrow_mut().select(t, candidate.sv) {
+            if let Some((toc, _toe, eph)) = self.eph_ctx.borrow_mut().select(t, candidate.sv) {
                 if let Some(tgd) = eph.tgd() {
                     candidate.set_group_delay(tgd);
                 }
@@ -185,14 +182,14 @@ impl<'a> Iterator for NavCggttsSolver<'a> {
                     let refsv = refsys + correction.to_seconds();
 
                     // tropod always exists in CGGTTS
-                    let mdtr = sv_pvt.tropo_bias.unwrap_or_default() / SPEED_OF_LIGHT_M_S;
+                    let _mdtr = sv_pvt.tropo_bias.unwrap_or_default() / SPEED_OF_LIGHT_M_S;
 
-                    let mdio = match sv_pvt.iono_bias {
+                    let _mdio = match sv_pvt.iono_bias {
                         Some(RTKIonosphereBias::Modeled(bias)) => Some(bias),
                         _ => None,
                     };
 
-                    let msio = match sv_pvt.iono_bias {
+                    let _msio = match sv_pvt.iono_bias {
                         Some(RTKIonosphereBias::Measured(bias)) => Some(bias),
                         _ => None,
                     };
@@ -238,7 +235,7 @@ impl QcContext {
         cfg: RTKConfig,
         meta: &ObsMetaData,
         rx_position_ecef_km: Option<(f64, f64, f64)>,
-        tracking_duration: Duration,
+        _tracking_duration: Duration,
     ) -> Result<NavCggttsSolver, QcError> {
         // Obtain ephemeris context
         let eph_ctx = self.ephemeris_context().ok_or(QcError::EphemerisSource)?;
@@ -313,7 +310,7 @@ mod test {
         },
     };
 
-    use gnss_rtk::prelude::{Config as RTKConfig, Duration, Orbit};
+    use gnss_rtk::prelude::{Config as RTKConfig, Duration};
 
     #[test]
     pub fn cggtts_solver() {

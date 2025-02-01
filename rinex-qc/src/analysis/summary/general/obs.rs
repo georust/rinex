@@ -7,19 +7,19 @@ use itertools::Itertools;
 use std::str::FromStr;
 
 pub enum Format {
-    RINEx,
-    CRINEx,
-    GZipRINEx,
-    GZipCRINEx,
+    RINEX,
+    CRINEX,
+    GZipRINEX,
+    GZipCRINEX,
 }
 
 impl std::fmt::Display for Format {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::RINEx => f.write_str("RINEx"),
-            Self::CRINEx => f.write_str("CRINEx"),
-            Self::GZipRINEx => f.write_str("RINEx + gzip"),
-            Self::GZipCRINEx => f.write_str("CRINEx + gzip"),
+            Self::RINEX => f.write_str("RINEX"),
+            Self::CRINEX => f.write_str("CRINEX"),
+            Self::GZipRINEX => f.write_str("RINEX + gzip"),
+            Self::GZipCRINEX => f.write_str("CRINEX + gzip"),
         }
     }
 }
@@ -27,14 +27,14 @@ impl std::fmt::Display for Format {
 #[derive(Default)]
 pub enum RxPositionSource {
     #[default]
-    RINEx,
+    RINEX,
     UserDefined,
 }
 
 impl std::fmt::Display for RxPositionSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::RINEx => write!(f, "RINEx"),
+            Self::RINEX => write!(f, "RINEX"),
             Self::UserDefined => write!(f, "User Defined"),
         }
     }
@@ -61,15 +61,15 @@ impl QcObservationSummary {
                 let gzip = obs_meta.meta.extension.contains("gz");
                 if rinex.header.is_crinex() {
                     if gzip {
-                        Format::GZipCRINEx
+                        Format::GZipCRINEX
                     } else {
-                        Format::CRINEx
+                        Format::CRINEX
                     }
                 } else {
                     if gzip {
-                        Format::GZipRINEx
+                        Format::GZipRINEX
                     } else {
-                        Format::RINEx
+                        Format::RINEX
                     }
                 }
             },
@@ -85,7 +85,7 @@ impl QcObservationSummary {
                         let pos_vel = orbit.to_cartesian_pos_vel();
                         match orbit.latlongalt() {
                             Ok(geodetic) => Some(RxPosition {
-                                source: RxPositionSource::RINEx,
+                                source: RxPositionSource::RINEX,
                                 ecef_km: (pos_vel[0], pos_vel[1], pos_vel[2]),
                                 geodetic,
                             }),
@@ -102,7 +102,7 @@ impl QcObservationSummary {
                         let pos_vel = orbit.to_cartesian_pos_vel();
                         match orbit.latlongalt() {
                             Ok(geodetic) => Some(RxPosition {
-                                source: RxPositionSource::RINEx,
+                                source: RxPositionSource::RINEX,
                                 ecef_km: (pos_vel[0], pos_vel[1], pos_vel[2]),
                                 geodetic,
                             }),

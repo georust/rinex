@@ -1,4 +1,4 @@
-use crate::{context::QcContext, navigation::eph::EphemerisContext};
+use crate::navigation::eph::EphemerisContext;
 
 use std::cell::RefCell;
 
@@ -46,7 +46,7 @@ mod test {
             true,
         )] {
             if exists {
-                let (toc, toe, eph) = ctx.select(t, sv).unwrap();
+                let (_toc, _toe, _eph) = ctx.select(t, sv).unwrap();
             }
         }
     }
