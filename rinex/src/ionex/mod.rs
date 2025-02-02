@@ -40,7 +40,11 @@ pub use system::RefSystem;
 pub use tec::TEC;
 
 pub(crate) use parsing::{
-    is_new_height_map, is_new_rms_map, is_new_tec_map, parse_height_map, parse_rms_map,
+    is_new_height_map,
+    is_new_rms_map,
+    is_new_tec_map,
+    //parse_height_map,
+    parse_rms_map,
     parse_tec_map,
 };
 
