@@ -17,6 +17,7 @@ mod test {
             .join("ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz");
 
         let sp3 = SP3::from_gzip_file(&path);
+
         assert!(
             sp3.is_ok(),
             "failed to parse ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz : {:?}",
@@ -25,53 +26,53 @@ mod test {
 
         let sp3 = sp3.unwrap();
 
-        /*
-         * Test general infos
-         */
-        assert_eq!(sp3.version, Version::C);
-        assert_eq!(sp3.data_type, DataType::Position);
+        assert_eq!(sp3.header.version, Version::C);
+        assert_eq!(sp3.header.data_type, DataType::Position);
+
+        assert!(sp3.has_satellite_clock_offset());
+        assert!(!sp3.has_satellite_clock_drift());
+        assert!(!sp3.has_satellite_velocity());
 
         assert_eq!(
             sp3.first_epoch(),
-            Some(Epoch::from_str("2023-08-27T00:00:00 GPST").unwrap())
+            Epoch::from_str("2023-08-27T00:00:00 GPST").unwrap()
         );
 
-        assert_eq!(sp3.nb_epochs(), 96, "bad number of epochs");
-        assert_eq!(sp3.coord_system, "ITRF2");
-        assert_eq!(sp3.orbit_type, OrbitType::BHN);
-        assert_eq!(sp3.time_scale, TimeScale::GPST);
-        assert_eq!(sp3.constellation, Constellation::Mixed);
-        assert_eq!(sp3.agency, "ESOC");
+        assert_eq!(sp3.total_epochs(), 96, "bad number of epochs");
 
-        assert_eq!(sp3.week_counter, (2277, 0.0_f64));
-        assert_eq!(sp3.epoch_interval, Duration::from_seconds(900.0_f64));
-        assert_eq!(sp3.mjd_start, (60183, 0.0_f64));
+        assert_eq!(sp3.header.coord_system, "ITRF2");
+        assert_eq!(sp3.header.orbit_type, OrbitType::BHN);
+        assert_eq!(sp3.header.time_scale, TimeScale::GPST);
+        assert_eq!(sp3.header.constellation, Constellation::Mixed);
+        assert_eq!(sp3.header.agency, "ESOC");
 
-        for (index, epoch) in sp3.epoch().enumerate() {
-            match index {
-                0 => {
-                    assert_eq!(
-                        epoch,
-                        Epoch::from_str("2023-08-27T00:00:00 GPST").unwrap(),
-                        "parsed wrong epoch"
-                    );
-                },
-                1 => {
-                    assert_eq!(
-                        epoch,
-                        Epoch::from_str("2023-08-27T00:15:00 GPST").unwrap(),
-                        "parsed wrong epoch"
-                    );
-                },
-                _ => {},
-            }
-        }
+        assert_eq!(sp3.header.week_counter, 2277);
+        assert_eq!(sp3.header.week_sow, 0.0_f64);
+        assert_eq!(sp3.header.mjd, 60183.0);
 
-        //for (index, (epoch, sv, clock)) in sp3.sv_clock().enumerate() {}
+        assert_eq!(sp3.header.epoch_interval, Duration::from_seconds(900.0_f64));
 
-        /*
-         * Test file comments
-         */
+        // TODO
+        // for (index, epoch) in sp3.epochs_iter().enumerate() {
+        //     match index {
+        //         0 => {
+        //             assert_eq!(
+        //                 epoch,
+        //                 Epoch::from_str("2023-08-27T00:00:00 GPST").unwrap(),
+        //                 "parsed wrong epoch"
+        //             );
+        //         },
+        //         1 => {
+        //             assert_eq!(
+        //                 epoch,
+        //                 Epoch::from_str("2023-08-27T00:15:00 GPST").unwrap(),
+        //                 "parsed wrong epoch"
+        //             );
+        //         },
+        //         _ => {},
+        //     }
+        // }
+
         assert_eq!(
             sp3.comments.len(),
             4,

@@ -1,14 +1,19 @@
-use crate::prelude::{Constellation, SP3};
+use crate::prelude::{Constellation, Header, SP3};
 
 use qc_traits::{Merge, MergeError};
 
-impl Merge for SP3 {
-    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
-        let mut s = self.clone();
-        s.merge_mut(rhs)?;
-        Ok(s)
+impl Merge for Header {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError>
+    where
+        Self: Sized,
+    {
+        let mut lhs = self.clone();
+        lhs.merge_mut(rhs)?;
+        Ok(lhs)
     }
+
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
+        // Verifications
         if self.agency != rhs.agency {
             return Err(MergeError::DataProviderMismatch);
         }
@@ -18,59 +23,66 @@ impl Merge for SP3 {
         if self.coord_system != rhs.coord_system {
             return Err(MergeError::ReferenceFrameMismatch);
         }
+
+        // "upgrade" constellation
         if self.constellation != rhs.constellation {
-            /*
-             * Convert self to Mixed constellation
-             */
             self.constellation = Constellation::Mixed;
         }
-        // adjust revision
-        if rhs.version > self.version {
-            self.version = rhs.version;
+
+        // update revision
+        self.version = std::cmp::min(self.version, rhs.version);
+
+        // update time reference
+
+        if rhs.mjd < self.mjd {
+            self.mjd = rhs.mjd;
         }
-        // Adjust MJD start
-        if rhs.mjd_start.0 < self.mjd_start.0 {
-            self.mjd_start.0 = rhs.mjd_start.0;
+
+        if rhs.week_counter < self.week_counter {
+            self.week_counter = rhs.week_counter;
+            self.week_sow = rhs.week_sow;
         }
-        if rhs.mjd_start.1 < self.mjd_start.1 {
-            self.mjd_start.1 = rhs.mjd_start.1;
-        }
-        // Adjust week counter
-        if rhs.week_counter.0 < self.week_counter.0 {
-            self.week_counter.0 = rhs.week_counter.0;
-        }
-        if rhs.week_counter.1 < self.week_counter.1 {
-            self.week_counter.1 = rhs.week_counter.1;
-        }
+
         // update SV table
-        for sv in &rhs.sv {
-            if !self.sv.contains(sv) {
-                self.sv.push(*sv);
+        for satellite in rhs.satellites.iter() {
+            if !self.satellites.contains(&satellite) {
+                self.satellites.push(*satellite);
             }
         }
-        // update sampling interval (pessimistic)
+
+        // update sampling
         self.epoch_interval = std::cmp::max(self.epoch_interval, rhs.epoch_interval);
-        // Merge new entries
-        // and upgrade missing information (if possible)
+
+        Ok(())
+    }
+}
+
+impl Merge for SP3 {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
+        let mut s = self.clone();
+        s.merge_mut(rhs)?;
+        Ok(s)
+    }
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
+        self.header.merge_mut(&rhs.header)?;
+
         for (key, entry) in &rhs.data {
             if let Some(lhs_entry) = self.data.get_mut(key) {
-                if let Some(clock) = entry.clock {
-                    lhs_entry.clock = Some(clock);
+                if let Some(clock_us) = entry.clock_us {
+                    lhs_entry.clock_us = Some(clock_us);
                 }
-                if let Some(rate) = entry.clock_rate {
-                    lhs_entry.clock_rate = Some(rate);
+
+                if let Some(drift_ns) = entry.clock_drift_ns {
+                    lhs_entry.clock_drift_ns = Some(drift_ns);
                 }
-                if let Some(velocity) = entry.velocity {
-                    lhs_entry.velocity = Some(velocity);
+
+                if let Some((vel_x_km_s, vel_y_km_s, vel_z_km_s)) = entry.velocity_km_s {
+                    lhs_entry.velocity_km_s = Some((vel_x_km_s, vel_y_km_s, vel_z_km_s));
                 }
             } else {
-                if !self.epoch.contains(&key.epoch) {
-                    self.epoch.push(key.epoch); // new epoch
-                }
                 self.data.insert(key.clone(), entry.clone()); // new entry
             }
         }
-        self.epoch.sort(); // preserve chronological order
         Ok(())
     }
 }

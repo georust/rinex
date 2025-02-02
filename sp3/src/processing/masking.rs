@@ -1,6 +1,114 @@
 use qc_traits::{FilterItem, MaskFilter, MaskOperand, Masking};
 
-use crate::prelude::{Constellation, SP3};
+use crate::prelude::{Constellation, Epoch, Header, SP3};
+
+impl Masking for Header {
+    fn mask_mut(&mut self, mask: &MaskFilter) {
+        match mask.operand {
+            MaskOperand::Equals => match &mask.item {
+                FilterItem::EpochItem(epoch) => {
+                    let mut mjd = Epoch::from_mjd_utc(self.mjd);
+                    if self.time_scale.is_gnss() {
+                        mjd = Epoch::from_duration(
+                            mjd - self.time_scale.reference_epoch(),
+                            self.time_scale,
+                        );
+                    }
+
+                    if *epoch < mjd {
+                        // TODO
+                    }
+                },
+                FilterItem::SvItem(svs) => {
+                    self.satellites.retain(|sv| svs.contains(&sv));
+                },
+                FilterItem::ConstellationItem(constellations) => {
+                    self.satellites
+                        .retain(|sv| constellations.contains(&sv.constellation));
+                },
+                FilterItem::DurationItem(dt) => {
+                    self.epoch_interval = std::cmp::max(self.epoch_interval, *dt);
+                },
+                _ => {},
+            },
+            MaskOperand::GreaterEquals => match &mask.item {
+                FilterItem::SvItem(svs) => {
+                    self.satellites.retain(|sv| {
+                        let mut retained = true;
+                        for item in svs {
+                            if item.constellation == sv.constellation {
+                                retained &= sv.prn >= item.prn;
+                            }
+                        }
+                        retained
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::GreaterThan => match &mask.item {
+                FilterItem::SvItem(svs) => {
+                    self.satellites.retain(|sv| {
+                        let mut retained = true;
+                        for item in svs {
+                            if item.constellation == sv.constellation {
+                                retained &= sv.prn > item.prn;
+                            }
+                        }
+                        retained
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::LowerEquals => match &mask.item {
+                FilterItem::SvItem(svs) => {
+                    self.satellites.retain(|sv| {
+                        let mut retained = true;
+                        for item in svs {
+                            if item.constellation == sv.constellation {
+                                retained &= sv.prn <= item.prn;
+                            }
+                        }
+                        retained
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::LowerThan => match &mask.item {
+                FilterItem::SvItem(svs) => {
+                    self.satellites.retain(|sv| {
+                        let mut retained = true;
+                        for item in svs {
+                            if item.constellation == sv.constellation {
+                                retained &= sv.prn < item.prn;
+                            }
+                        }
+                        retained
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::NotEquals => match &mask.item {
+                FilterItem::SvItem(svs) => {
+                    self.satellites.retain(|sv| {
+                        let mut retained = true;
+                        for item in svs {
+                            if item.constellation == sv.constellation {
+                                retained &= sv.prn != item.prn;
+                            }
+                        }
+                        retained
+                    });
+                },
+                _ => {},
+            },
+        }
+    }
+    fn mask(&self, mask: &MaskFilter) -> Self {
+        let mut s = self.clone();
+        s.mask_mut(mask);
+        s
+    }
+}
 
 impl Masking for SP3 {
     fn mask(&self, f: &MaskFilter) -> Self {

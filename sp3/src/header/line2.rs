@@ -50,3 +50,29 @@ impl Line2 {
         (self.week_counter, self.epoch_interval, self.mjd)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::Line2;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_line2_parsing() {
+        for (line, week_counter, week_sow, epoch_interval, mjd, mjd_fract) in [(
+            "##  887      0.00000000   900.00000000 50453 0.0000000000000",
+            887,
+            0.0,
+            900.0,
+            50453,
+            0.0,
+        )] {
+            let line2 = Line2::from_str(&line).unwrap();
+
+            assert_eq!(line2.week_counter.0, week_counter);
+            assert_eq!(line2.week_counter.1, week_sow);
+            assert_eq!(line2.mjd.0, mjd);
+            assert_eq!(line2.mjd.1, mjd_fract);
+            assert_eq!(line2.epoch_interval.to_seconds(), epoch_interval);
+        }
+    }
+}

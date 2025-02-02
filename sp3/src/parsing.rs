@@ -16,8 +16,7 @@ use crate::{
     },
     position::{position_entry, PositionEntry},
     prelude::{
-        Constellation, DataType, Duration, Epoch, Error, OrbitType, ParsingError, SP3Entry, SP3Key,
-        TimeScale, Version, SP3, SV,
+        Constellation, Epoch, Error, Header, ParsingError, SP3Entry, SP3Key, TimeScale, SP3, SV,
     },
     velocity::{velocity_entry, VelocityEntry},
 };
@@ -88,47 +87,55 @@ impl SP3 {
 
     /// Parse [SP3] data from [Read]able I/O.
     pub fn from_reader<R: Read>(reader: &mut BufReader<R>) -> Result<Self, Error> {
-        let mut version = Version::default();
-        let mut data_type = DataType::default();
-
-        let mut time_scale = TimeScale::default();
-        let mut constellation = Constellation::default();
         let mut pc_count = 0_u8;
-
-        let mut coord_system = String::from("Unknown");
-        let mut orbit_type = OrbitType::default();
-        let mut agency = String::from("Unknown");
-        let mut week_counter = (0_u32, 0_f64);
-        let mut epoch_interval = Duration::default();
-        let mut mjd_start = (0_u32, 0_f64);
+        let mut header = Header::default();
+        let mut time_scale = TimeScale::default();
 
         let mut vehicles: Vec<SV> = Vec::new();
         let mut comments = Vec::new();
         let mut data = BTreeMap::<SP3Key, SP3Entry>::new();
 
         let mut epoch = Epoch::default();
-        let mut epochs: Vec<Epoch> = Vec::new();
 
         for line in reader.lines() {
             let line = line.unwrap();
             let line = line.trim();
+
             if sp3_comment(line) {
                 if line.len() > 4 {
                     comments.push(line[3..].to_string());
                 }
                 continue;
             }
+
             if end_of_file(line) {
                 break;
             }
+
             if is_header_line1(line) && !is_header_line2(line) {
                 let l1 = Line1::from_str(line)?;
-                (version, data_type, coord_system, orbit_type, agency) = l1.to_parts();
+                let (version, data_type, coord_system, orbit_type, agency) = l1.to_parts();
+                header.version = version;
+                header.data_type = data_type;
+                header.coord_system = coord_system;
+                header.orbit_type = orbit_type;
+                header.agency = agency;
             }
+
             if is_header_line2(line) {
                 let l2 = Line2::from_str(line)?;
-                (week_counter, epoch_interval, mjd_start) = l2.to_parts();
+                let ((week_counter, week_sow), epoch_interval, (mjd_int, mjd_fract)) =
+                    l2.to_parts();
+
+                header.week_counter = week_counter;
+                header.week_sow = week_sow;
+
+                header.epoch_interval = epoch_interval;
+
+                header.mjd = mjd_int as f64;
+                header.mjd += mjd_fract;
             }
+
             if file_descriptor(line) {
                 if line.len() < 60 {
                     return Err(Error::ParsingError(ParsingError::MalformedDescriptor(
@@ -137,89 +144,104 @@ impl SP3 {
                 }
 
                 if pc_count == 0 {
-                    constellation = Constellation::from_str(line[3..5].trim())?;
+                    header.constellation = Constellation::from_str(line[3..5].trim())?;
                     time_scale = TimeScale::from_str(line[9..12].trim())?;
+
+                    header.time_scale = time_scale;
                 }
 
                 pc_count += 1;
             }
+
             if new_epoch(line) {
                 epoch = parse_epoch(&line[3..], time_scale)?;
-                epochs.push(epoch);
             }
+
             if position_entry(line) {
                 if line.len() < 60 {
-                    continue; // tolerates malformed positions
+                    // tolerates malformed position vectors
+                    continue;
                 }
+
                 let entry = PositionEntry::from_str(line)?;
-                let (sv, (x_km, y_km, z_km), clk) = entry.to_parts();
+                let (sv, (x_km, y_km, z_km), clk_us) = entry.to_parts();
 
                 //TODO : move this into %c config frame
                 if !vehicles.contains(&sv) {
                     vehicles.push(sv);
                 }
+
                 // verify entry validity
                 if x_km != 0.0_f64 && y_km != 0.0_f64 && z_km != 0.0_f64 {
                     let key = SP3Key { epoch, sv };
                     if let Some(e) = data.get_mut(&key) {
-                        e.position = (x_km, y_km, z_km);
+                        e.position_km = (x_km, y_km, z_km);
                     } else {
-                        if let Some(clk) = clk {
+                        if let Some(clk_us) = clk_us {
                             data.insert(
                                 key,
-                                SP3Entry::from_position((x_km, y_km, z_km)).with_clock_offset(clk),
+                                SP3Entry::from_position_km((x_km, y_km, z_km))
+                                    .with_clock_offset_us(clk_us),
                             );
                         } else {
-                            data.insert(key, SP3Entry::from_position((x_km, y_km, z_km)));
+                            data.insert(key, SP3Entry::from_position_km((x_km, y_km, z_km)));
                         }
                     }
                 }
             }
+
             if velocity_entry(line) {
                 if line.len() < 60 {
-                    continue; // tolerates malformed velocities
+                    // tolerates malformed velocity vectors
+                    continue;
                 }
+
                 let entry = VelocityEntry::from_str(line)?;
-                let (sv, (vel_x, vel_y, vel_z), clk) = entry.to_parts();
+                let (sv, (vel_x_dm_s, vel_y_dm_s, vel_z_dm_s), clk_sub_ns) = entry.to_parts();
+
+                let (vel_x_km_s, vel_y_km_s, vel_z_km_s) = (
+                    vel_y_dm_s * 1.0E-4,
+                    vel_y_dm_s * 1.0E-4,
+                    vel_z_dm_s * 1.0E-4,
+                );
 
                 //TODO : move this into %c config frame
                 if !vehicles.contains(&sv) {
                     vehicles.push(sv);
                 }
+
                 // verify entry validity
-                if vel_x != 0.0_f64 && vel_y != 0.0_f64 && vel_z != 0.0_f64 {
+                if vel_x_dm_s != 0.0_f64 && vel_y_dm_s != 0.0_f64 && vel_z_dm_s != 0.0_f64 {
                     let key = SP3Key { epoch, sv };
                     if let Some(e) = data.get_mut(&key) {
-                        *e = e.with_velocity((vel_x, vel_y, vel_z));
-                        if let Some(clk) = clk {
-                            *e = e.with_clock_rate(clk);
+                        *e = e.with_velocity_km_s((vel_x_km_s, vel_y_km_s, vel_z_km_s));
+
+                        if let Some(clk_sub_ns) = clk_sub_ns {
+                            *e = e.with_clock_drift_ns(clk_sub_ns * 0.1);
                         }
                     } else {
-                        if let Some(clk) = clk {
+                        // Entry does not exist (velocity prior position)
+                        // Should not exist, but we tolerate
+                        if let Some(clk_sub_ns) = clk_sub_ns {
                             data.insert(
                                 key,
-                                SP3Entry::from_position((0.0, 0.0, 0.0)).with_clock_rate(clk),
+                                SP3Entry::from_position_km((0.0, 0.0, 0.0))
+                                    .with_velocity_km_s((vel_x_km_s, vel_y_km_s, vel_z_km_s))
+                                    .with_clock_drift_ns(clk_sub_ns * 0.1),
                             );
                         } else {
-                            data.insert(key, SP3Entry::from_position((0.0, 0.0, 0.0)));
+                            data.insert(
+                                key,
+                                SP3Entry::from_position_km((0.0, 0.0, 0.0))
+                                    .with_velocity_km_s((vel_x_km_s, vel_y_km_s, vel_z_km_s)),
+                            );
                         }
                     }
                 }
             }
         }
         Ok(Self {
-            version,
-            data_type,
-            epoch: epochs,
-            time_scale,
-            constellation,
-            coord_system,
-            orbit_type,
-            agency,
-            week_counter,
-            epoch_interval,
-            mjd_start,
-            sv: vehicles,
+            header,
             data,
             comments,
         })
