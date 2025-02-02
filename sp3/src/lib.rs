@@ -176,6 +176,10 @@ pub enum Error {
     UnknownOrbitType(String),
     #[error("file i/o error")]
     DataParsingError(#[from] std::io::Error),
+    #[error("even interpolation order not supported")]
+    EvenInterpolationOrder,
+    #[error("unable to design interpolation window")]
+    InterpolationWindow,
 }
 
 #[derive(Debug, Error)]
@@ -226,6 +230,32 @@ pub enum ParsingError {
 
 use crate::prelude::DataType;
 
+// Lagrangian interpolator
+pub(crate) fn lagrange_interpolation(
+    order: usize,
+    t: Epoch,
+    x: Vec<(Epoch, Vector3D)>,
+) -> Vector3D {
+    let mut polynomials = Vector3D::default();
+
+    for i in 0..order + 1 {
+        let mut l_i = 1.0_f64;
+        let (t_i, (x_km_i, y_km_i, z_km_i)) = x[i];
+        for j in 0..order + 1 {
+            let (t_j, _) = x[j];
+            if j != i {
+                l_i *= (t - t_j).to_seconds();
+                l_i /= (t_i - t_j).to_seconds();
+            }
+        }
+        polynomials.0 += x_km_i * l_i;
+        polynomials.1 += y_km_i * l_i;
+        polynomials.2 += z_km_i * l_i;
+    }
+
+    polynomials
+}
+
 impl SP3 {
     /// Returns [Epoch] of first entry
     pub fn first_epoch(&self) -> Epoch {
@@ -259,6 +289,30 @@ impl SP3 {
     /// Returns true if this [SP3] has satellites clock drift
     pub fn has_satellite_clock_drift(&self) -> bool {
         self.satellites_clock_drift_s_s_iter().count() > 0
+    }
+
+    /// Returns true if this [SP3] publication is correct
+    /// - all data points are correctly evenly spaced in time
+    /// according to the sampling interval.
+    /// You should use this verification method prior any interpolation (post processing).
+    pub fn has_correct_sampling(&self) -> bool {
+        let dt = self.header.epoch_interval;
+        let mut t = Epoch::default();
+        let mut past_t = Option::<Epoch>::None;
+
+        for now in self.epochs_iter() {
+            if now > t {
+                // new epoch
+                if let Some(past_t) = past_t {
+                    if now - past_t != dt {
+                        return false;
+                    }
+                }
+                t = now;
+            }
+            past_t = Some(now);
+        }
+        true
     }
 
     /// Returns total number of [Epoch] to be found
@@ -401,81 +455,87 @@ impl SP3 {
     //     Some(bias)
     // }
 
-    // /// Applies desired interpolation method to handpicked satellite attitudes
-    // /// (evenly spaced in time).
-    // /// ](N +1)/2 * τ;  T - (N +1)/2 * τ],
-    // /// where N is the interpolation order, τ the epoch interval,
-    // /// and T the last Epoch in this file. See [Bibliography::Japhet2021].
-    // /// In order to preserve SP3 precision, an interpolation order between 7 and 11 is recommended.
-    // /// NB: only odd interpolation order is currently supported.
-    // pub fn satellites_position_interpolate(&self, sv: SV, t: Epoch, interp: Fn(), order: usize) -> Option<Vector3D> {
-    //     let odd_order = order % 2 > 0;
-    //     let sv_position: Vec<_> = self
-    //         .satellites_position_iter()
-    //         .filter_map(|(e, svnn, (x, y, z))| {
-    //             if sv == svnn {
-    //                 Some((e, (x, y, z)))
-    //             } else {
-    //                 None
-    //             }
-    //         })
-    //         .collect();
+    /// Designs an evenly spaced (in time) grouping of (x_km, y_km, z_km) attitude
+    /// vectors for you to apply your own interpolation method (as a function pointer).
+    /// NB:
+    /// - This only works on correct evenly spaced (in time) SP3 publications.
+    /// - There is no internal verification here, you should verify the correctness
+    ///  of the SP3 publication with [Self::has_correct_sampling] prior running this.
+    /// - Only odd interpolation order is currently supported (for simplicity),
+    /// this returns [Error::EvenInterpolationOrder].
+    /// For example, order 7 will design an 7 data point window.
+    /// - If `t` is either too early or too late, with respect to interpolation order,
+    /// we return [Error::InterpolationWindow] that you should catch.
+    /// - The interpolation window is [(N +1)/2 * τ;  (N +1)/2 * τ],
+    /// where N is the interpolation order and τ the sampling interval.
+    ///
+    /// TODO
+    /// See [Bibliography::Japhet2021].
+    /// We propose none (interpolation not feasible) if `t` the interpolation [Epoch] is too
+    /// early or too late, with respect to interpolation order.
+    /// In order to preserve SP3 precision, an interpolation order between 7 and 11 is recommended.
+    pub fn satellites_position_interpolate(
+        &self,
+        sv: SV,
+        t: Epoch,
+        order: usize,
+        interp: fn(usize, Epoch, Vec<(Epoch, Vector3D)>) -> Vector3D,
+    ) -> Result<Vector3D, Error> {
+        let odd_order = order % 2 > 0;
+        if !odd_order {
+            return Err(Error::EvenInterpolationOrder);
+        }
 
-    //     /*
-    //      * Determine closest Epoch in time
-    //      */
-    //     let center = match sv_position
-    //         .iter()
-    //         .find(|(e, _)| (*e - t).abs() < self.epoch_interval)
-    //     {
-    //         Some(center) => center,
-    //         None => {
-    //             /*
-    //              * Failed to determine central Epoch for this SV:
-    //              * empty data set: should not happen
-    //              */
-    //             return None;
-    //         },
-    //     };
+        // determine central point (in time)
+        let center = self
+            .satellites_position_km_iter()
+            .find(|(e, svnn, _)| *svnn == sv && (*e - t).abs() < self.header.epoch_interval);
 
-    //     // println!("CENTRAL EPOCH : {:?}", center); //DEBUG
+        if center.is_none() {
+            return Err(Error::EvenInterpolationOrder);
+        }
 
-    //     let center_pos = match sv_position.iter().position(|(e, _)| *e == center.0) {
-    //         Some(center) => center,
-    //         None => {
-    //             /* will never happen at this point*/
-    //             return None;
-    //         },
-    //     };
+        let (center_t, _, _) = center.unwrap();
 
-    //     let (min_before, min_after): (usize, usize) = match odd_order {
-    //         true => ((order + 1) / 2, (order + 1) / 2),
-    //         false => (order / 2, order / 2 + 1),
-    //     };
+        // determine (first, last) epoch of the time window
+        let dt = ((order - 1) / 2) as f64;
+        let dt = dt * self.header.epoch_interval;
 
-    //     if center_pos < min_before || sv_position.len() - center_pos < min_after {
-    //         /* can't design time window */
-    //         return None;
-    //     }
+        // design time window
+        let window = self
+            .satellites_position_km_iter()
+            .filter_map(|(e, svnn, v3d)| {
+                if svnn == sv {
+                    if e >= center_t - dt && e <= center_t + dt {
+                        Some((e, v3d))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
 
-    //     let mut polynomials = Vector3D::default();
-    //     let offset = center_pos - min_before;
+        if window.len() != order {
+            return Err(Error::InterpolationWindow);
+        }
 
-    //     for i in 0..order + 1 {
-    //         let mut li = 1.0_f64;
-    //         let (e_i, (x_i, y_i, z_i)) = sv_position[offset + i];
-    //         for j in 0..order + 1 {
-    //             let (e_j, _) = sv_position[offset + j];
-    //             if j != i {
-    //                 li *= (t - e_j).to_seconds();
-    //                 li /= (e_i - e_j).to_seconds();
-    //             }
-    //         }
-    //         polynomials.0 += x_i * li;
-    //         polynomials.1 += y_i * li;
-    //         polynomials.2 += z_i * li;
-    //     }
+        Ok(interp(order, t, window))
+    }
 
-    //     Some(polynomials)
-    // }
+    /// Applies the Lagrangian interpolation method
+    /// at desired [Epoch] `t` using desired interpoation order.
+    /// NB:
+    /// - only odd interpolation is supported, otherwise returns [Error::EvenInterpolationOrder]
+    /// - returns [Error::InterpolationWindow] error if [Epoch] is too early or too late,
+    /// with respect of interpolation order.
+    pub fn satellites_position_lagrangian_interpolation(
+        &self,
+        sv: SV,
+        t: Epoch,
+        order: usize,
+    ) -> Result<Vector3D, Error> {
+        self.satellites_position_interpolate(sv, t, order, lagrange_interpolation)
+    }
 }

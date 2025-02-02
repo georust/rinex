@@ -168,6 +168,15 @@ assert!((y - -11661.887057).abs() * 1.0E3 < 1.0E-2);
 assert!((z - 19365.687261).abs() * 1.0E3 < 1.0E-2);
 ```
 
+## Satellite clock interpolation
+
+Although it is feasible to interpolate the clock state, it is not recommended to do so.
+If your processing pipeline requires to interpolate the clock state, you should most likely
+redesign it or reconsider your dataset.
+
+Clock interpolation should be restricted to short intervals (like 30s at most).
+
+We propose a similar API for clock interpolation as the attitude interpolation.
 
 ## QC: File Merging
 

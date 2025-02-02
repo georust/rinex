@@ -2,8 +2,7 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use gnss_rs::prelude::{Constellation, SV};
-    use gnss_rs::sv;
+    use gnss_rs::prelude::Constellation;
     use std::path::PathBuf;
     use std::str::FromStr;
 

@@ -2,34 +2,32 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    //use rinex::prelude::Sv;
-    //use rinex::sv;
     use std::path::PathBuf;
-    //use std::str::FromStr;
-    
-    /*
-     * Theoretical maximal error of a Lagrangian interpolation
-     * over a given Dataset for specified interpolation order
-     */
-    fn max_error(values: Vec<(Epoch, f64)>, epoch: Epoch, order: usize) -> f64 {
-        let mut q = 1.0_f64;
-        for (e, _) in values {
-            q *= (epoch - e).to_seconds();
-        }
-        let factorial: usize = (1..=order + 1).product();
-        q.abs() / factorial as f64 // TODO f^(n+1)[x]
-    }
+    use std::str::FromStr;
+
+    use crate::{lagrange_interpolation, Vector3D};
+
+    // fn max_error(values: Vec<(Epoch, f64)>, epoch: Epoch, order: usize) -> f64 {
+    //     let mut q = 1.0_f64;
+    //     for (e, _) in values {
+    //         q *= (epoch - e).to_seconds();
+    //     }
+    //     let factorial: usize = (1..=order + 1).product();
+    //     q.abs() / factorial as f64 // TODO f^(n+1)[x]
+    // }
 
     #[test]
     #[cfg(feature = "flate2")]
-    fn interp() {
+    fn interpolation_feasibility() {
         let path = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
             .join("SP3")
             .join("EMR0OPSULT_20232391800_02D_15M_ORB.SP3.gz");
+
         let sp3 = SP3::from_gzip_file(&path);
+
         assert!(
             sp3.is_ok(),
             "failed to parse EMR0OPSULT_20232391800_02D_15M_ORB.SP3.gz"
@@ -37,77 +35,65 @@ mod test {
 
         let sp3 = sp3.unwrap();
 
-        let first_epoch = sp3.first_epoch().expect("failed to determine 1st epoch");
+        let g01 = SV::from_str("G01").unwrap();
+        let g72 = SV::from_str("G72").unwrap();
 
-        let last_epoch = sp3.last_epoch().expect("failed to determine last epoch");
+        let t0 = Epoch::from_str("2023-08-27T18:00:00 GPST").unwrap();
+        let t0_5m = Epoch::from_str("2023-08-27T18:05:00 GPST").unwrap();
+        let t1 = Epoch::from_str("2023-08-27T18:15:00 GPST").unwrap();
+        let t2 = Epoch::from_str("2023-08-27T18:30:00 GPST").unwrap();
+        let t2_10m = Epoch::from_str("2023-08-27T18:40:00 GPST").unwrap();
+        let tn2 = Epoch::from_str("2023-08-29T17:15:00 GPST").unwrap();
+        let tn2_10m = Epoch::from_str("2023-08-29T17:25:00 GPST").unwrap();
+        let tn1 = Epoch::from_str("2023-08-29T17:30:00 GPST").unwrap();
+        let tn1_10m = Epoch::from_str("2023-08-29T17:40:00 GPST").unwrap();
+        let tn = Epoch::from_str("2023-08-29T17:45:00 GPST").unwrap();
 
-        let dt = sp3.epoch_interval;
-        let total_epochs = sp3.epoch().count();
+        // test: invalid SV
+        assert!(sp3
+            .satellites_position_interpolate(g72, t0, 7, lagrange_interpolation)
+            .is_err());
+        assert!(sp3
+            .satellites_position_interpolate(g72, t1, 7, lagrange_interpolation)
+            .is_err());
+        assert!(sp3
+            .satellites_position_interpolate(g72, t2, 7, lagrange_interpolation)
+            .is_err());
+        assert!(sp3
+            .satellites_position_interpolate(g72, t2_10m, 7, lagrange_interpolation)
+            .is_err());
+        assert!(sp3
+            .satellites_position_interpolate(g72, tn, 7, lagrange_interpolation)
+            .is_err());
 
-        //TODO: replace with max_error()
-        for (order, max_error) in [(7, 1E-1_f64), (9, 1.0E-2_64), (11, 0.5E-3_f64)] {
-            let tmin = first_epoch + (order / 2) * dt;
-            let tmax = last_epoch - (order / 2) * dt;
-            println!("running Interp({}) testbench..", order);
-            //DEBUG
-            for (index, (epoch, sv, (x, y, z))) in sp3.sv_position().enumerate() {
-                let feasible = epoch > tmin && epoch <= tmax;
-                let interpolated = sp3.sv_position_interpolate(sv, epoch, order as usize);
-                let achieved = interpolated.is_some();
-                //DEBUG
-                //println!("tmin: {} | tmax: {} | epoch: {} | feasible : {} | achieved: {}", tmin, tmax, epoch, feasible, achieved);
-                if feasible {
-                    assert!(
-                        achieved == feasible,
-                        "interpolation should have been feasible @ epoch {}",
-                        epoch,
-                    );
-                } else {
-                    assert!(
-                        achieved == feasible,
-                        "interpolation should not have been feasible @ epoch {}",
-                        epoch,
-                    );
-                }
-                if !feasible {
-                    continue;
-                }
-                /*
-                 * test interpolation errors
-                 */
-                let (x_interp, y_interp, z_interp) = interpolated.unwrap();
-                let err = (
-                    (x_interp - x).abs() * 1.0E3, // error in km
-                    (y_interp - y).abs() * 1.0E3,
-                    (z_interp - z).abs() * 1.0E3,
-                );
-                assert!(
-                    err.0 < max_error,
-                    "x error too large: {} for Interp({}) for {} @ Epoch {}/{}",
-                    err.0,
-                    order,
-                    sv,
-                    index,
-                    total_epochs,
-                );
-                assert!(
-                    err.1 < max_error,
-                    "y error too large: {} for Interp({}) for {} @ Epoch {}/{}",
-                    err.1,
-                    order,
-                    sv,
-                    index,
-                    total_epochs,
-                );
-                assert!(
-                    err.2 < max_error,
-                    "z error too large: {} for Interp({}) for {} @ Epoch {}/{}",
-                    err.2,
-                    order,
-                    sv,
-                    index,
-                    total_epochs,
-                );
+        // test: even order
+        let even_err = sp3
+            .satellites_position_interpolate(g72, t0, 2, lagrange_interpolation)
+            .err();
+        match even_err {
+            Some(Error::EvenInterpolationOrder) => {},
+            _ => panic!("invalid error"),
+        }
+
+        // test: too early (x3)
+        for t in [t0, t0_5m] {
+            let error = sp3
+                .satellites_position_interpolate(g01, t, 3, lagrange_interpolation)
+                .err();
+            match error {
+                Some(Error::InterpolationWindow) => {},
+                _ => panic!("invalid error"),
+            }
+        }
+
+        // test: too late (x3)
+        for t in [tn] {
+            let error = sp3
+                .satellites_position_interpolate(g01, t, 3, lagrange_interpolation)
+                .err();
+            match error {
+                Some(Error::InterpolationWindow) => {},
+                _ => panic!("invalid error"),
             }
         }
     }
