@@ -476,7 +476,7 @@ impl SP3 {
     /// We propose none (interpolation not feasible) if `t` the interpolation [Epoch] is too
     /// early or too late, with respect to interpolation order.
     /// In order to preserve SP3 precision, an interpolation order between 7 and 11 is recommended.
-    pub fn satellites_position_interpolate(
+    pub fn satellite_position_interpolate(
         &self,
         sv: SV,
         t: Epoch,
@@ -532,12 +532,42 @@ impl SP3 {
     /// - only odd interpolation is supported, otherwise returns [Error::EvenInterpolationOrder]
     /// - returns [Error::InterpolationWindow] error if [Epoch] is too early or too late,
     /// with respect of interpolation order.
-    pub fn satellites_position_lagrangian_interpolation(
+    pub fn satellite_position_lagrangian_interpolation(
         &self,
         sv: SV,
         t: Epoch,
         order: usize,
     ) -> Result<Vector3D, Error> {
         self.satellites_position_interpolate(sv, t, order, lagrange_interpolation)
+    }
+
+    /// Macro to apply the Lagrangian interpolation with 9th interpolation order,
+    /// which is compatible with high precision geodesy
+    pub fn satellite_position_lagrangian_9_interpolation(
+        &self,
+        sv: SV,
+        t: Epoch,
+    ) -> Result<Vector3D, Error> {
+        self.satellite_position_lagrangian_interpolation(sv, t, 9, lagrange_interpolation)
+    }
+
+    /// Macro to apply the Lagrangian interpolation with 11th interpolation order,
+    /// which is compatible with high precision geodesy
+    pub fn satellite_position_lagrangian_11_interpolation(
+        &self,
+        sv: SV,
+        t: Epoch,
+    ) -> Result<Vector3D, Error> {
+        self.satellite_position_lagrangian_interpolation(sv, t, 11, lagrange_interpolation)
+    }
+
+    /// Macro to apply the Lagrangian interpolation with 17th interpolation order,
+    /// which is compatible with high precision geodesy
+    pub fn satellite_position_lagrangian_17_interpolation(
+        &self,
+        sv: SV,
+        t: Epoch,
+    ) -> Result<Vector3D, Error> {
+        self.satellite_position_lagrangian_interpolation(sv, t, 17, lagrange_interpolation)
     }
 }

@@ -31,7 +31,7 @@ sp3 = "1"
 Parse an SP3 file
 
 ```rust
-use crate::prelude::*;
+use sp3::prelude::*;
 use std::path::PathBuf;
 use std::str::FromStr;
     
@@ -181,6 +181,8 @@ We propose a similar API for clock interpolation as the attitude interpolation.
 Merge two files together, for example to create a context spanning 48 hours
 
 ```rust
+use sp3::prelude::*;
+
 let folder = PathBuf::new()
     .join(env!("CARGO_MANIFEST_DIR"))
     .join("data");
