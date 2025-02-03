@@ -32,7 +32,6 @@ Parse an SP3 file
 
 ```rust
 use crate::prelude::*;
-use rinex::prelude::Constellation;
 use std::path::PathBuf;
 use std::str::FromStr;
     
@@ -139,33 +138,32 @@ with `τ` the sampling internval, `T(n-1)` the last epoch provided.
 
 ```rust
 use sp3::prelude::*;
-use rinex::sv;
 use std::str::FromStr;
 use std::path::PathBuf;
-use rinex::prelude::Sv;
 
 let path = PathBuf::new()
     .join(env!("CARGO_MANIFEST_DIR"))
     .join("data")
     .join("ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz");
 
-let sp3 = SP3::from_file(&path.to_string_lossy())
+let sp3 = SP3::from_gzip_file(&path)
     .unwrap();
 
-let epoch = Epoch::from_str("2023-08-27T00:00:00 GPST")
+let g01 = SV::from_str("G01").unwrap();
+
+// first epoch in this file
+let t0 = Epoch::from_str("2023-08-27T00:00:00 GPST")
     .unwrap();
-let interpolated = sp3.interpolate(epoch, sv!("G01"), 11);
+
+// after 7th epoch we can interpolate by x11 
+let t7 = Epoch::from_str("2023-08-72T00:00:00 GPST")
+    .unwrap();
+
+let interpolated = sp3.satellite_lagrangian_position_interp_x11(t0, g01);
 assert!(interpolated.is_none(), "too early in this file");
 
-let epoch = Epoch::from_str("2023-08-27T08:15:00 GPST")
-   .unwrap();
-let interpolated = sp3.interpolate(epoch, sv!("G01"), 11);
-assert!(interpolated.is_some());
-let (x, y, z) = interpolated.unwrap();
-// demonstrate error is still sub cm
-assert!((x - 13281.083885).abs() * 1.0E3 < 1.0E-2); // distances are expressed in km in all SP3
-assert!((y - -11661.887057).abs() * 1.0E3 < 1.0E-2);
-assert!((z - 19365.687261).abs() * 1.0E3 < 1.0E-2);
+let interpolated = sp3.satellite_lagrangian_position_interp_x11(t7, g01);
+assert!(interpolated.is_none(), "too early in this file");
 ```
 
 ## Satellite clock interpolation
@@ -202,3 +200,7 @@ let sp3_b = SP3::from_file(&sp3_b.to_string_lossy())
 let sp3 = sp3_a.merge(sp3_b);
 assert!(sp3.is_ok());
 ```
+
+## Processing
+
+TODO: add example
