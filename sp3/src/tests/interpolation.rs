@@ -80,7 +80,7 @@ mod test {
         }
 
         // test: too early (x3)
-        for t in [t0, t0_5m] {
+        for t in [t0, t0_5m, ] {
             let error = sp3
                 .satellite_position_lagrangian_interpolation(g01, t, 3)
                 .err();
@@ -99,6 +99,11 @@ mod test {
                 Some(Error::InterpolationWindow) => {},
                 _ => panic!("invalid error"),
             }
+        }
+
+        // test: feasible (x3)
+        for t in [t1] {
+            assert!(sp3.satellite_position_lagrangian_interpolation(g01, t, 3).is_ok());
         }
     }
 }

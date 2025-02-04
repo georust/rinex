@@ -13,7 +13,7 @@ edition = "2021"
 readme = "README.md"
 
 [features]
-default = []
+default = ["flate2", "anise", "qc", "processing"] # gzip files by default
 
 # File Merging and other high level methods
 qc = [

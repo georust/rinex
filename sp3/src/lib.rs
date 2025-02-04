@@ -499,7 +499,7 @@ impl SP3 {
             .find(|(e, svnn, _)| *svnn == sv && (*e - t).abs() < self.header.epoch_interval);
 
         if center.is_none() {
-            return Err(Error::EvenInterpolationOrder);
+            return Err(Error::InterpolationWindow);
         }
 
         let (center_t, _, _) = center.unwrap();
