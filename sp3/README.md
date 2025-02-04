@@ -37,7 +37,7 @@ use std::str::FromStr;
     
 let path = PathBuf::new()
     .join(env!("CARGO_MANIFEST_DIR"))
-    .join("test_resources")
+    .join("../test_resources")
     .join("SP3")
     .join("ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz");
 
@@ -145,7 +145,7 @@ use std::path::PathBuf;
 
 let path = PathBuf::new()
     .join(env!("CARGO_MANIFEST_DIR"))
-    .join("test_resources")
+    .join("../test_resources")
     .join("SP3")
     .join("ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz");
 
@@ -189,7 +189,7 @@ use std::path::PathBuf;
 
 let folder = PathBuf::new()
     .join(env!("CARGO_MANIFEST_DIR"))
-    .join("test_resources")
+    .join("../test_resources")
     .join("SP3");
 
 let sp3_a = folder.clone()
@@ -198,10 +198,10 @@ let sp3_a = folder.clone()
 let sp3_b = folder.clone()
     .join("ESA0OPSULT_20232320600_02D_15M_ORB.SP3.gz");
 
-let sp3_a = SP3::from_file(&sp3_a)
+let sp3_a = SP3::from_gzip_file(&sp3_a)
     .unwrap();
 
-let sp3_b = SP3::from_file(&sp3_b)
+let sp3_b = SP3::from_gzip_file(&sp3_b)
     .unwrap();
 
 let sp3 = sp3_a.merge(&sp3_b);
