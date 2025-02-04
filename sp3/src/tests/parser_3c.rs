@@ -52,32 +52,32 @@ mod test {
 
         assert_eq!(sp3.header.epoch_interval, Duration::from_seconds(900.0_f64));
 
-        // TODO
-        // for (index, epoch) in sp3.epochs_iter().enumerate() {
-        //     match index {
-        //         0 => {
-        //             assert_eq!(
-        //                 epoch,
-        //                 Epoch::from_str("2023-08-27T00:00:00 GPST").unwrap(),
-        //                 "parsed wrong epoch"
-        //             );
-        //         },
-        //         1 => {
-        //             assert_eq!(
-        //                 epoch,
-        //                 Epoch::from_str("2023-08-27T00:15:00 GPST").unwrap(),
-        //                 "parsed wrong epoch"
-        //             );
-        //         },
-        //         _ => {},
-        //     }
-        // }
+        for (index, epoch) in sp3.epochs_iter().enumerate() {
+            match index {
+                0 => {
+                    assert_eq!(
+                        epoch,
+                        Epoch::from_str("2023-08-27T00:00:00 GPST").unwrap(),
+                        "parsed wrong epoch"
+                    );
+                },
+                1 => {
+                    assert_eq!(
+                        epoch,
+                        Epoch::from_str("2023-08-27T00:15:00 GPST").unwrap(),
+                        "parsed wrong epoch"
+                    );
+                },
+                _ => {},
+            }
+        }
 
         assert_eq!(
             sp3.comments.len(),
             4,
             "failed to parse files comment correctly"
         );
+
         assert_eq!(
             sp3.comments,
             vec![

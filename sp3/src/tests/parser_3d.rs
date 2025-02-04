@@ -49,67 +49,92 @@ mod test {
         assert_eq!(sp3.header.epoch_interval, Duration::from_seconds(300.0_f64));
         assert_eq!(sp3.header.mjd, 58783.0);
 
-        // TODO
-        // for (epoch, sv, position) in sp3.satellites_position_iter() {
-        //     assert_eq!(epoch, Epoch::from_str("2019-10-27T00:00:00 GPST").unwrap());
-        //     if sv == sv!("C01") {
-        //         assert_eq!(
-        //             position,
-        //             (-32312.652253, 27060.656563, 205.195454),
-        //             "bad position data"
-        //         );
-        //     } else if sv == sv!("E01") {
-        //         assert_eq!(
-        //             position,
-        //             (-15325.409333, 5781.454973, -24645.410980),
-        //             "bad position data"
-        //         );
-        //     } else if sv == sv!("G01") {
-        //         assert_eq!(
-        //             position,
-        //             (-22335.782004, -14656.280389, -1218.238499),
-        //             "bad position data"
-        //         );
-        //     } else if sv == sv!("J01") {
-        //         assert_eq!(
-        //             position,
-        //             (-30616.656355, 26707.752269, 16227.934145),
-        //             "bad position data"
-        //         );
-        //     } else if sv == sv!("R01") {
-        //         assert_eq!(
-        //             position,
-        //             (15684.717752, -12408.390324, -15847.221180),
-        //             "bad position data"
-        //         );
-        //     } else {
-        //         panic!("identified wrong sv");
-        //     }
-        // }
+        let c01 = SV::from_str("C01").unwrap();
+        let e01 = SV::from_str("E01").unwrap();
+        let g01 = SV::from_str("G01").unwrap();
+        let j01 = SV::from_str("J01").unwrap();
+        let r01 = SV::from_str("R01").unwrap();
 
-        // TODO
-        // for (epoch, sv, clock) in sp3.satellites_clock_offset_sec_iter() {
-        //     assert_eq!(epoch, Epoch::from_str("2019-10-27T00:00:00 GPST").unwrap());
-        //     if sv == sv!("C01") {
-        //         assert!((clock - 63.035497E-6).abs() < 1E-9, "bad clock data");
-        //     } else if sv == sv!("E01") {
-        //         assert!((clock - -718.927492E-6).abs() < 1E-9, "bad clock data");
-        //     } else if sv == sv!("G01") {
-        //         assert!((clock - -176.397152E-6).abs() < 1E-9, "bad clock data");
-        //     } else if sv == sv!("J01") {
-        //         assert!((clock - -336.145158E-6).abs() < 1E-9, "bad clock data");
-        //     } else if sv == sv!("R01") {
-        //         assert!((clock - 51.759894E-6).abs() < 1E-9, "bad clock data");
-        //     } else {
-        //         panic!("identified wrong sv");
-        //     }
-        // }
+        let t0 = Epoch::from_str("2019-10-27T00:00:00 GPST").unwrap();
+
+        for (epoch, sv, position) in sp3.satellites_position_km_iter() {
+            assert_eq!(epoch, t0);
+
+            if sv == c01 {
+                assert_eq!(
+                    position,
+                    (-32312.652253, 27060.656563, 205.195454),
+                    "bad position data"
+                );
+            } else if sv == e01 {
+                assert_eq!(
+                    position,
+                    (-15325.409333, 5781.454973, -24645.410980),
+                    "bad position data"
+                );
+            } else if sv == g01 {
+                assert_eq!(
+                    position,
+                    (-22335.782004, -14656.280389, -1218.238499),
+                    "bad position data"
+                );
+            } else if sv == j01 {
+                assert_eq!(
+                    position,
+                    (-30616.656355, 26707.752269, 16227.934145),
+                    "bad position data"
+                );
+            } else if sv == r01 {
+                assert_eq!(
+                    position,
+                    (15684.717752, -12408.390324, -15847.221180),
+                    "bad position data"
+                );
+            }
+        }
+
+        for (epoch, sv, clock) in sp3.satellites_clock_offset_sec_iter() {
+            assert_eq!(epoch, t0);
+
+            if sv == c01 {
+                assert!(
+                    (clock - 63.035497E-6).abs() < 1E-9,
+                    "bad clock data: {}",
+                    clock
+                );
+            } else if sv == e01 {
+                assert!(
+                    (clock - -718.927492E-6).abs() < 1E-9,
+                    "bad clock data: {}",
+                    clock
+                );
+            } else if sv == g01 {
+                assert!(
+                    (clock - -176.397152E-6).abs() < 1E-9,
+                    "bad clock data: {}",
+                    clock
+                );
+            } else if sv == j01 {
+                assert!(
+                    (clock - -336.145158E-6).abs() < 1E-9,
+                    "bad clock data: {}",
+                    clock
+                );
+            } else if sv == r01 {
+                assert!(
+                    (clock - 51.759894E-6).abs() < 1E-9,
+                    "bad clock data: {}",
+                    clock
+                );
+            }
+        }
 
         assert_eq!(
             sp3.comments.len(),
             4,
             "failed to parse files comment correctly"
         );
+
         assert_eq!(
             sp3.comments,
             vec![

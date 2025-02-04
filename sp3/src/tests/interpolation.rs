@@ -51,24 +51,28 @@ mod test {
 
         // test: invalid SV
         assert!(sp3
-            .satellite_position_interpolate(g72, t0, 7, lagrange_interpolation)
+            .satellite_position_lagrangian_interpolation(g72, t0, 7)
             .is_err());
+
         assert!(sp3
-            .satellite_position_interpolate(g72, t1, 7, lagrange_interpolation)
+            .satellite_position_lagrangian_interpolation(g72, t1, 7)
             .is_err());
+
         assert!(sp3
-            .satellite_position_interpolate(g72, t2, 7, lagrange_interpolation)
+            .satellite_position_lagrangian_interpolation(g72, t2, 7)
             .is_err());
+
         assert!(sp3
-            .satellite_position_interpolate(g72, t2_10m, 7, lagrange_interpolation)
+            .satellite_position_lagrangian_interpolation(g72, t2_10m, 2)
             .is_err());
+
         assert!(sp3
-            .satellite_position_interpolate(g72, tn, 7, lagrange_interpolation)
+            .satellite_position_lagrangian_interpolation(g72, tn, 2)
             .is_err());
 
         // test: even order
         let even_err = sp3
-            .satellite_position_interpolate(g72, t0, 2, lagrange_interpolation)
+            .satellite_position_lagrangian_interpolation(g72, t0, 2)
             .err();
         match even_err {
             Some(Error::EvenInterpolationOrder) => {},
@@ -78,7 +82,7 @@ mod test {
         // test: too early (x3)
         for t in [t0, t0_5m] {
             let error = sp3
-                .satellite_position_interpolate(g01, t, 3, lagrange_interpolation)
+                .satellite_position_lagrangian_interpolation(g01, t, 3)
                 .err();
             match error {
                 Some(Error::InterpolationWindow) => {},
@@ -89,7 +93,7 @@ mod test {
         // test: too late (x3)
         for t in [tn] {
             let error = sp3
-                .satellite_position_interpolate(g01, t, 3, lagrange_interpolation)
+                .satellite_position_lagrangian_interpolation(g01, t, 3)
                 .err();
             match error {
                 Some(Error::InterpolationWindow) => {},
