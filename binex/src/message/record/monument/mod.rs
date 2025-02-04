@@ -14,7 +14,6 @@ use std::str::from_utf8 as str_from_utf8;
 mod fid;
 mod src;
 
-// private
 use fid::FieldID;
 
 // public
@@ -416,6 +415,13 @@ impl MonumentGeoRecord {
         }
     }
 
+    /// Define software name
+    pub fn with_software_name(&self, name: &str) -> Self {
+        let mut s = self.clone();
+        s.push_or_update(FieldID::SoftwareName, name);
+        s
+    }
+
     /// Define receiver model.
     pub fn with_receiver_model(&self, model: &str) -> Self {
         let mut s = self.clone();
@@ -431,7 +437,7 @@ impl MonumentGeoRecord {
     }
 
     /// Define receiver firmware version (if known).
-    pub fn with_receiver_firm_version(&self, version: &str) -> Self {
+    pub fn with_receiver_firmware_version(&self, version: &str) -> Self {
         let mut s = self.clone();
         s.push_or_update(FieldID::ReceiverFirmwareVersion, version);
         s
