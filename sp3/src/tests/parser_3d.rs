@@ -41,7 +41,7 @@ mod test {
 
         assert_eq!(sp3.header.coord_system, "IGS14");
         assert_eq!(sp3.header.orbit_type, OrbitType::FIT);
-        assert_eq!(sp3.header.time_scale, TimeScale::GPST);
+        assert_eq!(sp3.header.timescale, TimeScale::GPST);
         assert_eq!(sp3.header.constellation, Constellation::Mixed);
         assert_eq!(sp3.header.agency, "IGS");
         assert_eq!(sp3.header.week_counter, 2077);

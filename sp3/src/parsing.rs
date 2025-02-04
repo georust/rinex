@@ -38,7 +38,7 @@ fn new_epoch(content: &str) -> bool {
 }
 
 /// Parses [Epoch] from standard SP3 format
-fn parse_epoch(content: &str, time_scale: TimeScale) -> Result<Epoch, ParsingError> {
+fn parse_epoch(content: &str, timescale: TimeScale) -> Result<Epoch, ParsingError> {
     let y = u32::from_str(content[0..4].trim())
         .or(Err(ParsingError::EpochYear(content[0..4].to_string())))?;
 
@@ -63,7 +63,7 @@ fn parse_epoch(content: &str, time_scale: TimeScale) -> Result<Epoch, ParsingErr
 
     Epoch::from_str(&format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02} {}",
-        y, m, d, hh, mm, ss, time_scale,
+        y, m, d, hh, mm, ss, timescale,
     ))
     .or(Err(ParsingError::Epoch))
 }
@@ -89,7 +89,7 @@ impl SP3 {
     pub fn from_reader<R: Read>(reader: &mut BufReader<R>) -> Result<Self, Error> {
         let mut pc_count = 0_u8;
         let mut header = Header::default();
-        let mut time_scale = TimeScale::default();
+        let mut timescale = TimeScale::default();
 
         let mut vehicles: Vec<SV> = Vec::new();
         let mut comments = Vec::new();
@@ -145,16 +145,16 @@ impl SP3 {
 
                 if pc_count == 0 {
                     header.constellation = Constellation::from_str(line[3..5].trim())?;
-                    time_scale = TimeScale::from_str(line[9..12].trim())?;
+                    timescale = TimeScale::from_str(line[9..12].trim())?;
 
-                    header.time_scale = time_scale;
+                    header.timescale = timescale;
                 }
 
                 pc_count += 1;
             }
 
             if new_epoch(line) {
-                epoch = parse_epoch(&line[3..], time_scale)?;
+                epoch = parse_epoch(&line[3..], timescale)?;
             }
 
             if position_entry(line) {

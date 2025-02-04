@@ -37,13 +37,14 @@ use std::str::FromStr;
     
 let path = PathBuf::new()
     .join(env!("CARGO_MANIFEST_DIR"))
-    .join("data")
+    .join("test_resources")
+    .join("SP3")
     .join("ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz");
 
 let sp3 = SP3::from_gzip_file(&path).unwrap();
 
-assert_eq!(sp3.version, Version::C);
-assert_eq!(sp3.data_type, DataType::Position);
+assert_eq!(sp3.header.version, Version::C);
+assert_eq!(sp3.header.data_type, DataType::Position);
 
 assert_eq!(
     sp3.first_epoch(),
@@ -51,32 +52,33 @@ assert_eq!(
 );
 
 assert_eq!(sp3.total_epochs(), 96);
-assert_eq!(sp3.agency, "ESOC");
+assert_eq!(sp3.header.agency, "ESOC");
 
 // All coordinates expressed in the following system
-assert_eq!(sp3.coord_system, "ITRF2");
+assert_eq!(sp3.header.coord_system, "ITRF2");
 
 // Orbit type used in fitting process
-assert_eq!(sp3.orbit_type, OrbitType::BHN);
+assert_eq!(sp3.header.orbit_type, OrbitType::BHN);
 
 // This means all temporal information is expressed in this [TimeScale]
-assert_eq!(sp3.time_system, TimeScale::GPST);
-
+assert_eq!(sp3.header.timescale, TimeScale::GPST);
 
 // This means several constellations are to be found
-assert_eq!(sp3.constellation, Constellation::Mixed);
+assert_eq!(sp3.header.constellation, Constellation::Mixed);
 
+// Week counter, in given [TimeScale]
+assert_eq!(sp3.header.week_counter, 2277);
+assert_eq!(sp3.header.week_sow, 0.0_f64);
 
-assert_eq!(sp3.week_counter, (2277, 0.0_f64));
-assert_eq!(sp3.epoch_interval, Duration::from_seconds(900.0_f64));
+assert_eq!(sp3.header.epoch_interval, Duration::from_seconds(900.0_f64));
 
 // Data exploitation
-for (epoch, sv, (x_km_ecef, y_km_ecef, z_km_ecef)) in sp3.satellite_positions_km_iter() {
+for (epoch, sv, (x_km_ecef, y_km_ecef, z_km_ecef)) in sp3.satellites_position_km_iter() {
 
 }
 
 // Data exploitation
-for (epoch, sv, clock) in sp3.satellite_clock_offset_sec_iter() {
+for (epoch, sv, clock) in sp3.satellites_clock_offset_sec_iter() {
 
 }
 ```
@@ -143,7 +145,8 @@ use std::path::PathBuf;
 
 let path = PathBuf::new()
     .join(env!("CARGO_MANIFEST_DIR"))
-    .join("data")
+    .join("test_resources")
+    .join("SP3")
     .join("ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz");
 
 let sp3 = SP3::from_gzip_file(&path)
@@ -159,11 +162,11 @@ let t0 = Epoch::from_str("2023-08-27T00:00:00 GPST")
 let t7 = Epoch::from_str("2023-08-72T00:00:00 GPST")
     .unwrap();
 
-let interpolated = sp3.satellite_lagrangian_position_interp_x11(t0, g01);
-assert!(interpolated.is_none(), "too early in this file");
+let interpolated = sp3.satellite_position_lagrangian_11_interpolation(g01, t0);
+assert!(interpolated.is_err(), "too early in this file");
 
-let interpolated = sp3.satellite_lagrangian_position_interp_x11(t7, g01);
-assert!(interpolated.is_none(), "too early in this file");
+let interpolated = sp3.satellite_position_lagrangian_17_interpolation(g01, t0);
+assert!(interpolated.is_err(), "too early in this file");
 ```
 
 ## Satellite clock interpolation
@@ -182,10 +185,12 @@ Merge two files together, for example to create a context spanning 48 hours
 
 ```rust
 use sp3::prelude::*;
+use std::path::PathBuf;
 
 let folder = PathBuf::new()
     .join(env!("CARGO_MANIFEST_DIR"))
-    .join("data");
+    .join("test_resources")
+    .join("SP3");
 
 let sp3_a = folder.clone()
     .join("ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz");
@@ -193,13 +198,13 @@ let sp3_a = folder.clone()
 let sp3_b = folder.clone()
     .join("ESA0OPSULT_20232320600_02D_15M_ORB.SP3.gz");
 
-let sp3 = SP3::from_file(&sp3_a.to_string_lossy())
+let sp3_a = SP3::from_file(&sp3_a)
     .unwrap();
 
-let sp3_b = SP3::from_file(&sp3_b.to_string_lossy())
+let sp3_b = SP3::from_file(&sp3_b)
     .unwrap();
 
-let sp3 = sp3_a.merge(sp3_b);
+let sp3 = sp3_a.merge(&sp3_b);
 assert!(sp3.is_ok());
 ```
 

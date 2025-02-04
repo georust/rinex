@@ -42,7 +42,7 @@ mod test {
 
         assert_eq!(sp3.header.coord_system, "ITRF2");
         assert_eq!(sp3.header.orbit_type, OrbitType::BHN);
-        assert_eq!(sp3.header.time_scale, TimeScale::GPST);
+        assert_eq!(sp3.header.timescale, TimeScale::GPST);
         assert_eq!(sp3.header.constellation, Constellation::Mixed);
         assert_eq!(sp3.header.agency, "ESOC");
 

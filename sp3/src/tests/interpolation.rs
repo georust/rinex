@@ -5,7 +5,7 @@ mod test {
     use std::path::PathBuf;
     use std::str::FromStr;
 
-    use crate::{lagrange_interpolation, Vector3D};
+    use crate::lagrange_interpolation;
 
     // fn max_error(values: Vec<(Epoch, f64)>, epoch: Epoch, order: usize) -> f64 {
     //     let mut q = 1.0_f64;
@@ -51,24 +51,24 @@ mod test {
 
         // test: invalid SV
         assert!(sp3
-            .satellites_position_interpolate(g72, t0, 7, lagrange_interpolation)
+            .satellite_position_interpolate(g72, t0, 7, lagrange_interpolation)
             .is_err());
         assert!(sp3
-            .satellites_position_interpolate(g72, t1, 7, lagrange_interpolation)
+            .satellite_position_interpolate(g72, t1, 7, lagrange_interpolation)
             .is_err());
         assert!(sp3
-            .satellites_position_interpolate(g72, t2, 7, lagrange_interpolation)
+            .satellite_position_interpolate(g72, t2, 7, lagrange_interpolation)
             .is_err());
         assert!(sp3
-            .satellites_position_interpolate(g72, t2_10m, 7, lagrange_interpolation)
+            .satellite_position_interpolate(g72, t2_10m, 7, lagrange_interpolation)
             .is_err());
         assert!(sp3
-            .satellites_position_interpolate(g72, tn, 7, lagrange_interpolation)
+            .satellite_position_interpolate(g72, tn, 7, lagrange_interpolation)
             .is_err());
 
         // test: even order
         let even_err = sp3
-            .satellites_position_interpolate(g72, t0, 2, lagrange_interpolation)
+            .satellite_position_interpolate(g72, t0, 2, lagrange_interpolation)
             .err();
         match even_err {
             Some(Error::EvenInterpolationOrder) => {},
@@ -78,7 +78,7 @@ mod test {
         // test: too early (x3)
         for t in [t0, t0_5m] {
             let error = sp3
-                .satellites_position_interpolate(g01, t, 3, lagrange_interpolation)
+                .satellite_position_interpolate(g01, t, 3, lagrange_interpolation)
                 .err();
             match error {
                 Some(Error::InterpolationWindow) => {},
@@ -89,7 +89,7 @@ mod test {
         // test: too late (x3)
         for t in [tn] {
             let error = sp3
-                .satellites_position_interpolate(g01, t, 3, lagrange_interpolation)
+                .satellite_position_interpolate(g01, t, 3, lagrange_interpolation)
                 .err();
             match error {
                 Some(Error::InterpolationWindow) => {},

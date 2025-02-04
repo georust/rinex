@@ -8,10 +8,10 @@ impl Masking for Header {
             MaskOperand::Equals => match &mask.item {
                 FilterItem::EpochItem(epoch) => {
                     let mut mjd = Epoch::from_mjd_utc(self.mjd);
-                    if self.time_scale.is_gnss() {
+                    if self.timescale.is_gnss() {
                         mjd = Epoch::from_duration(
-                            mjd - self.time_scale.reference_epoch(),
-                            self.time_scale,
+                            mjd - self.timescale.reference_epoch(),
+                            self.timescale,
                         );
                     }
 

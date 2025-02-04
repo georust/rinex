@@ -17,7 +17,7 @@ impl Merge for Header {
         if self.agency != rhs.agency {
             return Err(MergeError::DataProviderMismatch);
         }
-        if self.time_scale != rhs.time_scale {
+        if self.timescale != rhs.timescale {
             return Err(MergeError::TimescaleMismatch);
         }
         if self.coord_system != rhs.coord_system {

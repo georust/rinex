@@ -6,7 +6,7 @@ pub mod version;
 
 use crate::{
     header::version::Version,
-    prelude::{Constellation, Duration, Epoch, ParsingError, TimeScale, SV},
+    prelude::{Constellation, Duration, ParsingError, TimeScale, SV},
 };
 
 #[cfg(feature = "serde")]
@@ -102,7 +102,7 @@ pub struct Header {
     /// For example [Constellation::GPS] means you will only find GPS satellite vehicles.
     pub constellation: Constellation,
     /// [TimeScale] that applies to all following [Epoch]
-    pub time_scale: TimeScale,
+    pub timescale: TimeScale,
     /// [TimeScale] week counter
     pub week_counter: u32,
     /// [TimeScale] seconds of current week

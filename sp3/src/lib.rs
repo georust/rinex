@@ -59,6 +59,9 @@ pub mod prelude {
     // Pub re-export
     pub use gnss::prelude::{Constellation, SV};
     pub use hifitime::{Duration, Epoch, TimeScale};
+
+    #[cfg(feature = "qc")]
+    pub use rinex_qc_traits::{Merge, Split};
 }
 
 /// [SP3Entry] indexer
@@ -263,10 +266,10 @@ impl SP3 {
     pub fn first_epoch(&self) -> Epoch {
         let mut t0_utc = Epoch::from_mjd_utc(self.header.mjd);
 
-        if self.header.time_scale.is_gnss() {
+        if self.header.timescale.is_gnss() {
             t0_utc = Epoch::from_duration(
-                t0_utc - self.header.time_scale.reference_epoch(),
-                self.header.time_scale,
+                t0_utc - self.header.timescale.reference_epoch(),
+                self.header.timescale,
             );
         }
 
@@ -285,12 +288,12 @@ impl SP3 {
 
     /// Returns true if this [SP3] has satellites clock offset
     pub fn has_satellite_clock_offset(&self) -> bool {
-        self.satellites_clock_offset_s_iter().count() > 0
+        self.satellites_clock_offset_sec_iter().count() > 0
     }
 
     /// Returns true if this [SP3] has satellites clock drift
     pub fn has_satellite_clock_drift(&self) -> bool {
-        self.satellites_clock_drift_s_s_iter().count() > 0
+        self.satellites_clock_drift_sec_sec_iter().count() > 0
     }
 
     /// Returns true if this [SP3] publication is correct
@@ -408,7 +411,7 @@ impl SP3 {
     }
 
     /// [SV] clock offset in seconds (with 10⁻¹² theoreetical precision) [Iterator].
-    pub fn satellites_clock_offset_s_iter(&self) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
+    pub fn satellites_clock_offset_sec_iter(&self) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
         self.data.iter().filter_map(|(k, v)| {
             let clock = v.clock_us? * 1.0E-6;
             Some((k.epoch, k.sv, clock))
@@ -416,7 +419,9 @@ impl SP3 {
     }
 
     /// [SV] clock offset in s.s⁻¹ (with 10⁻¹⁶ theoretical precision) [Iterator].
-    pub fn satellites_clock_drift_s_s_iter(&self) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
+    pub fn satellites_clock_drift_sec_sec_iter(
+        &self,
+    ) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
         self.data.iter().filter_map(|(k, v)| {
             let rate = v.clock_drift_ns? * 1.0E-9;
             Some((k.epoch, k.sv, rate))
@@ -538,7 +543,7 @@ impl SP3 {
         t: Epoch,
         order: usize,
     ) -> Result<Vector3D, Error> {
-        self.satellites_position_interpolate(sv, t, order, lagrange_interpolation)
+        self.satellite_position_interpolate(sv, t, order, lagrange_interpolation)
     }
 
     /// Macro to apply the Lagrangian interpolation with 9th interpolation order,
@@ -548,7 +553,7 @@ impl SP3 {
         sv: SV,
         t: Epoch,
     ) -> Result<Vector3D, Error> {
-        self.satellite_position_lagrangian_interpolation(sv, t, 9, lagrange_interpolation)
+        self.satellite_position_lagrangian_interpolation(sv, t, 9)
     }
 
     /// Macro to apply the Lagrangian interpolation with 11th interpolation order,
@@ -558,7 +563,7 @@ impl SP3 {
         sv: SV,
         t: Epoch,
     ) -> Result<Vector3D, Error> {
-        self.satellite_position_lagrangian_interpolation(sv, t, 11, lagrange_interpolation)
+        self.satellite_position_lagrangian_interpolation(sv, t, 11)
     }
 
     /// Macro to apply the Lagrangian interpolation with 17th interpolation order,
@@ -568,6 +573,6 @@ impl SP3 {
         sv: SV,
         t: Epoch,
     ) -> Result<Vector3D, Error> {
-        self.satellite_position_lagrangian_interpolation(sv, t, 17, lagrange_interpolation)
+        self.satellite_position_lagrangian_interpolation(sv, t, 17)
     }
 }
