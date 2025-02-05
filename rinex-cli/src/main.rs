@@ -21,7 +21,7 @@ use walkdir::WalkDir;
 
 extern crate gnss_rs as gnss;
 
-use rinex::prelude::{qc::MergeError, Rinex};
+use rinex::prelude::{nav::Orbit, qc::MergeError, Rinex};
 
 use sp3::prelude::SP3;
 
@@ -159,6 +159,63 @@ fn user_data_parsing(
     ctx
 }
 
+// Determine and store RX (ECEF) position
+// Either manually defined by User
+//    this is useful in case not a single file has such information
+//    or we want to use a custom location
+// Or with smart determination from all previously parsed data
+//    this is useful in case we don't want to bother
+//    but we must be sure that the OBSRINEX describes the correct location
+fn user_manual_rx_orbit(_: &Cli, _: &QcContext) -> Option<Orbit> {
+    // let rx_ecef = match cli.manual_position() {
+    //     Some((x, y, z)) => {
+    //         let (lat, lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+    //         let (lat_ddeg, lon_ddeg) = (lat.to_degrees(), lon.to_degrees());
+    //         info!(
+    //             "Manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°)",
+    //             (x, y, z),
+    //             lat_ddeg,
+    //             lon_ddeg
+    //         );
+    //         Some((x, y, z))
+    //     },
+    //     None => {
+    //         if let Some(ctx_orbit) = ctx_orbit {
+    //             let pos_vel = ctx_orbit.to_cartesian_pos_vel();
+    //             let (x0_km, y0_km, z0_km) = (pos_vel[0], pos_vel[1], pos_vel[2]);
+
+    //             let (lat, lon, _) = ecef2geodetic(
+    //                 x0_km * 1.0E3,
+    //                 y0_km * 1.0E3,
+    //                 z0_km * 1.0E3,
+    //                 Ellipsoid::WGS84,
+    //             );
+
+    //             let (lat_ddeg, lon_ddeg) = (lat.to_degrees(), lon.to_degrees());
+
+    //             info!(
+    //                 "Position defined in dataset: {:.3E}km, {:.3E}km, {:.3E}km  [ECEF] (lat={:.5}°, lon={:.5}°)",
+    //                 x0_km, y0_km, z0_km,
+    //                 lat_ddeg,
+    //                 lon_ddeg
+    //             );
+
+    //             Some((x0_km * 1.0E3, y0_km * 1.0E3, z0_km * 1.0E3))
+    //         } else {
+    //             /*
+    //              * Dataset does not contain any position,
+    //              * and User did not specify any.
+    //              * This is not problematic unless user is interested in
+    //              * advanced operations, which will most likely fail soon or later.
+    //              */
+    //             warn!("No RX position defined");
+    //             None
+    //         }
+    //     },
+    // };
+    None
+}
+
 pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
     builder
@@ -186,61 +243,7 @@ pub fn main() -> Result<(), Error> {
     let ctx_orbit = data_ctx.reference_rx_orbit();
     let ctx_stem = Context::context_stem(&mut data_ctx);
 
-    /*
-     * Determine and store RX (ECEF) position
-     * Either manually defined by User
-     *   this is useful in case not a single file has such information
-     *   or we want to use a custom location
-     * Or with smart determination from all previously parsed data
-     *   this is useful in case we don't want to bother
-     *   but we must be sure that the OBSRINEX describes the correct location
-     */
-    let rx_ecef = match cli.manual_position() {
-        Some((x, y, z)) => {
-            let (lat, lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-            let (lat_ddeg, lon_ddeg) = (lat.to_degrees(), lon.to_degrees());
-            info!(
-                "Manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°)",
-                (x, y, z),
-                lat_ddeg,
-                lon_ddeg
-            );
-            Some((x, y, z))
-        },
-        None => {
-            if let Some(ctx_orbit) = ctx_orbit {
-                let pos_vel = ctx_orbit.to_cartesian_pos_vel();
-                let (x0_km, y0_km, z0_km) = (pos_vel[0], pos_vel[1], pos_vel[2]);
-
-                let (lat, lon, _) = ecef2geodetic(
-                    x0_km * 1.0E3,
-                    y0_km * 1.0E3,
-                    z0_km * 1.0E3,
-                    Ellipsoid::WGS84,
-                );
-
-                let (lat_ddeg, lon_ddeg) = (lat.to_degrees(), lon.to_degrees());
-
-                info!(
-                    "Position defined in dataset: {:.3E}km, {:.3E}km, {:.3E}km  [ECEF] (lat={:.5}°, lon={:.5}°)",
-                    x0_km, y0_km, z0_km,
-                    lat_ddeg,
-                    lon_ddeg
-                );
-
-                Some((x0_km * 1.0E3, y0_km * 1.0E3, z0_km * 1.0E3))
-            } else {
-                /*
-                 * Dataset does not contain any position,
-                 * and User did not specify any.
-                 * This is not problematic unless user is interested in
-                 * advanced operations, which will most likely fail soon or later.
-                 */
-                warn!("No RX position defined");
-                None
-            }
-        },
-    };
+    let rx_orbit = user_manual_rx_orbit(&cli, &data_ctx);
 
     // Form context
     let ctx = Context {
@@ -257,50 +260,17 @@ pub fn main() -> Result<(), Error> {
                         max_recursive_depth,
                         false,
                     );
-                    // We currently require remote site
-                    // to have its geodetic marker declared
-                    if let Some(orbit) = data.reference_rx_orbit() {
-                        let pos_vel = orbit.to_cartesian_pos_vel();
-                        let (base_x0_km, base_y0_km, base_z0_km) =
-                            (pos_vel[0], pos_vel[1], pos_vel[2]);
-
-                        let (base_x0_m, base_y0_m, base_z0_m) =
-                            (base_x0_km * 1.0E3, base_y0_km * 1.0E3, base_z0_km * 1.0E3);
-
-                        if let Some(rx_ecef) = rx_ecef {
-                            let baseline_m = ((base_x0_m - rx_ecef.0).powi(2)
-                                + (base_y0_m - rx_ecef.1).powi(2)
-                                + (base_z0_m - rx_ecef.2).powi(2))
-                            .sqrt();
-
-                            if baseline_m > 1000.0 {
-                                info!(
-                                    "Rover / Reference site baseline projection: {:.3}km",
-                                    baseline_m / 1000.0
-                                );
-                            } else {
-                                info!(
-                                    "Rover / Reference site baseline projection: {:.3}m",
-                                    baseline_m
-                                );
-                            }
-                        }
-
-                        Some(RemoteReferenceSite {
-                            data,
-                            rx_ecef: Some((base_x0_m, base_y0_m, base_z0_m)),
-                        })
-                    } else {
-                        error!("remote site does not have its geodetic marker defined: current CLI limitation.");
-                        None
-                    }
+                    Some(RemoteReferenceSite {
+                        data,
+                        rx_ecef: Some((0.0, 0.0, 0.0)),
+                    })
                 },
                 _ => None,
             }
         },
         quiet: cli.matches.get_flag("quiet"),
         workspace: Workspace::new(&ctx_stem, &cli),
-        rx_ecef,
+        rx_ecef: None,
     };
 
     // On File Operations (Data synthesis)

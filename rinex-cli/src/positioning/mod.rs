@@ -194,21 +194,21 @@ fn rtk_reference_carrier(carrier: RTKCarrier) -> bool {
  * Grabs nearest KB model (in time)
  */
 pub fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
-    let (_, sv, kb_model) = nav
-        .klobuchar_models()
-        .min_by_key(|(t_i, _, _)| (t - *t_i).abs())?;
+    let (nav_key, model) = nav
+        .nav_klobuchar_models_iter()
+        .min_by_key(|(k_i, _)| (k_i.epoch - t).abs())?;
 
     Some(KbModel {
         h_km: {
-            match sv.constellation {
+            match nav_key.sv.constellation {
                 Constellation::BeiDou => 375.0,
                 // we only expect GPS or BDS here,
                 // badly formed RINEX will generate errors in the solutions
                 _ => 350.0,
             }
         },
-        alpha: kb_model.alpha,
-        beta: kb_model.beta,
+        alpha: model.alpha,
+        beta: model.beta,
     })
 }
 
@@ -216,18 +216,22 @@ pub fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
  * Grabs nearest BD model (in time)
  */
 pub fn bd_model(nav: &Rinex, t: Epoch) -> Option<BdModel> {
-    nav.bdgim_models()
-        .min_by_key(|(t_i, _)| (t - *t_i).abs())
-        .map(|(_, model)| BdModel { alpha: model.alpha })
+    let (_, model) = nav
+        .nav_bdgim_models_iter()
+        .min_by_key(|(k_i, _)| (k_i.epoch - t).abs())?;
+
+    Some(BdModel { alpha: model.alpha })
 }
 
 /*
  * Grabs nearest NG model (in time)
  */
 pub fn ng_model(nav: &Rinex, t: Epoch) -> Option<NgModel> {
-    nav.nequick_g_models()
-        .min_by_key(|(t_i, _)| (t - *t_i).abs())
-        .map(|(_, model)| NgModel { a: model.a })
+    let (_, model) = nav
+        .nav_nequickg_models_iter()
+        .min_by_key(|(k_i, _)| (k_i.epoch - t).abs())?;
+
+    Some(NgModel { a: model.a })
 }
 
 pub fn precise_positioning(
@@ -293,7 +297,7 @@ pub fn precise_positioning(
 
     if let Some(obs_rinex) = ctx.data.observation() {
         if let Some(obs_header) = &obs_rinex.header.obs {
-            if let Some(time_of_first_obs) = obs_header.time_of_first_obs {
+            if let Some(time_of_first_obs) = obs_header.timeof_first_obs {
                 if let Some(clk_rinex) = ctx.data.clock() {
                     if let Some(clk_header) = &clk_rinex.header.clock {
                         if let Some(time_scale) = clk_header.timescale {
@@ -328,7 +332,8 @@ pub fn precise_positioning(
     let eph = RefCell::new(EphemerisSource::from_ctx(ctx));
     let clocks = Clock::new(&ctx, &eph);
     let orbits = Orbits::new(&ctx, &eph);
-    let mut rtk_reference = RemoteRTKReference::from_ctx(&ctx);
+
+    // let mut rtk_reference = RemoteRTKReference::from_ctx(&ctx);
 
     // The CGGTTS opmode (TimeOnly) is not designed
     // to support lack of apriori knowledge
@@ -380,7 +385,7 @@ a static reference position"
     }
 
     /* PPP */
-    let solutions = ppp::resolve(ctx, &eph, clocks, &mut rtk_reference, solver);
+    let solutions = ppp::resolve(ctx, &eph, clocks, solver);
     if !solutions.is_empty() {
         ppp_post_process(&ctx, &solutions, matches)?;
         let report = PPPReport::new(&cfg, &ctx, &solutions);

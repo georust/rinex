@@ -3,7 +3,6 @@ use crate::{
     cli::Context,
     positioning::{
         bd_model, cast_rtk_carrier, kb_model, ng_model, ClockStateProvider, EphemerisSource,
-        RemoteRTKReference,
     },
 };
 
@@ -32,7 +31,6 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     ctx: &Context,
     eph: &'a RefCell<EphemerisSource<'b>>,
     mut clock: CK,
-    base_station: &'a mut RemoteRTKReference,
     mut solver: Solver<O>,
     // rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution> {
