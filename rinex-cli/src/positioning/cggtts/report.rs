@@ -2,7 +2,6 @@ use crate::cli::Context;
 use itertools::Itertools;
 
 use cggtts::prelude::{CommonViewClass, Duration, Epoch, Track, SV};
-use rinex::prelude::GroundPosition;
 use rinex_qc::prelude::{html, MarkerSymbol, Markup, Mode, Plot, QcExtraPage, Render};
 
 struct ReportTab {}
@@ -27,7 +26,7 @@ struct Summary {
     satellites: Vec<SV>,
     trk_duration: Duration,
     cv_class: CommonViewClass,
-    ground_pos: GroundPosition,
+    // TODO ground_pos: GroundPosition,
 }
 
 impl Summary {
@@ -55,7 +54,7 @@ impl Summary {
             first_epoch,
             last_epoch,
             duration: last_epoch - first_epoch,
-            ground_pos: ctx.data.reference_position().unwrap(),
+            // TODO ground_pos: ctx.data.reference_position().unwrap(),
         }
     }
 }
@@ -82,14 +81,14 @@ impl Render for Summary {
                                 (self.trk_duration.to_string())
                             }
                         }
-                        tr {
-                            th class="is-info" {
-                                "Position"
-                            }
-                            td {
-                                (self.ground_pos.render())
-                            }
-                        }
+                        // tr {
+                        //     th class="is-info" {
+                        //         "Position"
+                        //     }
+                        //     td {
+                        //         (self.ground_pos.render())
+                        //     }
+                        // }
                         tr {
                             th class="is-info" {
                                 "Satellites"

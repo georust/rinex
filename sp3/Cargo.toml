@@ -33,7 +33,7 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [build-dependencies]
 
 [dependencies]
-thiserror = "1"
+thiserror = "2"
 map_3d = "0.1.5"
 itertools = "0.13.0"
 hifitime = "4.0"

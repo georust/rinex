@@ -45,7 +45,7 @@ impl<'a> EphemerisSource<'a> {
     fn consume_one(&mut self) {
         if let Some((sv, toc, toe, eph)) = self.iter.next() {
             if let Some(buffer) = self.buffer.get_mut(&sv) {
-                buffer.push((toc, eph.clone()));
+                buffer.push((toc, toe, eph.clone()));
             } else {
                 self.buffer.insert(sv, vec![(toc, toe, eph.clone())]);
             }

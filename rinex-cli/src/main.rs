@@ -27,8 +27,6 @@ use sp3::prelude::SP3;
 
 use cli::{Cli, Context, RemoteReferenceSite, Workspace};
 
-use map_3d::{ecef2geodetic, Ellipsoid};
-
 #[cfg(feature = "csv")]
 use csv::Error as CsvError;
 
