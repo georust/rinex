@@ -1,13 +1,12 @@
 use crate::cli::Context;
 use crate::Error;
 use clap::ArgMatches;
-use rinex::prelude::{Rinex, RinexType};
-use rinex::Merge;
+
 use std::path::PathBuf;
 
-/*
- * Merges proposed (single) file and generates resulting output, into the workspace
- */
+use rinex::prelude::{Rinex, RinexType, qc::Merge};
+
+/// Merge single file into [Context], dump into workspace.
 pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
     let merge_path = matches.get_one::<PathBuf>("file").unwrap();

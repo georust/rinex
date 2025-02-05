@@ -9,7 +9,10 @@ use crate::{
 
 use std::{cell::RefCell, collections::BTreeMap};
 
-use rinex::{carrier::Carrier, observation::LliFlags};
+use rinex::{
+    carrier::Carrier, observation::LliFlags,
+    prelude::Observable,
+};
 
 mod report;
 pub use report::Report;
@@ -29,6 +32,9 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     mut solver: Solver<O>,
     // rx_lat_ddeg: f64,
 ) -> BTreeMap<Epoch, PVTSolution> {
+
+    let mut past_epoch = Option::<Epoch>::None;
+
     let mut solutions: BTreeMap<Epoch, PVTSolution> = BTreeMap::new();
 
     // infaillible, at this point
@@ -38,32 +44,45 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     // let rtk_compatible = ctx.rtk_compatible();
     // let remote_site = ctx.reference_site.as_ref();
 
-    for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
-        let mut candidates = Vec::<Candidate>::with_capacity(4);
+    let mut candidates = Vec::<Candidate>::with_capacity(4);
+    let mut observations = Vec::<Observation>::new();
+    let mut remote_observations = Vec::<Observation>::new();
 
-        if !flag.is_ok() {
-            // TODO: flag.is_nok
-            warn!("{}: aborting epoch on {} event", t, flag);
-            continue;
+    for (t, signal) in obs_data.signal_observations_sampling_ok_iter() {
+        
+        match signal.observable {
+            Observable::PhaseRange(_) => {
+            },
+            Observable::Doppler(_) => {
+
+            },
+            Observable::PseudoRange(_) => {
+
+            },
+            _ => {
+                continue; // not interesting
+            }
         }
 
-        for (sv, rinex_obs) in vehicles {
-            let mut observations = Vec::<Observation>::new();
-            let mut remote_observations = Vec::<Observation>::new();
-            for (observable, data) in rinex_obs {
-                if let Some(lli) = data.lli {
-                    if lli != LliFlags::OK_OR_UNKNOWN {
-                        // TODO: manage those events ?
-                        warn!("{}({}) - {:?}", t, sv, lli);
-                    }
-                }
-                if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
-                    let rtk_carrier = cast_rtk_carrier(carrier);
+        if let Some(lli) = signal.lli {
+            if lli != LliFlags::OK_OR_UNKNOWN {
+                // TODO : manage this event
+                warn!("{}({}) - {:?}", t, signal.sv, lli);
+            }    
+        }
 
-                    // try to gather remote observation
-                    if let Some(remote) = base_station.observe(*t, *sv, carrier) {
-                        remote_observations.push(remote);
-                    }
+        let carrier = Carrier::from_observable(signal.sv.constellation, signal.observable);
+        if carrier.is_err() {
+            continue ;
+        }
+
+        let carrier = carrier.unwrap();
+        let rtk_carrier = cast_rtk_carrier(carrier);
+
+        // try to gather remote observation
+        if let Some(remote) = base_station.observe(*t, *sv, carrier) {
+            remote_observations.push(remote);
+        }
 
                     if observable.is_pseudorange_observable() {
                         if let Some(obs) = observations
@@ -111,8 +130,9 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                     }
                 }
             }
-            // create [Candidate]
-            let mut candidate = Candidate::new(*sv, *t, observations.clone());
+
+        // create [Candidate]
+        let mut candidate = Candidate::new(*sv, *t, observations.clone());
 
             // customization: clock corr
             match clock.next_clock_at(*t, *sv) {

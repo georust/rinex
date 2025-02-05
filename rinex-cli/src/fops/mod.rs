@@ -30,54 +30,61 @@ fn custom_prod_attributes(rinex: &Rinex, matches: &ArgMatches) -> ProductionAttr
     // Start from smartly guessed attributes and replace
     // manually customized fields
     let mut opts = rinex.guess_production_attributes();
+
     if let Some(agency) = matches.get_one::<String>("agency") {
         opts.name = agency.to_string();
     }
+
     if let Some(country) = matches.get_one::<String>("country") {
-        if let Some(ref mut details) = opts.details {
+        if let Some(ref mut details) = opts.v3_details {
             details.country = country[..3].to_string();
         } else {
             let mut default = DetailedProductionAttributes::default();
             default.country = country[..3].to_string();
-            opts.details = Some(default);
+            opts.v3_details = Some(default);
         }
     }
+
     if let Some(batch) = matches.get_one::<u8>("batch") {
-        if let Some(ref mut details) = opts.details {
+        if let Some(ref mut details) = opts.v3_details {
             details.batch = *batch;
         } else {
             let mut default = DetailedProductionAttributes::default();
             default.batch = *batch;
-            opts.details = Some(default);
+            opts.v3_details = Some(default);
         }
     }
+
     if let Some(src) = matches.get_one::<DataSource>("source") {
-        if let Some(ref mut details) = opts.details {
+        if let Some(ref mut details) = opts.v3_details {
             details.data_src = *src;
         } else {
             let mut default = DetailedProductionAttributes::default();
             default.data_src = *src;
-            opts.details = Some(default);
+            opts.v3_details = Some(default);
         }
     }
+
     if let Some(ppu) = matches.get_one::<PPU>("ppu") {
-        if let Some(ref mut details) = opts.details {
+        if let Some(ref mut details) = opts.v3_details {
             details.ppu = *ppu;
         } else {
             let mut default = DetailedProductionAttributes::default();
             default.ppu = *ppu;
-            opts.details = Some(default);
+            opts.v3_details = Some(default);
         }
     }
+
     if let Some(ffu) = matches.get_one::<FFU>("ffu") {
-        if let Some(ref mut details) = opts.details {
+        if let Some(ref mut details) = opts.v3_details {
             details.ffu = Some(*ffu);
         } else {
             let mut default = DetailedProductionAttributes::default();
             default.ffu = Some(*ffu);
-            opts.details = Some(default);
+            opts.v3_details = Some(default);
         }
     }
+
     opts
 }
 

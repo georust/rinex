@@ -9,7 +9,8 @@ use itertools::Itertools;
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 
-use rinex_qc::prelude::{QcConfig, QcContext, QcReportType, Orbit};
+use rinex::prelude::nav::Orbit;
+use rinex_qc::prelude::{QcConfig, QcContext, QcReportType};
 
 mod fops;
 mod positioning;
@@ -391,12 +392,8 @@ Otherwise it gets automatically picked up."))
     pub fn zero_repair(&self) -> bool {
         self.matches.get_flag("zero-repair")
     }
-    /*
-     * faillible 3D coordinates parsing
-     * it's better to panic if the descriptor is badly format
-     * then continuing with possible other coordinates than the
-     * ones desired by user
-     */
+
+    /// Parse 3D coordinates (infaillible)
     fn parse_3d_coordinates(desc: &String) -> (f64, f64, f64) {
         let content = desc.split(',').collect::<Vec<&str>>();
         if content.len() < 3 {
@@ -410,16 +407,19 @@ Otherwise it gets automatically picked up."))
             .unwrap_or_else(|_| panic!("failed to parse z coordinates"));
         (x, y, z)
     }
+
     fn manual_ecef(&self) -> Option<(f64, f64, f64)> {
         let desc = self.matches.get_one::<String>("rx-ecef")?;
         let ecef = Self::parse_3d_coordinates(desc);
         Some(ecef)
     }
+
     fn manual_geodetic(&self) -> Option<(f64, f64, f64)> {
         let desc = self.matches.get_one::<String>("rx-geo")?;
         let geo = Self::parse_3d_coordinates(desc);
         Some(geo)
     }
+
     /// Returns RX Position possibly specified by user
     pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
         if let Some(position) = self.manual_ecef() {
@@ -429,6 +429,7 @@ Otherwise it gets automatically picked up."))
                 .map(|position| GroundPosition::from_geodetic(position).to_ecef_wgs84())
         }
     }
+
     /// True if File Operations to generate data is being deployed
     pub fn has_fops_output_product(&self) -> bool {
         matches!(
@@ -444,7 +445,7 @@ Otherwise it gets automatically picked up."))
     pub fn force_report_synthesis(&self) -> bool {
         self.matches.get_flag("report-force")
     }
-    
+
     /*
      * We hash all vital CLI information.
      * This helps in determining whether we need to update an existing report

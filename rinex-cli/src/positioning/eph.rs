@@ -97,6 +97,8 @@ impl<'a> EphemerisSource<'a> {
                 .min_by_key(|(toc_i, _, _)| (t - *toc_i).abs())
         }
     }
+
+    /// [Ephemeris] selection at [Epoch] for [SV].
     pub fn select(&mut self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, Ephemeris)> {
         let mut attempt = 0;
         loop {

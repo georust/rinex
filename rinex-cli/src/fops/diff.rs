@@ -29,7 +29,7 @@ pub fn diff(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 .expect("RINEX (A) - (B) requires OBS RINEX files");
 
             //TODO: change this to crnx2rnx_mut()
-            rinex_a.crnx2rnx().substract(&rinex_b.crnx2rnx())
+            rinex_a.crnx2rnx().observation_substract(&rinex_b)
         },
         t => panic!("operation not feasible for {}", t),
     };

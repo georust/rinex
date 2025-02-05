@@ -50,12 +50,12 @@ pub fn time_binning(
 
             // production attributes: initialize Batch counter
             let mut prod = custom_prod_attributes(rinex, submatches);
-            if let Some(ref mut details) = prod.details {
+            if let Some(ref mut details) = prod.v3_details {
                 details.batch = 0_u8;
             } else {
                 let mut details = DetailedProductionAttributes::default();
                 details.batch = 0_u8;
-                prod.details = Some(details);
+                prod.v3_details = Some(details);
             };
 
             // run time binning algorithm
@@ -82,7 +82,7 @@ pub fn time_binning(
 
                 first += *duration;
                 last += *duration;
-                if let Some(ref mut details) = prod.details {
+                if let Some(ref mut details) = prod.v3_details {
                     details.batch += 1;
                 }
             }

@@ -2,8 +2,9 @@ use crate::cli::Context;
 use crate::Error;
 use clap::ArgMatches;
 use rinex::prelude::Epoch;
-use rinex::Split;
 use rinex_qc::prelude::ProductType;
+
+use rinex::prelude::qc::Split;
 
 /*
  * Splits input files at specified Time Instant
@@ -22,9 +23,9 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ProductType::IONEX,
     ] {
         if let Some(rinex) = ctx_data.rinex(product) {
+            
             let (rinex_a, rinex_b) = rinex
-                .split(*split_instant)
-                .unwrap_or_else(|e| panic!("failed to split {} RINEX: {}", product, e));
+                .split(*split_instant);
 
             let first_epoch = rinex_a
                 .first_epoch()
