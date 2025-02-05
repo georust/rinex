@@ -9,7 +9,9 @@
  * (cf. https://github.com/georust/rinex/graphs/contributors)
  * This framework is shipped under both Apache-2.0 and MIT License.
  *
- * Documentation: https://github.com/georust/rinex and associated Wiki.
+ * Documentation: https://github.com/georust/rinex
+ * Tutorials    : https://github.com/georust/rinex/tree/main/tutorials
+ * FAQ          : https://github.com/georust/rinex/tree/main/tutorials/FAQ.md
  */
 
 extern crate gnss_rs as gnss;
