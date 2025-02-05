@@ -1,6 +1,18 @@
 mod cli;
 use cli::Cli;
-use rinex::{prelude::*, Error};
+
+use rinex::prelude::{Epoch, FormattingError, ParsingError, Rinex};
+
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("rinex parsing error: {0}")]
+    RinexParsing(#[from] ParsingError),
+    #[error("rinex formatting error: {0}")]
+    FormattingError(#[from] FormattingError),
+}
+
 fn main() -> Result<(), Error> {
     let cli = Cli::new();
     let input_path = cli.input_path();
