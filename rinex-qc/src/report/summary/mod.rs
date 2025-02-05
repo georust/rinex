@@ -1,5 +1,5 @@
 use maud::{html, Markup, Render};
-use rinex::prelude::{GroundPosition, TimeScale};
+use rinex::prelude::{nav::Orbit, TimeScale};
 
 use crate::prelude::{QcConfig, QcContext};
 
@@ -23,7 +23,7 @@ pub struct QcSummary {
     /// BIAS summary
     bias_sum: QcBiasSummary,
     /// reference position
-    reference_position: Option<GroundPosition>,
+    reference_position: Option<Orbit>,
 }
 
 impl QcSummary {
@@ -34,7 +34,7 @@ impl QcSummary {
             timescale: context.timescale(),
             bias_sum: QcBiasSummary::new(context),
             navi: QcNavPostSummary::new(context),
-            reference_position: context.reference_position(),
+            reference_position: context.reference_rx_orbit(),
         }
     }
 }
@@ -70,7 +70,7 @@ impl Render for QcSummary {
                             }
                         }
                         tr {
-                            @if let Some(position) = self.cfg.manual_reference {
+                            @if let Some(position) = self.cfg.manual_rx_orbit {
                                 th {
                                     button aria-label="Ground based reference position" data-balloon-pos="up" {
                                         "(Manual) Reference position"
@@ -78,7 +78,8 @@ impl Render for QcSummary {
                                 }
                                 td {
                                     button aria-label="Provided by custom command line" data-balloon-pos="up" {
-                                        (position.render())
+                                        //(position.render())
+                                        "TODO"
                                     }
                                 }
                             } @else if let Some(position) = self.reference_position {
@@ -89,7 +90,8 @@ impl Render for QcSummary {
                                 }
                                 td {
                                     button aria-label="Parsed from RINEX header" data-balloon-pos="up" {
-                                        (position.render())
+                                        // (position.render())
+                                        "TODO"
                                     }
                                 }
                             } @else {

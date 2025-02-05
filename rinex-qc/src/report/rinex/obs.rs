@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
-use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
+use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
 use std::collections::HashMap;
 
 use rinex::{
@@ -23,7 +23,7 @@ enum Physics {
 
 impl Physics {
     pub fn from_observable(observable: &Observable) -> Self {
-        if observable.is_phase_observable() {
+        if observable.is_phase_range_observable() {
             Self::Phase
         } else if observable.is_doppler_observable() {
             Self::Doppler
@@ -80,7 +80,7 @@ impl FrequencyPage {
         let mut total_cpp_epochs = 0;
         let mut total_ppp_epochs = 0;
         let sampling = SamplingReport::from_rinex(rinex);
-        for (_, (_, svnn)) in rinex.observation() {
+        for (_, (_, svnn)) in rinex.observations_iter() {
             let mut nb_pr = 0;
             let mut nb_ph = 0;
             for (_, obs) in svnn.iter() {}

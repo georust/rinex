@@ -161,10 +161,10 @@ pub struct QcReport {
 impl QcReport {
     /// Builds a new GNSS report, ready to be rendered
     pub fn new(context: &QcContext, cfg: QcConfig) -> Self {
-        let ref_position = if let Some(position) = cfg.manual_reference {
+        let ref_position = if let Some(position) = cfg.manual_rx_orbit {
             Some(position)
         } else {
-            context.reference_position()
+            context.reference_rx_orbit()
         };
         let summary = QcSummary::new(&context, &cfg);
         let summary_only = cfg.report == QcReportType::Summary;

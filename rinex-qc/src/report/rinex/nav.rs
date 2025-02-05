@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
-use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
+use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
 use rinex::prelude::{Constellation, Rinex, SV};
 use std::collections::HashMap;
 
@@ -11,7 +11,7 @@ struct ConstellationPage {
 impl ConstellationPage {
     fn new(rinex: &Rinex) -> Self {
         Self {
-            satellites: rinex.sv().collect(),
+            satellites: rinex.sv_iter().collect(),
         }
     }
 }
@@ -44,7 +44,7 @@ impl NavReport {
         Self {
             pages: {
                 let mut pages = HashMap::<Constellation, ConstellationPage>::new();
-                for constell in rinex.constellation() {
+                for constell in rinex.constellations_iter() {
                     let filter = Filter::mask(
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constell]),
