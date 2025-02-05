@@ -74,9 +74,9 @@ impl<'a> EphemerisSource<'a> {
         if sv.constellation.is_sbas() {
             buffer
                 .iter()
-                .filter_map(|(toc_i, eph_i)| {
+                .filter_map(|(toc_i, toe_i, eph_i)| {
                     if t >= *toc_i {
-                        Some((*toc_i, *toc_i, eph_i))
+                        Some((*toc_i, *toe_i, eph_i))
                     } else {
                         None
                     }
@@ -85,10 +85,9 @@ impl<'a> EphemerisSource<'a> {
         } else {
             buffer
                 .iter()
-                .filter_map(|(toc_i, eph_i)| {
-                    if eph_i.is_valid(sv, t) && t >= *toc_i {
-                        let toe_i = eph_i.toe(sv_ts)?;
-                        Some((*toc_i, toe_i, eph_i))
+                .filter_map(|(toc_i, toe_i, eph_i)| {
+                    if eph_i.is_valid(sv, t, *toe_i) {
+                        Some((*toc_i, *toe_i, eph_i))
                     } else {
                         None
                     }

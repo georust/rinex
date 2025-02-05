@@ -5,6 +5,7 @@ use std::{
     str::FromStr,
 };
 
+use anise::math::Matrix6;
 use itertools::Itertools;
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
@@ -393,42 +394,42 @@ Otherwise it gets automatically picked up."))
         self.matches.get_flag("zero-repair")
     }
 
-    /// Parse 3D coordinates (infaillible)
-    fn parse_3d_coordinates(desc: &String) -> (f64, f64, f64) {
-        let content = desc.split(',').collect::<Vec<&str>>();
-        if content.len() < 3 {
-            panic!("expecting x, y and z coordinates (3D)");
-        }
-        let x = f64::from_str(content[0].trim())
-            .unwrap_or_else(|_| panic!("failed to parse x coordinates"));
-        let y = f64::from_str(content[1].trim())
-            .unwrap_or_else(|_| panic!("failed to parse y coordinates"));
-        let z = f64::from_str(content[2].trim())
-            .unwrap_or_else(|_| panic!("failed to parse z coordinates"));
-        (x, y, z)
-    }
+    // /// Parse 3D coordinates (infaillible)
+    // fn parse_3d_coordinates(desc: &String) -> (f64, f64, f64) {
+    //     let content = desc.split(',').collect::<Vec<&str>>();
+    //     if content.len() < 3 {
+    //         panic!("expecting x, y and z coordinates (3D)");
+    //     }
+    //     let x = f64::from_str(content[0].trim())
+    //         .unwrap_or_else(|_| panic!("failed to parse x coordinates"));
+    //     let y = f64::from_str(content[1].trim())
+    //         .unwrap_or_else(|_| panic!("failed to parse y coordinates"));
+    //     let z = f64::from_str(content[2].trim())
+    //         .unwrap_or_else(|_| panic!("failed to parse z coordinates"));
+    //     (x, y, z)
+    // }
 
-    fn manual_ecef(&self) -> Option<(f64, f64, f64)> {
-        let desc = self.matches.get_one::<String>("rx-ecef")?;
-        let ecef = Self::parse_3d_coordinates(desc);
-        Some(ecef)
-    }
+    // fn manual_ecef_km(&self) -> Option<(f64, f64, f64)> {
+    //     let desc = self.matches.get_one::<String>("rx-ecef")?;
+    //     let ecef = Self::parse_3d_coordinates(desc);
+    //     Some(ecef)
+    // }
 
-    fn manual_geodetic(&self) -> Option<(f64, f64, f64)> {
-        let desc = self.matches.get_one::<String>("rx-geo")?;
-        let geo = Self::parse_3d_coordinates(desc);
-        Some(geo)
-    }
+    // fn manual_geodetic_ddeg(&self) -> Option<(f64, f64, f64)> {
+    //     let desc = self.matches.get_one::<String>("rx-geo")?;
+    //     let geo = Self::parse_3d_coordinates(desc);
+    //     Some(geo)
+    // }
 
-    /// Returns RX Position possibly specified by user
-    pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
-        if let Some(position) = self.manual_ecef() {
-            Some(position)
-        } else {
-            self.manual_geodetic()
-                .map(|position| GroundPosition::from_geodetic(position).to_ecef_wgs84())
-        }
-    }
+    // /// Returns RX Position possibly specified by user, in km ECEF.
+    // pub fn manual_rx_orbit(&self) -> Option<Orbit> {
+    //     if let Some(position) = self.manual_ecef_km() {
+    //         Some(Orbit::from_cartesian_pos_vel(pos_vel, epoch, frame))
+    //     } else {
+    //         let (lat_ddeg, long_ddeg, alt_km) = self.manual_geodetic_ddeg()?;
+    //         panic!("rx-geo is not feasible yet: prefer rx-ecef after conversion to ECEF");
+    //     }
+    // }
 
     /// True if File Operations to generate data is being deployed
     pub fn has_fops_output_product(&self) -> bool {
@@ -460,15 +461,19 @@ Otherwise it gets automatically picked up."))
             .chain(self.rover_files().into_iter().sorted())
             .chain(self.preprocessing().into_iter().sorted())
             .join(",");
+
         if let Some(custom) = self.custom_output_name() {
             string.push_str(custom);
         }
-        if let Some(geo) = self.manual_geodetic() {
-            string.push_str(&format!("{:?}", geo));
-        }
-        if let Some(ecef) = self.manual_ecef() {
-            string.push_str(&format!("{:?}", ecef));
-        }
+
+        // if let Some(geo) = self.manual_geodetic_ddeg() {
+        //     string.push_str(&format!("{:?}", geo));
+        // }
+
+        // if let Some(ecef) = self.manual_ecef_km() {
+        //     string.push_str(&format!("{:?}", ecef));
+        // }
+
         string.hash(&mut hasher);
         hasher.finish()
     }
@@ -476,11 +481,7 @@ Otherwise it gets automatically picked up."))
     /// Returns QcConfig from command line
     pub fn qc_config(&self) -> QcConfig {
         QcConfig {
-            manual_rx_orbit: if let Some(manual) = self.manual_position() {
-                Some(Orbit::from_cartesian_pos_vel())
-            } else {
-                None
-            },
+            manual_rx_orbit: None,
             report: if self.matches.get_flag("report-sum") {
                 QcReportType::Summary
             } else {
