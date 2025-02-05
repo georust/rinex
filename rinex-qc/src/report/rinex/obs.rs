@@ -80,20 +80,24 @@ impl FrequencyPage {
         let mut total_cpp_epochs = 0;
         let mut total_ppp_epochs = 0;
         let sampling = SamplingReport::from_rinex(rinex);
-        for (_, (_, svnn)) in rinex.observations_iter() {
+
+        for (k, v) in rinex.observations_iter() {
             let mut nb_pr = 0;
             let mut nb_ph = 0;
-            for (_, obs) in svnn.iter() {}
-            if nb_pr > 0 {
-                total_spp_epochs += 1;
-            }
-            if nb_pr > 1 {
-                total_cpp_epochs += 1;
-                if nb_ph > 1 {
-                    total_ppp_epochs += 1;
-                }
+
+            for signal in v.signals.iter() {
+                // if nb_pr > 0 {
+                //     total_spp_epochs += 1;
+                // }
+                // if nb_pr > 1 {
+                //     total_cpp_epochs += 1;
+                //     if nb_ph > 1 {
+                //         total_ppp_epochs += 1;
+                //     }
+                // }
             }
         }
+
         Self {
             sampling,
             total_cpp_epochs,
@@ -103,45 +107,42 @@ impl FrequencyPage {
             multipath_plot: Plot::timedomain_plot("code_mp", "Code Multipath", "Bias [m]", true),
             raw_plots: {
                 let mut plots = HashMap::<Physics, Plot>::new();
-                let svnn = rinex.sv().collect::<Vec<_>>();
-                let observables = rinex.observable().collect::<Vec<_>>();
+                let svnn = rinex.sv_iter().collect::<Vec<_>>();
+                let observables = rinex.observables_iter().collect::<Vec<_>>();
+
                 // draw carrier phase plot for all SV; per signal
-                for ob in observables {
-                    let physics = Physics::from_observable(ob);
+
+                for obs in observables {
+                    let physics = Physics::from_observable(obs);
                     let title = physics.plot_title();
                     let y_label = physics.y_label();
                     let mut plot = Plot::timedomain_plot(&title, &title, &y_label, true);
+
                     for sv in &svnn {
                         let obs_x_ok = rinex
-                            .observation()
-                            .flat_map(|((t, flag), (_, svnn))| {
-                                svnn.iter().flat_map(move |(svnn, observations)| {
-                                    observations.iter().filter_map(move |(obs, value)| {
-                                        if ob == obs && flag.is_ok() && svnn == sv {
-                                            Some(*t)
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                })
+                            .signal_observations_iter()
+                            .flat_map(|(k, v)| {
+                                if v.sv == *sv && v.observable == *obs {
+                                    Some(k.epoch)
+                                } else {
+                                    None
+                                }
                             })
                             .collect::<Vec<_>>();
+
                         let obs_y_ok = rinex
-                            .observation()
-                            .flat_map(|((t, flag), (_, svnn))| {
-                                svnn.iter().flat_map(move |(svnn, observations)| {
-                                    observations.iter().filter_map(move |(obs, value)| {
-                                        if ob == obs && flag.is_ok() && svnn == sv {
-                                            Some(value.obs)
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                })
+                            .signal_observations_iter()
+                            .flat_map(|(k, v)| {
+                                if v.sv == *sv && v.observable == *obs {
+                                    Some(v.value)
+                                } else {
+                                    None
+                                }
                             })
                             .collect::<Vec<_>>();
+
                         let trace = Plot::timedomain_chart(
-                            &format!("{}({})", sv, ob),
+                            &format!("{}({})", sv, obs),
                             Mode::Markers,
                             MarkerSymbol::Cross,
                             &obs_x_ok,
@@ -253,12 +254,12 @@ impl ConstellationPage {
         let mut spp_compatible = false; // TODO
         let mut cpp_compatible = false; // TODO
         let mut ppp_compatible = false; // TODO
-        let satellites = rinex.sv().collect::<Vec<_>>();
+        let satellites = rinex.sv_iter().collect::<Vec<_>>();
         let sampling = SamplingReport::from_rinex(rinex);
         let mut frequencies = HashMap::<String, FrequencyPage>::new();
-        for carrier in rinex.carrier().sorted() {
+        for carrier in rinex.carrier_iter().sorted() {
             let mut observables = Vec::<Observable>::new();
-            for observable in rinex.observable() {
+            for observable in rinex.observables_iter() {
                 if let Ok(signal) = Carrier::from_observable(constellation, observable) {
                     if signal == carrier {
                         observables.push(observable.clone());
@@ -281,7 +282,7 @@ impl ConstellationPage {
             spp_compatible,
             cpp_compatible,
             ppp_compatible,
-            sv_epoch: rinex.sv_epoch().collect(),
+            sv_epoch: Default::default(),
         }
     }
 }
@@ -441,8 +442,9 @@ impl Report {
                 plot
             },
             constellations: {
-                let mut constellations = HashMap::<String, ConstellationPage>::new();
-                for constellation in rinex.constellation() {
+                let mut constellations: HashMap<String, ConstellationPage> =
+                    HashMap::<String, ConstellationPage>::new();
+                for constellation in rinex.constellations_iter() {
                     let filter = Filter::mask(
                         MaskOperand::Equals,
                         FilterItem::ConstellationItem(vec![constellation]),
@@ -489,9 +491,10 @@ impl Render for Report {
                             th class="is-info" {
                                 "Receiver"
                             }
-                            td {
-                                (rx.render())
-                            }
+                            // TODO
+                            // td {
+                            //     (rx.render())
+                            // }
                         }
                     }
                 }
@@ -501,9 +504,10 @@ impl Render for Report {
                             th class="is-info" {
                                 "Antenna"
                             }
-                            td {
-                                 (ant.render())
-                            }
+                            // TODO
+                            // td {
+                            //      (ant.render())
+                            // }
                         }
                     }
                 }
