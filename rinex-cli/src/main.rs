@@ -21,12 +21,9 @@ use walkdir::WalkDir;
 
 extern crate gnss_rs as gnss;
 
-use rinex::prelude::{
-    Rinex,
-    qc::MergeError,
-};
+use rinex::prelude::{qc::MergeError, Rinex};
 
-    use sp3::prelude::SP3;
+use sp3::prelude::SP3;
 
 use cli::{Cli, Context, RemoteReferenceSite, Workspace};
 
@@ -262,13 +259,20 @@ pub fn main() -> Result<(), Error> {
                     );
                     // We currently require remote site
                     // to have its geodetic marker declared
-                    if let Some(reference_point) = data.reference_rx_orbit() {
-                        let (base_x0_m, base_y0_m, base_z0_m) = reference_point.to_ecef_wgs84();
+                    if let Some(orbit) = data.reference_rx_orbit() {
+                        let pos_vel = orbit.to_cartesian_pos_vel();
+                        let (base_x0_km, base_y0_km, base_z0_km) =
+                            (pos_vel[0], pos_vel[1], pos_vel[2]);
+
+                        let (base_x0_m, base_y0_m, base_z0_m) =
+                            (base_x0_km * 1.0E3, base_y0_km * 1.0E3, base_z0_km * 1.0E3);
+
                         if let Some(rx_ecef) = rx_ecef {
                             let baseline_m = ((base_x0_m - rx_ecef.0).powi(2)
                                 + (base_y0_m - rx_ecef.1).powi(2)
                                 + (base_z0_m - rx_ecef.2).powi(2))
                             .sqrt();
+
                             if baseline_m > 1000.0 {
                                 info!(
                                     "Rover / Reference site baseline projection: {:.3}km",
@@ -281,6 +285,7 @@ pub fn main() -> Result<(), Error> {
                                 );
                             }
                         }
+
                         Some(RemoteReferenceSite {
                             data,
                             rx_ecef: Some((base_x0_m, base_y0_m, base_z0_m)),

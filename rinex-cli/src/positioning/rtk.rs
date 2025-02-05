@@ -1,10 +1,11 @@
 use crate::{cli::Context, positioning::cast_rtk_carrier};
 
 use gnss_rtk::prelude::{Epoch, Observation as RTKObservation, SV};
+
 use rinex::{
-    observation::ObservationData,
-    prelude::{Carrier, EpochFlag, Observable},
+    prelude::{Carrier, Observable, obs::EpochFlag},
 };
+
 use std::collections::{BTreeMap, HashMap};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -53,7 +54,7 @@ impl<'a> RemoteRTKReference<'a> {
             }
         }
     }
-    
+
     pub fn observe(&mut self, t: Epoch, sv: SV, carrier: Carrier) -> Option<RTKObservation> {
         let rtk_carrier = cast_rtk_carrier(carrier);
         let mut ret = Option::<RTKObservation>::None;

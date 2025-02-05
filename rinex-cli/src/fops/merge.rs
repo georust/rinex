@@ -4,7 +4,7 @@ use clap::ArgMatches;
 
 use std::path::PathBuf;
 
-use rinex::prelude::{Rinex, RinexType, qc::Merge};
+use rinex::prelude::{qc::Merge, Rinex, RinexType};
 
 /// Merge single file into [Context], dump into workspace.
 pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {

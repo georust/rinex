@@ -23,9 +23,7 @@ pub fn split(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
         ProductType::IONEX,
     ] {
         if let Some(rinex) = ctx_data.rinex(product) {
-            
-            let (rinex_a, rinex_b) = rinex
-                .split(*split_instant);
+            let (rinex_a, rinex_b) = rinex.split(*split_instant);
 
             let first_epoch = rinex_a
                 .first_epoch()

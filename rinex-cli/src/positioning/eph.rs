@@ -7,12 +7,11 @@ pub struct EphemerisSource<'a> {
     eos: bool,
     toc: Epoch,
     sv: SV,
-    buffer: HashMap<SV, Vec<(Epoch, Ephemeris)>>,
+    buffer: HashMap<SV, Vec<(Epoch, Epoch, Ephemeris)>>,
     iter: Box<dyn Iterator<Item = (SV, Epoch, Epoch, &'a Ephemeris)> + 'a>,
 }
 
 impl<'a> EphemerisSource<'a> {
-
     /// Builds new [EphemerisSource] from [Context]
     pub fn from_ctx(ctx: &'a Context) -> Self {
         if let Some(brdc) = ctx.data.brdc_navigation() {
@@ -48,7 +47,7 @@ impl<'a> EphemerisSource<'a> {
             if let Some(buffer) = self.buffer.get_mut(&sv) {
                 buffer.push((toc, eph.clone()));
             } else {
-                self.buffer.insert(sv, vec![(toc, eph.clone())]);
+                self.buffer.insert(sv, vec![(toc, toe, eph.clone())]);
             }
             self.sv = sv;
             self.toc = toc;
@@ -71,6 +70,7 @@ impl<'a> EphemerisSource<'a> {
     fn try_select(&self, t: Epoch, sv: SV) -> Option<(Epoch, Epoch, &Ephemeris)> {
         let buffer = self.buffer.get(&sv)?;
         let sv_ts = sv.constellation.timescale()?;
+
         if sv.constellation.is_sbas() {
             buffer
                 .iter()
@@ -86,7 +86,6 @@ impl<'a> EphemerisSource<'a> {
             buffer
                 .iter()
                 .filter_map(|(toc_i, eph_i)| {
-                    if let Some(toe) = eph_i.toe()
                     if eph_i.is_valid(sv, t) && t >= *toc_i {
                         let toe_i = eph_i.toe(sv_ts)?;
                         Some((*toc_i, toe_i, eph_i))

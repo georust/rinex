@@ -21,8 +21,8 @@ mod cggtts; // CGGTTS special solver
 #[cfg(feature = "cggtts")]
 use cggtts::{post_process as cggtts_post_process, Report as CggttsReport};
 
-mod rtk;
-pub use rtk::RemoteRTKReference;
+// mod rtk;
+// pub use rtk::RemoteRTKReference;
 
 mod orbit;
 use orbit::Orbits;
@@ -197,6 +197,7 @@ pub fn kb_model(nav: &Rinex, t: Epoch) -> Option<KbModel> {
     let (_, sv, kb_model) = nav
         .klobuchar_models()
         .min_by_key(|(t_i, _, _)| (t - *t_i).abs())?;
+
     Some(KbModel {
         h_km: {
             match sv.constellation {
