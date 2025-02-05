@@ -13,14 +13,14 @@ impl Cli {
                 Command::new("crx2rnx")
                     .author("Guillaume W. Bres <guillaume.bressaix@gmail.com>")
                     .version(env!("CARGO_PKG_VERSION"))
-                    .about("Compact RINEX decompression tool")
+                    .about("CRINex (Compact RINex) decompression tool")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
                     .arg(
                         Arg::new("filepath")
-                            .short('f')
-                            .long("fp")
-                            .help("Input RINEX file")
+                            //.short('f')
+                            //.long("fp")
+                            .help("Input RINex")
                             .required(true),
                     )
                     .arg(
@@ -41,13 +41,20 @@ Both will not work well if your input does not follow standard conventions at al
                             .long("output")
                             .action(ArgAction::Set)
                             .conflicts_with_all(["short"])
-                            .help("Custom output file name"),
+                            .help("Custom output name. Otherwise, a standardized name is auto-generated.")
+                    )
+                    .arg(
+                        Arg::new("zip")
+                            .long("zip")
+                            .action(ArgAction::SetTrue)
+                            .help("Gzip compress the output directly."),
                     )
                     .arg(
                         Arg::new("workspace")
                             .short('w')
                             .long("workspace")
-                            .help("Define custom workspace location"),
+                            .help("Define custom workspace location. The $GEORUST_WORKSPACE
+variable is automatically picked-up and prefered by default."),
                     )
                     .get_matches()
             },
@@ -58,6 +65,9 @@ Both will not work well if your input does not follow standard conventions at al
     }
     pub fn output_name(&self) -> Option<&String> {
         self.matches.get_one::<String>("output")
+    }
+    pub fn gzip_output(&self) -> bool {
+        self.matches.get_flag("zip")
     }
     pub fn workspace(&self) -> Option<&String> {
         self.matches.get_one::<String>("workspace")
