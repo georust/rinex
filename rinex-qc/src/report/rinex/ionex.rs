@@ -3,19 +3,16 @@ use maud::{html, Markup, Render};
 use rinex::ionex::{MappingFunction, RefSystem as Reference};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
-use crate::plot::{MapboxStyle, Plot, Visible};
+use crate::plot::{MapboxStyle, Plot};
 
-use plotly::{
-    layout::update_menu::{Button, ButtonBuilder},
-    DensityMapbox,
-};
+// use plotly::layout::update_menu::Button;
 
 pub struct IonexReport {
     nb_of_maps: usize,
     map_dimension: u8,
     epoch_first_map: Epoch,
     epoch_last_map: Epoch,
-    sampling_interval: Duration,
+    sampling_interval: Option<Duration>,
     reference: Reference,
     description: Option<String>,
     mapping: Option<MappingFunction>,
@@ -24,7 +21,7 @@ pub struct IonexReport {
 
 impl IonexReport {
     pub fn new(rnx: &Rinex) -> Result<Self, Error> {
-        let nb_of_maps = rnx.epoch().count();
+        let nb_of_maps = rnx.epoch_iter().count();
         let header = rnx.header.ionex.as_ref().ok_or(Error::MissingIonexHeader)?;
         Ok(Self {
             nb_of_maps,
@@ -34,9 +31,9 @@ impl IonexReport {
             mapping: header.mapping.clone(),
             reference: header.reference.clone(),
             description: header.description.clone(),
-            sampling_interval: rnx.dominant_sample_rate().ok_or(Error::SamplingAnalysis)?,
+            sampling_interval: rnx.sampling_interval(),
             world_map: {
-                let mut plot = Plot::world_map(
+                let plot = Plot::world_map(
                     "ionex_tec",
                     "Ionosphere TEC maps",
                     MapboxStyle::OpenStreetMap,
@@ -44,77 +41,77 @@ impl IonexReport {
                     0,
                     true,
                 );
-                let mut buttons = Vec::<Button>::new();
+                // let mut buttons = Vec::<Button>::new();
                 // one trace(=map) per Epoch
-                for (epoch_index, epoch) in rnx.epoch().enumerate() {
-                    let label = epoch.to_string();
-                    let lat = rnx
-                        .tec()
-                        .filter_map(
-                            |(t, lat, _, _, _)| {
-                                if t == epoch {
-                                    Some(lat)
-                                } else {
-                                    None
-                                }
-                            },
-                        )
-                        .collect::<Vec<_>>();
-                    let long = rnx
-                        .tec()
-                        .filter_map(
-                            |(t, _, long, _, _)| {
-                                if t == epoch {
-                                    Some(long)
-                                } else {
-                                    None
-                                }
-                            },
-                        )
-                        .collect::<Vec<_>>();
-                    let tec = rnx
-                        .tec()
-                        .filter_map(
-                            |(t, _, _, _, tec)| {
-                                if t == epoch {
-                                    Some(tec)
-                                } else {
-                                    None
-                                }
-                            },
-                        )
-                        .collect::<Vec<_>>();
+                // for (epoch_index, epoch) in rnx.epoch_iter().enumerate() {
+                // let label = epoch.to_string();
+                // let lat = rnx
+                //     .ionex_tec_maps_iter()
+                //     .filter_map(
+                //         |(t, lat, _, _, _)| {
+                //             if t == epoch {
+                //                 Some(lat)
+                //             } else {
+                //                 None
+                //             }
+                //         },
+                //     )
+                //     .collect::<Vec<_>>();
+                // let long = rnx
+                //     .tec()
+                //     .filter_map(
+                //         |(t, _, long, _, _)| {
+                //             if t == epoch {
+                //                 Some(long)
+                //             } else {
+                //                 None
+                //             }
+                //         },
+                //     )
+                //     .collect::<Vec<_>>();
+                // let tec = rnx
+                //     .tec()
+                //     .filter_map(
+                //         |(t, _, _, _, tec)| {
+                //             if t == epoch {
+                //                 Some(tec)
+                //             } else {
+                //                 None
+                //             }
+                //         },
+                //     )
+                //     .collect::<Vec<_>>();
 
-                    let trace = Plot::density_mapbox(
-                        lat.clone(),
-                        long.clone(),
-                        tec,
-                        &label,
-                        0.6,
-                        3,
-                        epoch_index == 0,
-                    );
-                    plot.add_trace(trace);
+                // let trace = Plot::density_mapbox(
+                //     lat.clone(),
+                //     long.clone(),
+                //     tec,
+                //     &label,
+                //     0.6,
+                //     3,
+                //     epoch_index == 0,
+                // );
+                // plot.add_trace(trace);
 
-                    buttons.push(
-                        ButtonBuilder::new()
-                            .name("Epoch")
-                            .label(&label)
-                            .push_restyle(DensityMapbox::<f64, f64, f64>::modify_visible(
-                                (0..nb_of_maps)
-                                    .map(|i| {
-                                        if epoch_index == i {
-                                            Visible::True
-                                        } else {
-                                            Visible::False
-                                        }
-                                    })
-                                    .collect(),
-                            ))
-                            .build(),
-                    );
-                }
-                plot.add_custom_controls(buttons);
+                // buttons.push(
+                //     ButtonBuilder::new()
+                //         .name("Epoch")
+                //         .label(&label)
+                //         .push_restyle(DensityMapbox::<f64, f64, f64>::modify_visible(
+                //             (0..nb_of_maps)
+                //                 .map(|i| {
+                //                     if epoch_index == i {
+                //                         Visible::True
+                //                     } else {
+                //                         Visible::False
+                //                     }
+                //                 })
+                //                 .collect(),
+                //         ))
+                //         .build(),
+                // );
+                // }
+                // plot.add_custom_controls(buttons);
                 plot
             },
         })
@@ -160,10 +157,16 @@ impl Render for IonexReport {
                 }
                 tr {
                     th class="is-info" {
-                        "Time Interval"
+                        "Sampling Period"
                     }
-                    td {
-                        (self.sampling_interval.to_string())
+                    @ if let Some(sampling_interval) = &self.sampling_interval {
+                        td {
+                            (sampling_interval.to_string())
+                        }
+                    } @ else {
+                        td class="is-warning" {
+                            "Unknown"
+                        }
                     }
                 }
                 tr {

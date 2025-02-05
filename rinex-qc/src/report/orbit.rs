@@ -1,10 +1,10 @@
 use rinex::{
     navigation::Ephemeris,
-    prelude::{Constellation, Epoch, GroundPosition, Orbit, Rinex, SV},
+    prelude::{nav::Orbit, Constellation, Epoch, Rinex, SV},
 };
 use std::collections::{BTreeMap, HashMap};
 
-use qc_traits::processing::{Filter, Preprocessing};
+use qc_traits::{Filter, Preprocessing};
 
 use crate::{
     plot::{MapboxStyle, MarkerSymbol, Mode},
@@ -158,7 +158,7 @@ pub struct OrbitReport {
 }
 
 impl OrbitReport {
-    pub fn new(ctx: &QcContext, reference: Option<GroundPosition>, force_brdc_sky: bool) -> Self {
+    pub fn new(ctx: &QcContext, reference: Option<Orbit>, force_brdc_sky: bool) -> Self {
         let (x0, y0, z0) = reference.unwrap_or_default().to_ecef_wgs84();
         let (x0_km, y0_km, z0_km) = (x0 / 1000.0, y0 / 1000.0, z0 / 1000.0);
 

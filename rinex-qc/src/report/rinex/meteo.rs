@@ -1,15 +1,21 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
-use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
+use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
+
 use rinex::{
-    meteo::sensor::Sensor,
+    meteo::Sensor,
     prelude::{Observable, Rinex},
 };
 use std::collections::HashMap;
 
 use crate::report::{shared::SamplingReport, Error};
 
-use crate::plot::{CompassArrow, MarkerSymbol, Mode, Plot};
+use crate::plot::{
+    //CompassArrow,
+    MarkerSymbol,
+    Mode,
+    Plot,
+};
 
 fn obs2physics(ob: &Observable) -> String {
     match ob {
@@ -103,28 +109,28 @@ impl MeteoPage {
         if *observable == Observable::WindDirection {
             let mut compass_plot =
                 Plot::timedomain_plot(&html_id, "Wind Direction", "Angle [°]", true);
-            for (index, (t, observations)) in rnx.meteo().enumerate() {
+            for (index, (k, observations)) in rnx.meteo_observations_iter().enumerate() {
                 let visible = index == 0;
-                for (ob, value) in observations.iter() {
-                    if *ob == Observable::WindDirection {
-                        let hover_text = t.to_string();
-                        let mut rho = 1.0;
-                        for (rhs_ob, rhs_value) in observations.iter() {
-                            if *rhs_ob == Observable::WindSpeed {
-                                rho = *rhs_value;
-                            }
-                        }
-                        let trace = CompassArrow::new(
-                            Mode::LinesMarkers,
-                            rho,
-                            *value,
-                            hover_text,
-                            visible,
-                            0.25,
-                            25.0,
-                        );
-                        compass_plot.add_trace(trace.scatter);
-                    }
+                if &k.observable == observable {
+                    // if k.observable == Observable::WindDirection {
+                    //     let hover_text = t.to_string();
+                    //     let mut rho = 1.0;
+                    //     for (rhs_ob, rhs_value) in observations.iter() {
+                    //         if *rhs_ob == Observable::WindSpeed {
+                    //             rho = *rhs_value;
+                    //         }
+                    //     }
+                    //     let trace = CompassArrow::new(
+                    //         Mode::LinesMarkers,
+                    //         rho,
+                    //         *value,
+                    //         hover_text,
+                    //         visible,
+                    //         0.25,
+                    //         25.0,
+                    //     );
+                    //     compass_plot.add_trace(trace.scatter);
+                    // }
                 }
             }
             let report = WindDirectionReport { compass_plot };
@@ -134,30 +140,28 @@ impl MeteoPage {
             }
         } else {
             let mut plot = Plot::timedomain_plot(&html_id, &title, &y_label, true);
-            let data_x =
-                rnx.meteo()
-                    .flat_map(|(t, observations)| {
-                        observations.iter().filter_map(|(obs, _)| {
-                            if obs == observable {
-                                Some(*t)
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                    .collect::<Vec<_>>();
-            let data_y = rnx
-                .meteo()
-                .flat_map(|(_, observations)| {
-                    observations.iter().filter_map(|(obs, value)| {
-                        if obs == observable {
-                            Some(*value)
-                        } else {
-                            None
-                        }
-                    })
+            let data_x = rnx
+                .meteo_observations_iter()
+                .flat_map(|(k, _)| {
+                    if &k.observable == observable {
+                        Some(k.epoch)
+                    } else {
+                        None
+                    }
                 })
                 .collect::<Vec<_>>();
+
+            let data_y = rnx
+                .meteo_observations_iter()
+                .flat_map(|(k, observation)| {
+                    if &k.observable == observable {
+                        Some(*observation)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+
             let trace = Plot::timedomain_chart(
                 &observable.to_string(),
                 Mode::LinesMarkers,
@@ -232,7 +236,7 @@ impl MeteoReport {
             sampling: SamplingReport::from_rinex(&rnx),
             pages: {
                 let mut pages = HashMap::<String, MeteoPage>::new();
-                for observable in rnx.observable() {
+                for observable in rnx.observables_iter() {
                     let filter = if *observable == Observable::WindDirection {
                         Filter::mask(
                             MaskOperand::Equals,

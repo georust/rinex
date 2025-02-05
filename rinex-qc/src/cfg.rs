@@ -1,8 +1,9 @@
 use maud::{html, Markup, Render};
-use rinex::prelude::*;
 use thiserror::Error;
 
 use serde::{Deserialize, Serialize};
+
+use rinex::prelude::nav::Orbit;
 
 /// Configuration Error
 #[derive(Debug, Clone, Error)]
@@ -53,7 +54,7 @@ pub struct QcConfig {
     #[serde(default)]
     pub report: QcReportType,
     #[serde(default)]
-    pub manual_reference: Option<GroundPosition>,
+    pub manual_rx_orbit: Option<Orbit>,
     #[serde(default)]
     /// When both SP3 and BRDC NAV are present,
     /// SP3 is prefered for skyplot project: set true here to
@@ -65,8 +66,8 @@ impl QcConfig {
     pub fn set_report_type(&mut self, report_type: QcReportType) {
         self.report = report_type;
     }
-    pub fn set_reference_position(&mut self, pos: GroundPosition) {
-        self.manual_reference = Some(pos.clone());
+    pub fn set_reference_rx_orbit(&mut self, orbit: Orbit) {
+        self.manual_rx_orbit = Some(orbit);
     }
 }
 
@@ -81,10 +82,10 @@ impl Render for QcConfig {
                     (self.report.to_string())
                 }
             }
-            @if let Some(position) = self.manual_reference {
+            @if let Some(_) = self.manual_rx_orbit {
                 tr {
                     td {
-                        (position.render())
+                        "TODO"
                     }
                 }
             }

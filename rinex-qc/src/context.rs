@@ -10,12 +10,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use rinex::{
-    merge::{Error as RinexMergeError, Merge as RinexMerge},
-    prelude::{Almanac, GroundPosition, Rinex, TimeScale},
-    types::Type as RinexType,
-    Error as RinexError,
+use rinex::prelude::{
+    nav::{Almanac, Orbit},
+    Rinex, RinexType, TimeScale,
 };
+
+use qc_traits::{Merge, MergeError};
 
 use anise::{
     almanac::{
@@ -31,10 +31,7 @@ use anise::{
 #[cfg(feature = "sp3")]
 use sp3::prelude::SP3;
 
-use qc_traits::{
-    processing::{Filter, Preprocessing, Repair, RepairTrait},
-    Merge, MergeError,
-};
+use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
 
 /// Context Error
 #[derive(Debug, Error)]
@@ -45,16 +42,12 @@ pub enum Error {
     MetaAlmanac(#[from] MetaAlmanacError),
     #[error("planetary data error")]
     PlanetaryData(#[from] PlanetaryDataError),
-    #[error("failed to extend gnss context")]
-    ContextExtensionError(#[from] MergeError),
     #[error("non supported file format")]
     NonSupportedFileFormat,
     #[error("failed to determine filename")]
     FileNameDetermination,
-    #[error("invalid rinex format")]
-    RinexError(#[from] RinexError),
-    #[error("failed to extend rinex context")]
-    RinexMergeError(#[from] RinexMergeError),
+    #[error("failed to extend context")]
+    Merge(#[from] MergeError),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -673,16 +666,18 @@ impl QcContext {
     pub fn nav_compatible(&self) -> bool {
         self.observation().is_some() && self.brdc_navigation().is_some()
     }
+
     /// True if Self is compatible with CPP positioning,
     /// see <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.CodePPP>
     pub fn cpp_compatible(&self) -> bool {
         // TODO: improve: only PR
         if let Some(obs) = self.observation() {
-            obs.carrier().count() > 1
+            obs.carrier_iter().count() > 1
         } else {
             false
         }
     }
+
     /// [Self] cannot be True if self is compatible with PPP positioning,
     /// see <https://docs.rs/gnss-rtk/latest/gnss_rtk/prelude/enum.Method.html#variant.PPP>
     pub fn ppp_compatible(&self) -> bool {
@@ -711,21 +706,15 @@ impl QcContext {
     pub fn tropo_bias_model_optimization(&self) -> bool {
         self.has_meteo()
     }
+
     /// Returns possible Reference position defined in this context.
     /// Usually the Receiver location in the laboratory.
-    pub fn reference_position(&self) -> Option<GroundPosition> {
-        if let Some(data) = self.observation() {
-            if let Some(pos) = data.header.ground_position {
-                return Some(pos);
-            }
-        }
-        if let Some(data) = self.brdc_navigation() {
-            if let Some(pos) = data.header.ground_position {
-                return Some(pos);
-            }
-        }
-        None
+    pub fn reference_rx_orbit(&self) -> Option<Orbit> {
+        let obs_rinex = self.observation()?;
+        let first_epoch = obs_rinex.first_epoch()?;
+        obs_rinex.header.rx_orbit(first_epoch, self.earth_cef)
     }
+
     /// Apply preprocessing filter algorithm to mutable [Self].
     /// Filter will apply to all data contained in the context.
     pub fn filter_mut(&mut self, filter: &Filter) {
