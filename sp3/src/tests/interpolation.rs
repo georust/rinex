@@ -6,18 +6,19 @@ mod test {
     //use rinex::sv;
     use std::path::PathBuf;
     //use std::str::FromStr;
-    /*
-     * Theoretical maximal error of a Lagrangian interpolation
-     * over a given Dataset for specified interpolation order
-     */
-    fn max_error(values: Vec<(Epoch, f64)>, epoch: Epoch, order: usize) -> f64 {
-        let mut q = 1.0_f64;
-        for (e, _) in values {
-            q *= (epoch - e).to_seconds();
-        }
-        let factorial: usize = (1..=order + 1).product();
-        q.abs() / factorial as f64 // TODO f^(n+1)[x]
-    }
+    
+    
+    // Theoretical maximal error of a Lagrangian interpolation
+    // over a given Dataset for specified interpolation order
+    // fn max_error(values: Vec<(Epoch, f64)>, epoch: Epoch, order: usize) -> f64 {
+    //     let mut q = 1.0_f64;
+    //     for (e, _) in values {
+    //         q *= (epoch - e).to_seconds();
+    //     }
+    //     let factorial: usize = (1..=order + 1).product();
+    //     q.abs() / factorial as f64 // TODO f^(n+1)[x]
+    // }
+
     #[cfg(feature = "flate2")]
     #[test]
     fn interp() {

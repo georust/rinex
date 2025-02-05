@@ -709,7 +709,7 @@ impl Merge for SP3 {
     }
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         if self.agency != rhs.agency {
-            return Err(MergeError::DataProviderAgencyMismatch);
+            return Err(MergeError::DataProviderMismatch);
         }
         if self.time_scale != rhs.time_scale {
             return Err(MergeError::TimescaleMismatch);
