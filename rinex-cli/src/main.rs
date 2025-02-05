@@ -40,8 +40,6 @@ use thiserror::Error;
 pub enum Error {
     #[error("i/o error")]
     StdioError(#[from] std::io::Error),
-    #[error("rinex error")]
-    RinexError(#[from] rinex::Error),
     #[error("missing OBS RINEX")]
     MissingObservationRinex,
     #[error("missing (BRDC) NAV RINEX")]
@@ -52,10 +50,6 @@ pub enum Error {
     MissingMeteoRinex,
     #[error("missing Clock RINEX")]
     MissingClockRinex,
-    #[error("merge ops failure")]
-    MergeError(#[from] rinex::merge::Error),
-    #[error("split ops failure")]
-    SplitError(#[from] rinex::split::Error),
     #[error("positioning solver error")]
     PositioningSolverError(#[from] positioning::Error),
     #[cfg(feature = "csv")]
@@ -82,7 +76,7 @@ fn user_data_parsing(
         for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
             if !entry.path().is_dir() {
                 let path = entry.path();
-                if let Ok(rinex) = Rinex::from_path(path) {
+                if let Ok(rinex) = Rinex::from_file(path) {
                     let loading = ctx.load_rinex(path, rinex);
                     if loading.is_ok() {
                         info!("Loading RINEX file \"{}\"", path.display());
@@ -113,7 +107,7 @@ fn user_data_parsing(
     // load individual files
     for fp in single_files.iter() {
         let path = Path::new(fp);
-        if let Ok(rinex) = Rinex::from_path(path) {
+        if let Ok(rinex) = Rinex::from_file(path) {
             let loading = ctx.load_rinex(path, rinex);
             if loading.is_err() {
                 warn!(
@@ -179,7 +173,8 @@ pub fn main() -> Result<(), Error> {
         max_recursive_depth,
         true,
     );
-    let ctx_position = data_ctx.reference_position();
+
+    let ctx_orbit = data_ctx.reference_rx_orbit();
     let ctx_stem = Context::context_stem(&mut data_ctx);
 
     /*
@@ -204,17 +199,27 @@ pub fn main() -> Result<(), Error> {
             Some((x, y, z))
         },
         None => {
-            if let Some(data_pos) = ctx_position {
-                let (x, y, z) = data_pos.to_ecef_wgs84();
-                let (lat, lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+            if let Some(ctx_orbit) = ctx_orbit {
+                let pos_vel = ctx_orbit.to_cartesian_pos_vel();
+                let (x0_km, y0_km, z0_km) = (pos_vel[0], pos_vel[1], pos_vel[2]);
+
+                let (lat, lon, _) = ecef2geodetic(
+                    x0_km * 1.0E3,
+                    y0_km * 1.0E3,
+                    z0_km * 1.0E3,
+                    Ellipsoid::WGS84,
+                );
+
                 let (lat_ddeg, lon_ddeg) = (lat.to_degrees(), lon.to_degrees());
+
                 info!(
-                    "Position defined in dataset: {:?} [ECEF] (lat={:.5}°, lon={:.5}°)",
-                    (x, y, z),
+                    "Position defined in dataset: {:.3E}km, {:.3E}km, {:.3E}km  [ECEF] (lat={:.5}°, lon={:.5}°)",
+                    x0_km, y0_km, z0_km,
                     lat_ddeg,
                     lon_ddeg
                 );
-                Some((x, y, z))
+
+                Some((x0_km * 1.0E3, y0_km * 1.0E3, z0_km * 1.0E3))
             } else {
                 /*
                  * Dataset does not contain any position,
@@ -245,7 +250,7 @@ pub fn main() -> Result<(), Error> {
                     );
                     // We currently require remote site
                     // to have its geodetic marker declared
-                    if let Some(reference_point) = data.reference_position() {
+                    if let Some(reference_point) = data.reference_rx_orbit() {
                         let (base_x0_m, base_y0_m, base_z0_m) = reference_point.to_ecef_wgs84();
                         if let Some(rx_ecef) = rx_ecef {
                             let baseline_m = ((base_x0_m - rx_ecef.0).powi(2)

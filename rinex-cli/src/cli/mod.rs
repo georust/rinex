@@ -8,8 +8,8 @@ use std::{
 use itertools::Itertools;
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use rinex::prelude::GroundPosition;
-use rinex_qc::prelude::{QcConfig, QcContext, QcReportType};
+
+use rinex_qc::prelude::{QcConfig, QcContext, QcReportType, Orbit};
 
 mod fops;
 mod positioning;
@@ -444,6 +444,7 @@ Otherwise it gets automatically picked up."))
     pub fn force_report_synthesis(&self) -> bool {
         self.matches.get_flag("report-force")
     }
+    
     /*
      * We hash all vital CLI information.
      * This helps in determining whether we need to update an existing report
@@ -470,11 +471,12 @@ Otherwise it gets automatically picked up."))
         string.hash(&mut hasher);
         hasher.finish()
     }
+
     /// Returns QcConfig from command line
     pub fn qc_config(&self) -> QcConfig {
         QcConfig {
-            manual_reference: if let Some(manual) = self.manual_position() {
-                Some(GroundPosition::from_ecef_wgs84(manual))
+            manual_rx_orbit: if let Some(manual) = self.manual_position() {
+                Some(Orbit::from_cartesian_pos_vel())
             } else {
                 None
             },

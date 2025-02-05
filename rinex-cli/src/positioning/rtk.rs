@@ -53,6 +53,7 @@ impl<'a> RemoteRTKReference<'a> {
             }
         }
     }
+    
     pub fn observe(&mut self, t: Epoch, sv: SV, carrier: Carrier) -> Option<RTKObservation> {
         let rtk_carrier = cast_rtk_carrier(carrier);
         let mut ret = Option::<RTKObservation>::None;
