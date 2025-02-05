@@ -30,20 +30,14 @@ impl DtrF {
     pub const GAL: f64 = -0.00000000044428073090439775;
 }
 
-//
-#[allow(dead_code)]
-pub(crate) struct MaxIterNumber;
-#[allow(dead_code)]
-impl MaxIterNumber {
-    /// Maximum number of iterations to calculate the anastomosis angle
-    pub const KEPLER: u8 = 30;
-}
-
 /// Const values used in RINEX crate
 pub(crate) struct Constants;
 
 impl Constants {
-    // earth
+    /// Maximal iteration in the iterative Kepler solver
+    pub const MAX_KEPLER_ITER: u8 = 30;
+
+    /// Earth gravitation.
     pub const fn gm(sv: SV) -> f64 {
         match sv.constellation {
             Constellation::BeiDou => GM::BDS,
@@ -61,7 +55,7 @@ impl Constants {
             _ => Omega::GPS,
         }
     }
-    ///  Auxiliary Quantities for Calculating Relativistic Effects in Clock Correction
+    /// Auxiliary Quantities for Calculating Relativistic Effects in Clock Correction
     pub const fn dtr_f(sv: SV) -> f64 {
         match sv.constellation {
             Constellation::GPS => DtrF::GPS,

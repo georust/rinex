@@ -1,32 +1,42 @@
-use crate::linspace::Linspace;
-use crate::Epoch;
-use strum_macros::EnumString;
-
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
 mod sv;
-pub use sv::{Cospar, SvAntenna, SvAntennaParsingError};
+pub use sv::SvAntenna;
+
+use crate::{
+    linspace::Linspace,
+    prelude::{Epoch, ParsingError},
+};
 
 /// Known Calibration Methods
-#[derive(Default, Clone, Debug, PartialEq, PartialOrd, EnumString)]
+#[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum CalibrationMethod {
-    #[strum(serialize = "")]
     #[default]
     Unknown,
-    #[strum(serialize = "CHAMBER")]
     Chamber,
-    #[strum(serialize = "FIELD")]
     Field,
-    #[strum(serialize = "ROBOT")]
     Robot,
     /// Copied from other antenna
-    #[strum(serialize = "COPIED")]
     Copied,
     /// Converted from igs_01.pcv or blank
-    #[strum(serialize = "CONVERTED")]
     Converted,
+}
+
+impl std::str::FromStr for CalibrationMethod {
+    type Err = ParsingError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "chamber" => Ok(Self::Chamber),
+            "field" => Ok(Self::Field),
+            "robot" => Ok(Self::Robot),
+            "copied" => Ok(Self::Copied),
+            "converted" => Ok(Self::Converted),
+            "" => Ok(Self::Unknown),
+            _ => Err(ParsingError::AntexCalibrationMethod),
+        }
+    }
 }
 
 /// Calibration information

@@ -50,7 +50,7 @@ plotly = "0.9"
 gnss-rs = { version = "2.3.1", features = ["serde"] }
 
 rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["full"] }
-rinex-qc-traits = { path = "../qc-traits", version = "=0.2.0", features = ["processing"] }
+rinex-qc-traits = { path = "../qc-traits", version = "=0.3.0", features = ["processing"] }
 
 sp3 = { path = "../sp3", version = "=1.1.0-alpha-1", features = ["qc", "processing", "serde"], optional = true }
 

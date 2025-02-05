@@ -15,16 +15,18 @@ fn build_nav_database() {
     let nav_frames = json.as_array().unwrap();
 
     let nav_content = "use lazy_static::lazy_static;
-use crate::version::Version;
-use crate::prelude::Constellation;
-use crate::navigation::NavMsgType;
+
+use crate::{
+    prelude::{Version, Constellation},
+    navigation::NavMessageType,
+};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[derive(Eq, Ord)]
 pub struct NavHelper<'a> {
     pub constellation: Constellation,
     pub version: Version,
-    pub msg: NavMsgType,
+    pub msg: NavMessageType,
     pub items: Vec<(&'a str, &'a str)>,
 }
 
@@ -75,7 +77,11 @@ pub struct NavHelper<'a> {
         nav_file.write_all("      },\n".as_bytes()).unwrap();
         nav_file
             .write_all(
-                format!("      msg: NavMsgType::from_str(\"{}\").unwrap(),\n", msg).as_bytes(),
+                format!(
+                    "      msg: NavMessageType::from_str(\"{}\").unwrap(),\n",
+                    msg
+                )
+                .as_bytes(),
             )
             .unwrap();
         // frame body description

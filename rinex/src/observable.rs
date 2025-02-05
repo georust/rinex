@@ -1,29 +1,19 @@
-use crate::{carrier, Carrier, Constellation};
-use thiserror::Error;
-
-#[derive(Error, Debug, Clone, PartialEq)]
-/// Observable Parsing errors
-pub enum ParsingError {
-    #[error("unknown observable \"{0}\"")]
-    UnknownObservable(String),
-    #[error("malformed observable \"{0}\"")]
-    MalformedDescriptor(String),
-}
+use crate::prelude::{Carrier, Constellation, Error, ParsingError};
 
 /// Observable describes all possible observations,
 /// forming Observation and Meteo RINEX epoch content.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Ord, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Observable {
-    /// Carrier phase observation
-    Phase(String),
+    /// Carrier phase range converted to [m] (not cycles!)
+    PhaseRange(String),
     /// Doppler shift observation
     Doppler(String),
     /// SSI: Receiver signal strength observation [dB]
     SSI(String),
     /// Received Power [dBm]
     Power(String),
-    /// Pseudo range observation
+    /// Decoded Pseudo range converted to [m]
     PseudoRange(String),
     /// Channel number Pseudo Observable.
     /// Attached to Phase or PseudoRange observable to accurately
@@ -56,7 +46,7 @@ pub enum Observable {
 
 impl Default for Observable {
     fn default() -> Self {
-        Self::Phase("L1C".to_string())
+        Self::PhaseRange("L1C".to_string())
     }
 }
 
@@ -66,7 +56,7 @@ impl Observable {
     pub fn same_physics(&self, rhs: &Observable) -> bool {
         match self {
             Self::SSI(_) => matches!(rhs, Self::SSI(_)),
-            Self::Phase(_) => matches!(rhs, Self::Phase(_)),
+            Self::PhaseRange(_) => matches!(rhs, Self::PhaseRange(_)),
             Self::Power(_) => matches!(rhs, Self::Power(_)),
             Self::Doppler(_) => matches!(rhs, Self::Doppler(_)),
             Self::PseudoRange(_) => matches!(rhs, Self::PseudoRange(_)),
@@ -84,27 +74,40 @@ impl Observable {
             Self::FrequencyRatio => matches!(rhs, Self::FrequencyRatio),
         }
     }
-    pub fn is_phase_observable(&self) -> bool {
-        matches!(self, Self::Phase(_))
+
+    /// Returns true if this [Observable] is a Phase Range estimate
+    pub fn is_phase_range_observable(&self) -> bool {
+        matches!(self, Self::PhaseRange(_))
     }
-    pub fn is_pseudorange_observable(&self) -> bool {
+
+    /// Returns true if this [Observable] is a decoded Pseudo Range
+    pub fn is_pseudo_range_observable(&self) -> bool {
         matches!(self, Self::PseudoRange(_))
     }
+
+    /// Returns true if this [Observable] is a doppler measurement
     pub fn is_doppler_observable(&self) -> bool {
         matches!(self, Self::Doppler(_))
     }
+
+    /// Returns true if this [Observable] is an SSI measurement
     pub fn is_ssi_observable(&self) -> bool {
         matches!(self, Self::SSI(_))
     }
+
     pub fn is_power_observable(&self) -> bool {
         matches!(self, Self::Power(_))
     }
+
+    /// Returns true if this [Observable] is a channel number (usually for Glonass FDMA)
     pub fn is_channel_number(&self) -> bool {
         matches!(self, Self::ChannelNumber(_))
     }
+
+    /// Returns the 2 or 3 letter code, in RINEX standardized format
     pub fn code(&self) -> Option<String> {
         match self {
-            Self::Phase(c) | Self::Doppler(c) | Self::SSI(c) | Self::PseudoRange(c) => {
+            Self::PhaseRange(c) | Self::Doppler(c) | Self::SSI(c) | Self::PseudoRange(c) => {
                 if c.len() == 3 {
                     Some(c[1..].to_string())
                 } else {
@@ -114,9 +117,13 @@ impl Observable {
             _ => None,
         }
     }
-    pub fn carrier(&self, c: Constellation) -> Result<Carrier, carrier::Error> {
+
+    /// Tries to reconstruct a [Carrier] signal from this [Observable].
+    /// This will work if our database knows this [Self::code].
+    pub fn carrier(&self, c: Constellation) -> Result<Carrier, Error> {
         Carrier::from_observable(c, self)
     }
+
     /// Returns the code length (repetition period), expressed in seconds,
     /// of self: a valid Pseudo Range observable. This is not intended to be used
     /// on phase observables, although they are also determined from PRN codes.
@@ -301,6 +308,23 @@ impl Observable {
             _ => None,
         }
     }
+
+    /// Returns true if this is the L1 pivot Ph or Code signal observation,
+    /// used in signal combinations
+    pub(crate) fn is_l1_pivot(&self, constellation: Constellation) -> bool {
+        if self.is_phase_range_observable() || self.is_pseudo_range_observable() {
+            if let Ok(carrier) = self.carrier(constellation) {
+                matches!(
+                    carrier,
+                    Carrier::L1 | Carrier::E1 | Carrier::G1(_) | Carrier::S1 | Carrier::B2I
+                )
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
 }
 
 impl std::fmt::Display for Observable {
@@ -318,7 +342,7 @@ impl std::fmt::Display for Observable {
             Self::HailIndicator => write!(f, "HI"),
             Self::FrequencyRatio => write!(f, "F"),
             Self::PseudoRange(c)
-            | Self::Phase(c)
+            | Self::PhaseRange(c)
             | Self::Doppler(c)
             | Self::SSI(c)
             | Self::Power(c)
@@ -348,7 +372,7 @@ impl std::str::FromStr for Observable {
                 let len = content.len();
                 if len > 1 && len < 4 {
                     if content.starts_with('L') {
-                        Ok(Self::Phase(content.to_string()))
+                        Ok(Self::PhaseRange(content.to_string()))
                     } else if content.starts_with('C') || content.starts_with('P') {
                         Ok(Self::PseudoRange(content.to_string()))
                     } else if content.starts_with('S') {
@@ -358,10 +382,10 @@ impl std::str::FromStr for Observable {
                     } else if content.starts_with('D') {
                         Ok(Self::Doppler(content.to_string()))
                     } else {
-                        Err(ParsingError::UnknownObservable(content.to_string()))
+                        Err(ParsingError::UnknownObservable)
                     }
                 } else {
-                    Err(ParsingError::MalformedDescriptor(content.to_string()))
+                    Err(ParsingError::BadObservable)
                 }
             },
         }
@@ -376,23 +400,29 @@ mod test {
     fn test_default_observable() {
         let default = Observable::default();
         assert_eq!(default, Observable::from_str("L1C").unwrap());
-        assert_eq!(default, Observable::Phase(String::from("L1C")));
-        assert!(default.is_phase_observable());
+        assert_eq!(default, Observable::PhaseRange(String::from("L1C")));
+        assert!(default.is_phase_range_observable());
     }
     #[test]
     fn test_physics() {
-        assert!(Observable::from_str("L1").unwrap().is_phase_observable());
-        assert!(Observable::from_str("L2").unwrap().is_phase_observable());
-        assert!(Observable::from_str("L6X").unwrap().is_phase_observable());
+        assert!(Observable::from_str("L1")
+            .unwrap()
+            .is_phase_range_observable());
+        assert!(Observable::from_str("L2")
+            .unwrap()
+            .is_phase_range_observable());
+        assert!(Observable::from_str("L6X")
+            .unwrap()
+            .is_phase_range_observable());
         assert!(Observable::from_str("C1")
             .unwrap()
-            .is_pseudorange_observable());
+            .is_pseudo_range_observable());
         assert!(Observable::from_str("C2")
             .unwrap()
-            .is_pseudorange_observable());
+            .is_pseudo_range_observable());
         assert!(Observable::from_str("C6X")
             .unwrap()
-            .is_pseudorange_observable());
+            .is_pseudo_range_observable());
         assert!(Observable::from_str("D1").unwrap().is_doppler_observable());
         assert!(Observable::from_str("D2").unwrap().is_doppler_observable());
         assert!(Observable::from_str("D6X").unwrap().is_doppler_observable());
@@ -403,80 +433,107 @@ mod test {
     }
     #[test]
     fn test_observable() {
-        let obs = Observable::from_str("PR");
-        assert_eq!(obs, Ok(Observable::Pressure));
-        assert_eq!(obs.clone().unwrap().to_string(), "PR");
-        assert_eq!(Observable::from_str("pr"), obs.clone());
+        assert_eq!(Observable::from_str("PR").unwrap(), Observable::Pressure);
+        assert_eq!(Observable::from_str("pr").unwrap(), Observable::Pressure);
+        assert_eq!(Observable::from_str("PR").unwrap().to_string(), "PR");
 
-        let obs = Observable::from_str("WS");
-        assert_eq!(obs, Ok(Observable::WindSpeed));
-        assert_eq!(obs.clone().unwrap().to_string(), "WS");
-        assert_eq!(Observable::from_str("ws"), obs.clone());
+        assert_eq!(Observable::from_str("WS").unwrap(), Observable::WindSpeed);
+        assert_eq!(Observable::from_str("ws").unwrap(), Observable::WindSpeed);
+        assert_eq!(Observable::from_str("WS").unwrap().to_string(), "WS");
 
-        let obs = Observable::from_str("Err");
-        assert!(obs.is_err());
+        assert!(Observable::from_str("Err").is_err());
+        assert!(Observable::from_str("TODO").is_err());
 
         assert_eq!(
-            Observable::from_str("L1"),
-            Ok(Observable::Phase(String::from("L1")))
+            Observable::from_str("L1").unwrap(),
+            Observable::PhaseRange(String::from("L1"))
         );
+
         assert!(Observable::from_str("L1").unwrap().code().is_none());
 
         assert_eq!(
-            Observable::from_str("L2"),
-            Ok(Observable::Phase(String::from("L2")))
+            Observable::from_str("L2").unwrap(),
+            Observable::PhaseRange(String::from("L2"))
+        );
+
+        assert_eq!(
+            Observable::from_str("L5").unwrap(),
+            Observable::PhaseRange(String::from("L5"))
         );
         assert_eq!(
-            Observable::from_str("L5"),
-            Ok(Observable::Phase(String::from("L5")))
-        );
-        assert_eq!(
-            Observable::from_str("L6Q"),
-            Ok(Observable::Phase(String::from("L6Q")))
+            Observable::from_str("L6Q").unwrap(),
+            Observable::PhaseRange(String::from("L6Q"))
         );
         assert_eq!(
             Observable::from_str("L6Q").unwrap().code(),
-            Some(String::from("6Q"))
+            Some(String::from("6Q")),
         );
 
         assert_eq!(
-            Observable::from_str("L1C"),
-            Ok(Observable::Phase(String::from("L1C")))
+            Observable::from_str("L1C").unwrap(),
+            Observable::PhaseRange(String::from("L1C"))
         );
         assert_eq!(
-            Observable::from_str("L1P"),
-            Ok(Observable::Phase(String::from("L1P")))
+            Observable::from_str("L1P").unwrap(),
+            Observable::PhaseRange(String::from("L1P"))
         );
         assert_eq!(
-            Observable::from_str("L8X"),
-            Ok(Observable::Phase(String::from("L8X")))
+            Observable::from_str("L8X").unwrap(),
+            Observable::PhaseRange(String::from("L8X"))
         );
 
         assert_eq!(
-            Observable::from_str("S7Q"),
-            Ok(Observable::SSI(String::from("S7Q")))
-        );
-        assert_eq!(
-            format!("{}", Observable::PseudoRange(String::from("S7Q"))),
-            "S7Q"
+            Observable::from_str("L1P").unwrap(),
+            Observable::PhaseRange(String::from("L1P"))
         );
 
         assert_eq!(
-            Observable::from_str("D7Q"),
-            Ok(Observable::Doppler(String::from("D7Q")))
-        );
-        assert_eq!(
-            format!("{}", Observable::Doppler(String::from("D7Q"))),
-            "D7Q"
+            Observable::from_str("L8X").unwrap(),
+            Observable::PhaseRange(String::from("L8X"))
         );
 
         assert_eq!(
-            Observable::from_str("C7X"),
-            Ok(Observable::PseudoRange(String::from("C7X")))
+            Observable::from_str("S7Q").unwrap(),
+            Observable::SSI(String::from("S7Q")),
         );
+
         assert_eq!(
-            format!("{}", Observable::PseudoRange(String::from("C7X"))),
-            "C7X"
+            Observable::PseudoRange("S7Q".to_string()).to_string(),
+            "S7Q",
         );
+
+        assert_eq!(Observable::Doppler("D7Q".to_string()).to_string(), "D7Q",);
+
+        assert_eq!(Observable::Doppler("C7X".to_string()).to_string(), "C7X",);
+    }
+
+    #[test]
+    fn test_same_physics() {
+        assert!(Observable::Temperature.same_physics(&Observable::Temperature));
+        assert!(!Observable::Pressure.same_physics(&Observable::Temperature));
+
+        let dop_l1 = Observable::Doppler("L1".to_string());
+        let dop_l1c = Observable::Doppler("L1C".to_string());
+        let dop_l2 = Observable::Doppler("L2".to_string());
+        let dop_l2w = Observable::Doppler("L2W".to_string());
+
+        let pr_l1 = Observable::PseudoRange("L1".to_string());
+        let pr_l1c = Observable::PseudoRange("L1C".to_string());
+        let pr_l2 = Observable::PseudoRange("L2".to_string());
+        let pr_l2w = Observable::PseudoRange("L2W".to_string());
+
+        assert!(dop_l1.same_physics(&dop_l1));
+        assert!(dop_l1c.same_physics(&dop_l1));
+        assert!(dop_l1c.same_physics(&dop_l2));
+        assert!(dop_l1c.same_physics(&dop_l2w));
+        assert!(!dop_l1.same_physics(&pr_l1));
+        assert!(!dop_l1.same_physics(&pr_l1c));
+        assert!(!dop_l1.same_physics(&pr_l2));
+        assert!(!dop_l1.same_physics(&pr_l2w));
+
+        assert!(pr_l1.same_physics(&pr_l1));
+        assert!(pr_l1.same_physics(&pr_l1c));
+        assert!(pr_l1.same_physics(&pr_l2));
+        assert!(pr_l1.same_physics(&pr_l2w));
     }
 }

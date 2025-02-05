@@ -12,57 +12,77 @@ edition = "2021"
 readme = "README.md"
 rust-version = "1.64"
 
-[features]
-default = []
+#####################################################################
+# To understand the lib features, please read the following comments.
+# 
+# Other features that exist:
+# - log: unlocks debug traces
+# - serde: internal structures serdes
+#####################################################################
 
-# Unlock OBS RINEX full support.
-# Unlocks dedicated browsing methods and post processing algorithms.
+################################################################
+# Note for devs:
+#
+# [Dependencies] see if we can get rid of
+# - geo: either replaced by Orbit, and 3D does not exist anyway
+# - wkt:
+# - strum/macros
+# - regex
+# - num/num-integer (.div_ceil)
+################################################################
+
+[features]
+default = ["full"]
+
+# OBSERVATION RINEX Iterators & methods. Unlocks signal combinations.
 obs = []
 
-# NAV RINEX full support. 
-# Unlocks BRDC calculations, including Keplerian calculations (Ephemeris),
-# all NAV RINEX iteration and exploitation, including Ut1Provider.
+# NAVIGATION RINEX (decoded radio messages) Iterators & methods.
+# Unlocks navigation calculations including Kepler solver and Ut1Provider.
 nav = [
     "nalgebra",
     "hifitime/ut1",
     "anise",
 ]
 
-# Unlock METEO RINEX full support.
-# Unlocks dedicated browsing methods and dedicated analysis.
+# METEO RINEX dedicated Iterators & methods.
 meteo = []
 
-# Unlock IONEX full support.
-# Unlocks dedicated browsing methods and dedicated analysis.
+# IONEX (special RINEX) dedicated Iterators & methods.
 ionex = []
 
-# Unlock CLOCK RINEX full support.
-# Unlocks dedicated browsing methods and dedicated analysis.
+# CLOCK (Special RINEX) dedicated Iterators & methods.
 clock = []
 
-# Unlock ANTEX full support.
-# Unlocks dedicated browsing methods and antenna compensation methods.
+# ANTEX for accurate antenna characteristics: dedicated Iterators & methods.
 antex = []
 
-# Unlock support of DORIS RINEX file format, DORIS special measurements
-# wrapped as RINEX observation file.
+# DORIS (Special Observation RINEX) specific Iterators & methods.
 doris = []
 
-# Unlock Quality Check (QC) methods and traits.
-# Allows to generate complete QC reports for RINEX or entire contexts.
+# BINEX RNX2BIN and BIN2RNX serdes
+binex = [
+    "dep:binex"
+]
+
+# RTCM RTCM2RNX and RNX2RTCM serdes
+rtcm = [
+    "dep:rtcm-rs",
+]
+
+# Unlock Quality Check and TEQC like methods & traits.
 qc = [
-    "maud",
-    "rinex-qc-traits", 
+    "dep:rinex-qc-traits", 
+    "dep:maud",
 ] 
 
-# Unlock Processing package.
-# Unlocks the preprocessing toolkit, Filtering methods and preprocessing algorithms.
+# Unlocks the Filter designer, pre and post processing algorithms.
 processing = [
     "qc",
     "rinex-qc-traits/processing",
 ]
 
-# Unlock all features, all at once
+# Unlock all features, at once
 full = [
     "antex",
     "clock",
@@ -73,8 +93,9 @@ full = [
     "nav",
     "obs",
     "processing",
-    "qc",
     "serde",
+    "binex",
+    "rtcm",
 ]
 
 [package.metadata.docs.rs]
@@ -86,41 +107,59 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 [dependencies]
-log = "0.4"
 num = "0.4"
 regex = "1"
 strum = "0.26"
 thiserror = "2"
 lazy_static = "1.4"
-map_3d = "0.1.5"
 num-derive = "0.4"
-num-traits = "0.2.15"
 itertools = "0.13.0"
-strum_macros = "0.26"
-num-integer = "0.1.44"
+
+# Log is optional and our "debug" feature: use this if you're a dev.
+# Turn this on to obtain debug traces during parsing, formatting and calculations
+# Use DEBUG sensitivy for all traces.
+# Use normal sensitivy for error / warning traces.
+log = { version = "0.4", optional = true }
 
 dms-coordinates = "1.3.1"
 bitflags = { version = "2.3", features = ["serde"] } 
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
-flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
 
 geo = { version = "0.28", optional = true }
 wkt = { version = "0.10.0", default-features = false, optional = true }
+flate2 = { version = "1", optional = true }
 
 anise = { version = "0.5.2", optional = true }
 nalgebra = { version = "0.33.0", optional = true }
-hifitime = { version = "4.0", features = ["serde", "std"] }
-gnss-rs = { version = "2.2.3", features = ["serde", "domes", "cospar"] }
+hifitime = { version = "4.0.0", features = ["serde", "std"] }
+gnss-rs = { version = "2.3.1", features = ["serde", "domes", "cospar"] }
 
-# RINEX QC dedicated traits
+# RINEX Qc traits
+rinex-qc-traits = { path = "../qc-traits", version = "=0.3.0", features = ["html"], optional = true }
 maud = { version = "0.26", optional = true }
-rinex-qc-traits = { path = "../qc-traits", version = "=0.2.0", optional = true }
+
+# BINEX (serdes)
+binex = { path = "../binex", version = "0.4.0", optional = true }
+
+# RTCM (serdes)
+rtcm-rs = { version = "0.11", optional = true }
+
+# TODO: see if we can get rid of FromPrimitive ?
+num-traits = "0.2.15"
+
+# TODO: see if we can get rid of num.div_ceil() ?
+num-integer = "0.1.44"
 
 [dev-dependencies]
 serde_json = "1"
 criterion = "0.5"
 rand = "0.8.4"
+flate2 = "1"
 
 [[bench]]
-name = "benchmark"
+name = "observation"
+harness = false
+
+[[bench]]
+name = "hatanaka"
 harness = false

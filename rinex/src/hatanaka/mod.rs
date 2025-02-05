@@ -1,46 +1,51 @@
 //! RINEX compression / decompression module
 use thiserror::Error;
 
-pub mod compressor;
-pub mod numdiff;
-pub mod textdiff;
+// TODO
+// Improve Result<> IoError/Error relation ship
+// the current User API .read().error()
+// Will trigger a string comparison on every single .read() acces veritication
+
+mod compressor;
+mod crinex;
+mod decompressor;
+mod numdiff;
+mod textdiff;
+
 pub use compressor::Compressor;
+pub use crinex::CRINEX;
 
-pub mod decompressor;
-pub use decompressor::Decompressor;
+pub use decompressor::{
+    io::{DecompressorExpertIO, DecompressorIO},
+    Decompressor, DecompressorExpert,
+};
 
-#[derive(Error, Debug)]
+pub use numdiff::NumDiff;
+pub use textdiff::TextDiff;
+
+use thiserror::Error as ErrorTrait;
+
+/// Hatanaka dedicated Errors
+#[derive(Debug, ErrorTrait)]
 pub enum Error {
-    #[error("I/O error")]
-    IoError(#[from] std::io::Error),
-    #[error("This is not a CRX file")]
-    NotACrinex,
-    #[error("This is not an Observation file")]
-    NotObsRinexData,
-    #[error("Non supported CRX revision")]
-    NonSupportedCrxVersion,
-    #[error("First epoch not delimited by \"&\"")]
-    FaultyCrx1FirstEpoch,
-    #[error("First epoch not delimited by \">\"")]
-    FaultyCrx3FirstEpoch,
-    #[error("Failed to parse clock offset init order")]
-    ClockOffsetOrderError,
-    #[error("Failed to parse clock offset value")]
-    ClockOffsetValueError,
-    #[error("Recovered epoch content seems faulty")]
-    FaultyRecoveredEpoch,
-    #[error("failed to reconstruct epoch description")]
-    EpochConstruct,
-    #[error("Malformed epoch description (#nb sv)")]
-    MalformedEpochDescriptor,
-    #[error("Vehicle identification failed")]
-    VehicleIdentificationError,
-    #[error("Malformed epoch content (#nb of observables)")]
-    MalformedEpochBody,
-    #[error("numdiff error")]
-    NumDiffError(#[from] numdiff::Error),
+    /// Buffer too small to accept incoming data
+    #[error("buffer overflow")]
+    BufferOverflow,
+    /// Forwarded Epoch description does not look good: Invalid RINEX!
+    #[error("invalid epoch format")]
+    EpochFormat,
+    /// Forwarded content is not consisten with CRINEX V1
+    #[error("invalid v1 format")]
+    BadV1Format,
+    /// Forwarded content is not consisten with CRINEX V3
+    #[error("invalid v3 format")]
+    BadV3Format,
+    /// [SV] identification error: bad relationship between
+    /// either:
+    ///   - recovered Epoch description (in decompression scheme)
+    ///   and parsing process
+    ///   - invalid data being forwared and/or incompatibility
+    ///   with previously formwared Header
     #[error("sv parsing error")]
-    SvParsing(#[from] gnss::sv::ParsingError),
-    #[error("failed to parse integer number")]
-    ParseIntError(#[from] std::num::ParseIntError),
+    SVParsing,
 }

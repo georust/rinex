@@ -1,17 +1,6 @@
 use std::str::FromStr;
-use strum_macros::EnumString;
-use thiserror::Error;
 
-use gnss::prelude::Constellation;
-
-/// Reference System parsing error
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("unknown reference system")]
-    UnknownRefSystem,
-    #[error("constellation parsing error")]
-    ConstellationParsing(#[from] gnss::constellation::ParsingError),
-}
+use crate::prelude::{Constellation, ParsingError};
 
 /// RefSystem "Reference System" describes either reference GNSS
 /// constellation, from which TEC maps were evaluated,
@@ -34,15 +23,13 @@ pub enum RefSystem {
     Model(Model),
 }
 
-#[derive(Default, Debug, Clone, PartialEq, PartialOrd, EnumString)]
+#[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ObsSystem {
     /// BENt
-    #[strum(serialize = "BEN")]
     BENt,
     /// ENVisat is an ESA Earth Observation satellite
     #[default]
-    #[strum(serialize = "ENV")]
     ENVisat,
     /// European Remote Sensing Satellite (ESA).
     /// ERS-1 or ERS-2 were Earth observation satellites.
@@ -52,13 +39,26 @@ pub enum ObsSystem {
     IRI,
 }
 
+impl std::str::FromStr for ObsSystem {
+    type Err = ParsingError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "ben" => Ok(Self::BENt),
+            "env" => Ok(Self::ENVisat),
+            "ers" => Ok(Self::ERS),
+            "iri" => Ok(Self::IRI),
+            _ => Err(ParsingError::IonexEarthObservationSat),
+        }
+    }
+}
+
 impl std::fmt::Display for ObsSystem {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str(&self.to_string())
     }
 }
 
-#[derive(Default, Debug, Clone, PartialEq, PartialOrd, EnumString)]
+#[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Model {
     /// Mixed / combined models.
@@ -71,6 +71,18 @@ pub enum Model {
     /// measured over sea surface at altitudes below
     /// satellite orbits (1336 km).
     TOP,
+}
+
+impl std::str::FromStr for Model {
+    type Err = ParsingError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "mix" => Ok(Self::MIX),
+            "nns" => Ok(Self::NNS),
+            "top" => Ok(Self::TOP),
+            _ => Err(ParsingError::IonexModel),
+        }
+    }
 }
 
 impl std::fmt::Display for Model {
@@ -96,7 +108,7 @@ impl std::fmt::Display for RefSystem {
 }
 
 impl FromStr for RefSystem {
-    type Err = Error;
+    type Err = ParsingError;
     fn from_str(system: &str) -> Result<Self, Self::Err> {
         if let Ok(gnss) = Constellation::from_str(system) {
             Ok(Self::GnssConstellation(gnss))
@@ -107,7 +119,7 @@ impl FromStr for RefSystem {
         } else if let Ok(m) = Model::from_str(system) {
             Ok(Self::Model(m))
         } else {
-            Err(Error::UnknownRefSystem)
+            Err(ParsingError::IonexReferenceSystem)
         }
     }
 }

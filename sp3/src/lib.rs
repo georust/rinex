@@ -17,9 +17,9 @@ use std::str::FromStr;
 use thiserror::Error;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
+use qc_traits::{
     Decimate, DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand, Masking,
-    Preprocessing,
+    Preprocessing, Split,
 };
 
 #[cfg(test)]
@@ -898,6 +898,21 @@ impl Masking for SP3 {
                 _ => {}, // does not apply
             },
         }
+    }
+}
+
+#[cfg(feature = "processing")]
+impl Split for SP3 {
+    fn split(&self, t: Epoch) -> (Self, Self) {
+        let mut s = self.clone();
+        let r = s.split_mut(t);
+        (s, r)
+    }
+    fn split_mut(&mut self, _t: Epoch) -> Self {
+        Default::default()
+    }
+    fn split_even_dt(&self, _dt: Duration) -> Vec<Self> {
+        Default::default()
     }
 }
 

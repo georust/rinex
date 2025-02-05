@@ -11,9 +11,12 @@ pub use mask::{Error as MaskError, MaskFilter, MaskOperand, Masking};
 mod decim;
 pub use decim::{Decimate, DecimationFilter, DecimationFilterType, Error as DecimationError};
 
+mod split;
+pub use split::Split;
+
 /// Preprocessing Trait is usually implemented by GNSS data
 /// to preprocess prior further analysis.
-pub trait Preprocessing: Masking + Decimate {
+pub trait Preprocessing: Masking + Decimate + Split {
     /// Apply [Filter] algorithm on immutable dataset.
     fn filter(&self, filter: &Filter) -> Self
     where
@@ -36,7 +39,9 @@ pub trait Preprocessing: Masking + Decimate {
 /// Repair
 #[derive(Debug, Copy, Clone)]
 pub enum Repair {
-    /// Repairs all zero values.
+    /// Repairs zero phase range and decoded range values,
+    /// that are physically incorrect and most likely generated
+    /// by incorrect GNSS receiver behavior.
     Zero,
 }
 

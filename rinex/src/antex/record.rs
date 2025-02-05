@@ -1,13 +1,10 @@
-use gnss::prelude::SV;
-use std::collections::HashMap;
-use std::str::FromStr;
-use thiserror::Error;
+use std::{collections::HashMap, str::FromStr};
 
-use super::{
-    antenna::SvAntennaParsingError, Antenna, AntennaSpecific, Calibration, CalibrationMethod,
-    Cospar, RxAntenna, SvAntenna,
+use crate::{
+    antex::{Antenna, AntennaSpecific, Calibration, CalibrationMethod, RxAntenna, SvAntenna},
+    linspace::Linspace,
+    prelude::{Carrier, Epoch, ParsingError, COSPAR, SV},
 };
-use crate::{carrier, linspace::Linspace, merge, merge::Merge, Carrier, Epoch};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -90,71 +87,16 @@ pub struct FrequencyDependentData {
 */
 pub type Record = Vec<(Antenna, HashMap<Carrier, FrequencyDependentData>)>;
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("Unknown PCV \"{0}\"")]
-    UnknownPcv(String),
-    #[error("failed to determine the frequency")]
-    SvParsing(#[from] gnss::sv::ParsingError),
-    #[error("failed to determine the frequency")]
-    ParseCarrierError(#[from] carrier::Error),
-    #[error("sv antenna parsing error")]
-    SvAntennaParsing(#[from] SvAntennaParsingError),
-    #[error("failed to parse APC/NEU northern coordinates")]
-    APCNorthernCoordinatesParsing,
-    #[error("failed to parse APC/NEU eastern coordinates")]
-    APCEasternCoordinatesParsing,
-    #[error("failed to parse APC/NEU upper coordinates")]
-    APCUpperCoordinatesParsing,
-    #[error("failed to identify number of calibrated antennas")]
-    NumberOfCalibratedAntennasParsing,
-    #[error("failed to parse start of validity period")]
-    StartOfValidityPeriodParsing,
-    #[error("failed to parse end of validity period")]
-    EndOfValidityPeriodParsing,
-    #[error("calibration period missing year field")]
-    DatetimeParsingMissingYear,
-    #[error("calibration period missing month field")]
-    DatetimeParsingMissingMonth,
-    #[error("calibration period missing day field")]
-    DatetimeParsingMissingDay,
-    #[error("calibration period missing hours field")]
-    DatetimeParsingMissingHours,
-    #[error("calibration period missing minutes field")]
-    DatetimeParsingMissingMinutes,
-    #[error("calibration period missing seconds field")]
-    DatetimeParsingMissingSeconds,
-    #[error("failed to parse year of this calibration")]
-    DatetimeYearParsing,
-    #[error("failed to parse month of this calibration")]
-    DatetimeMonthParsing,
-    #[error("failed to parse day of this calibration")]
-    DatetimeDayParsing,
-    #[error("failed to parse hours of this calibration")]
-    DatetimeHoursParsing,
-    #[error("failed to parse minutes of this calibration")]
-    DatetimeMinutesParsing,
-    #[error("failed to parse seconds of this calibration")]
-    DatetimeSecondsParsing,
-    #[error("failed to parse nanos of this calibration")]
-    DatetimeNanosParsing,
-    #[error("failed to parse start of zenith grid")]
-    ZenithGridStartParsing,
-    #[error("failed to parse end of zenith grid")]
-    ZenithGridEndParsing,
-    #[error("failed to parse spacing of zenith grid")]
-    ZenithGridSpacingParsing,
-}
-
-fn parse_datetime(content: &str) -> Result<Epoch, Error> {
+fn parse_datetime(content: &str) -> Result<Epoch, ParsingError> {
     let mut parser = content.split('-');
 
-    let year = parser.next().ok_or(Error::DatetimeYearParsing)?;
+    let year = parser.next().ok_or(ParsingError::DatetimeFormat)?;
+
     let year = year
         .parse::<i32>()
-        .map_err(|_| Error::DatetimeYearParsing)?;
+        .map_err(|_| ParsingError::DatetimeParsing)?;
 
-    let month = parser.next().ok_or(Error::DatetimeMonthParsing)?;
+    let month = parser.next().ok_or(ParsingError::DatetimeFormat)?;
 
     let month = match month {
         "JAN" | "Jan" => 1,
@@ -170,12 +112,14 @@ fn parse_datetime(content: &str) -> Result<Epoch, Error> {
         "NOV" | "Nov" => 11,
         "DEC" | "Dec" => 12,
         _ => {
-            return Err(Error::DatetimeMonthParsing);
+            return Err(ParsingError::DatetimeParsing);
         },
     };
 
-    let day = parser.next().ok_or(Error::DatetimeDayParsing)?;
-    let day = day.parse::<u8>().map_err(|_| Error::DatetimeDayParsing)?;
+    let day = parser.next().ok_or(ParsingError::DatetimeFormat)?;
+    let day = day
+        .parse::<u8>()
+        .map_err(|_| ParsingError::DatetimeParsing)?;
 
     Ok(Epoch::from_gregorian_utc_at_midnight(
         2000 + year,
@@ -187,31 +131,35 @@ fn parse_datetime(content: &str) -> Result<Epoch, Error> {
 /*
  * Parses the calibration validity FROM/UNTIL field
  */
-fn parse_validity_epoch(content: &str) -> Result<Epoch, Error> {
+fn parse_validity_epoch(content: &str) -> Result<Epoch, ParsingError> {
     let mut items = content.split_ascii_whitespace();
 
-    let year = items.next().ok_or(Error::DatetimeParsingMissingYear)?;
+    let year = items.next().ok_or(ParsingError::DatetimeFormat)?;
+
     let year = year
         .parse::<i32>()
-        .map_err(|_| Error::DatetimeYearParsing)?;
+        .map_err(|_| ParsingError::DatetimeParsing)?;
 
-    let month = items.next().ok_or(Error::DatetimeParsingMissingMonth)?;
+    let month = items.next().ok_or(ParsingError::DatetimeFormat)?;
+
     let month = month
         .parse::<u8>()
-        .map_err(|_| Error::DatetimeMonthParsing)?;
+        .map_err(|_| ParsingError::DatetimeParsing)?;
 
-    let day = items.next().ok_or(Error::DatetimeParsingMissingDay)?;
-    let day = day.parse::<u8>().map_err(|_| Error::DatetimeDayParsing)?;
-
-    let hh = items.next().ok_or(Error::DatetimeParsingMissingHours)?;
-    let hh = hh.parse::<u8>().map_err(|_| Error::DatetimeHoursParsing)?;
-
-    let mm = items.next().ok_or(Error::DatetimeParsingMissingMinutes)?;
-    let mm = mm
+    let day = items.next().ok_or(ParsingError::DatetimeFormat)?;
+    let day = day
         .parse::<u8>()
-        .map_err(|_| Error::DatetimeMinutesParsing)?;
+        .map_err(|_| ParsingError::DatetimeParsing)?;
 
-    let ss = items.next().ok_or(Error::DatetimeParsingMissingSeconds)?;
+    let hh = items.next().ok_or(ParsingError::DatetimeFormat)?;
+    let hh = hh
+        .parse::<u8>()
+        .map_err(|_| ParsingError::DatetimeParsing)?;
+
+    let mm = items.next().ok_or(ParsingError::DatetimeFormat)?;
+    let mm = mm.parse::<u8>().map_err(|_| ParsingError::DatetimeFormat)?;
+
+    let ss = items.next().ok_or(ParsingError::DatetimeParsing)?;
 
     let secs: u8;
     let mut nanos = 0_u32;
@@ -220,16 +168,16 @@ fn parse_validity_epoch(content: &str) -> Result<Epoch, Error> {
         secs = ss[..dot]
             .trim()
             .parse::<u8>()
-            .map_err(|_| Error::DatetimeSecondsParsing)?;
+            .map_err(|_| ParsingError::DatetimeParsing)?;
 
         nanos = ss[dot + 1..]
             .trim()
             .parse::<u32>()
-            .map_err(|_| Error::DatetimeNanosParsing)?;
+            .map_err(|_| ParsingError::DatetimeParsing)?;
     } else {
         secs = ss
             .parse::<u8>()
-            .map_err(|_| Error::DatetimeSecondsParsing)?;
+            .map_err(|_| ParsingError::DatetimeParsing)?;
     }
 
     Ok(Epoch::from_gregorian_utc(
@@ -241,7 +189,7 @@ fn parse_validity_epoch(content: &str) -> Result<Epoch, Error> {
 /// and all inner frequency entries
 pub(crate) fn parse_antenna(
     content: &str,
-) -> Result<(Antenna, HashMap<Carrier, FrequencyDependentData>), Error> {
+) -> Result<(Antenna, HashMap<Carrier, FrequencyDependentData>), ParsingError> {
     let lines = content.lines();
     let mut antenna = Antenna::default();
     let mut inner = HashMap::<Carrier, FrequencyDependentData>::new();
@@ -265,7 +213,7 @@ pub(crate) fn parse_antenna(
                 false => AntennaSpecific::SvAntenna(SvAntenna {
                     igs_type: ant_igs.trim().to_string(),
                     sv: SV::from_str(block1)?,
-                    cospar: Cospar::from_str(block3)?,
+                    cospar: COSPAR::from_str(block3)?,
                 }),
                 true => AntennaSpecific::RxAntenna(RxAntenna {
                     igs_type: ant_igs.trim().to_string(),
@@ -290,7 +238,7 @@ pub(crate) fn parse_antenna(
                 number: number
                     .trim()
                     .parse::<u16>()
-                    .map_err(|_| Error::NumberOfCalibratedAntennasParsing)?,
+                    .map_err(|_| ParsingError::AntexAntennaCalibrationNumber)?,
                 agency: agency.trim().to_string(),
                 date: parse_datetime(date.trim())?,
                 validity_period: None,
@@ -305,6 +253,7 @@ pub(crate) fn parse_antenna(
             antenna = antenna.with_validity_period(valid_from, valid_until);
         } else if marker.contains("SINEX CODE") {
             let sinex = content.split_at(20).0;
+
             antenna.sinex_code = sinex.trim().to_string();
         } else if marker.contains("DAZI") {
             //let dazi = content.split_at(20).0.trim();
@@ -319,23 +268,26 @@ pub(crate) fn parse_antenna(
         } else if marker.contains("START OF FREQUENCY") {
             let svnn = content.split_at(10).0;
             let sv = SV::from_str(svnn.trim())?;
-            frequency = carrier::Carrier::from_sv(sv)?;
+            frequency = Carrier::from_sv(sv)?;
         } else if marker.contains("NORTH / EAST / UP") {
             let (north, rem) = content.split_at(10);
             let (east, rem) = rem.split_at(10);
             let (up, _) = rem.split_at(10);
+
             let north = north
                 .trim()
                 .parse::<f64>()
-                .map_err(|_| Error::APCNorthernCoordinatesParsing)?;
+                .map_err(|_| ParsingError::AntexAPCCoordinates)?;
+
             let east = east
                 .trim()
                 .parse::<f64>()
-                .map_err(|_| Error::APCEasternCoordinatesParsing)?;
+                .map_err(|_| ParsingError::AntexAPCCoordinates)?;
+
             let up = up
                 .trim()
                 .parse::<f64>()
-                .map_err(|_| Error::APCUpperCoordinatesParsing)?;
+                .map_err(|_| ParsingError::AntexAPCCoordinates)?;
 
             freq_data.apc_eccentricity = (north, east, up);
         } else if marker.contains("ZEN1 / ZEN2 / DZEN") {
@@ -346,15 +298,17 @@ pub(crate) fn parse_antenna(
             let start = start
                 .trim()
                 .parse::<f64>()
-                .map_err(|_| Error::ZenithGridStartParsing)?;
+                .map_err(|_| ParsingError::AntexZenithGrid)?;
+
             let end = end
                 .trim()
                 .parse::<f64>()
-                .map_err(|_| Error::ZenithGridEndParsing)?;
+                .map_err(|_| ParsingError::AntexZenithGrid)?;
+
             let spacing = spacing
                 .trim()
                 .parse::<f64>()
-                .map_err(|_| Error::ZenithGridSpacingParsing)?;
+                .map_err(|_| ParsingError::AntexZenithGrid)?;
 
             antenna.zenith_grid = Linspace {
                 start,
@@ -383,47 +337,6 @@ pub(crate) fn parse_antenna(
     }
 
     Ok((antenna, inner))
-}
-
-impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (antenna, subset) in rhs.iter() {
-            for (carrier, freqdata) in subset.iter() {
-                /*
-                 * determine whether self contains this antenna & signal or not
-                 */
-                let mut has_ant = false;
-                let mut has_signal = false;
-                for (lhs_ant, subset) in self.iter_mut() {
-                    if lhs_ant == antenna {
-                        has_ant |= true;
-                        for (lhs_carrier, _) in subset.iter_mut() {
-                            if lhs_carrier == carrier {
-                                has_signal |= true;
-                                break;
-                            }
-                        }
-                        if !has_signal {
-                            subset.insert(*carrier, freqdata.clone());
-                        }
-                    }
-                }
-                if !has_ant {
-                    let mut inner = HashMap::<Carrier, FrequencyDependentData>::new();
-                    inner.insert(*carrier, freqdata.clone());
-                    self.push((antenna.clone(), inner));
-                }
-            }
-        }
-        Ok(())
-    }
 }
 
 #[cfg(test)]
