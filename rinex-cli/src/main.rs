@@ -2,15 +2,13 @@
 //! Refer to README for command line arguments.    
 //! Homepage: <https://github.com/georust/rinex-cli>
 
-//mod analysis; // basic analysis
 mod cli; // command line interface
-mod fops;
-mod positioning;
+mod fops; // file operations
+mod positioning; // post processed positioning
+mod preprocessing; // preprocessing
+mod report; // custom reports
 
-mod preprocessing;
 use preprocessing::preprocess;
-
-mod report;
 use report::Report;
 
 use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
@@ -81,32 +79,67 @@ fn user_data_parsing(
     for dir in directories.iter() {
         let walkdir = WalkDir::new(dir).max_depth(max_depth);
         for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
-            if !entry.path().is_dir() {
-                let path = entry.path();
-                if let Ok(rinex) = Rinex::from_file(path) {
-                    let loading = ctx.load_rinex(path, rinex);
-                    if loading.is_ok() {
-                        info!("Loading RINEX file \"{}\"", path.display());
+            let path = entry.path();
+
+            if !path.is_dir() {
+                let extension = path
+                    .extension()
+                    .unwrap_or_else(|| {
+                        panic!("failed to determine file extension: \"{}\"", path.display())
+                    })
+                    .to_string_lossy()
+                    .to_string();
+
+                if extension == "gz" {
+                    if let Ok(rinex) = Rinex::from_gzip_file(path) {
+                        let loading = ctx.load_rinex(path, rinex);
+                        if loading.is_ok() {
+                            info!("Loading RINEX file \"{}\"", path.display());
+                        } else {
+                            warn!(
+                                "failed to load RINEX file \"{}\": {}",
+                                path.display(),
+                                loading.err().unwrap()
+                            );
+                        }
+                    } else if let Ok(sp3) = SP3::from_path(path) {
+                        let loading = ctx.load_sp3(path, sp3);
+                        if loading.is_ok() {
+                            info!("Loading SP3 file \"{}\"", path.display());
+                        } else {
+                            warn!(
+                                "failed to load SP3 file \"{}\": {}",
+                                path.display(),
+                                loading.err().unwrap()
+                            );
+                        }
                     } else {
-                        warn!(
-                            "failed to load RINEX file \"{}\": {}",
-                            path.display(),
-                            loading.err().unwrap()
-                        );
-                    }
-                } else if let Ok(sp3) = SP3::from_path(path) {
-                    let loading = ctx.load_sp3(path, sp3);
-                    if loading.is_ok() {
-                        info!("Loading SP3 file \"{}\"", path.display());
-                    } else {
-                        warn!(
-                            "failed to load SP3 file \"{}\": {}",
-                            path.display(),
-                            loading.err().unwrap()
-                        );
+                        warn!("non supported file format \"{}\"", path.display());
                     }
                 } else {
-                    warn!("non supported file format \"{}\"", path.display());
+                    if let Ok(rinex) = Rinex::from_file(path) {
+                        let loading = ctx.load_rinex(path, rinex);
+                        if loading.is_ok() {
+                            info!("Loading RINEX file \"{}\"", path.display());
+                        } else {
+                            warn!(
+                                "failed to load RINEX file \"{}\": {}",
+                                path.display(),
+                                loading.err().unwrap()
+                            );
+                        }
+                    } else if let Ok(sp3) = SP3::from_path(path) {
+                        let loading = ctx.load_sp3(path, sp3);
+                        if loading.is_ok() {
+                            info!("Loading SP3 file \"{}\"", path.display());
+                        } else {
+                            warn!(
+                                "failed to load SP3 file \"{}\": {}",
+                                path.display(),
+                                loading.err().unwrap()
+                            );
+                        }
+                    }
                 }
             }
         }
