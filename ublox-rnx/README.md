@@ -1,10 +1,10 @@
-Ublox-rnx 
-=========
+UBX2RNX
+=======
 
-Efficient RINEX data production by connecting to a `Ublox` receiver
+Efficient RINEX data production from U-Blox GNSS receiver.
 
 ```shell
-ublox-rnx --port /dev/ttyUSB0 --baud 9600 --obs --nav
+ubx2rnx --port /dev/ttyUSB0 --baud 9600 --obs --nav
 ```
 
 This tool currently only works on GPS constellation.
