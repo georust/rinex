@@ -42,7 +42,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     let obs_data = ctx.data.observation().unwrap();
 
     let mut candidates = Vec::<Candidate>::with_capacity(4);
-    let mut sv_observations = HashMap::<SV, Observation>::new();
+    let mut sv_observations = HashMap::<SV, Vec<Observation>>::new();
 
     // TODO: RTK
     let mut remote_observations = Vec::<Observation>::new();
@@ -58,7 +58,67 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
 
         if let Some(past_t) = past_epoch {
             if t != past_t {
-                // Attempt solving on new Epoch
+                // New epoch: solving attempt
+                for (sv, observations) in sv_observations.iter() {
+                    // Create new candidate
+                    let mut cd = Candidate::new(*sv, past_t, observations.clone());
+
+                    // candidate "fixup" and customizations
+                    match clock.next_clock_at(past_t, *sv) {
+                        Some(dt) => cd.set_clock_correction(dt),
+                        None => error!("{} ({}) - no clock correction available", past_t, *sv),
+                    }
+
+                    if let Some((_, _, eph)) = eph.borrow_mut().select(past_t, *sv) {
+                        if let Some(tgd) = eph.tgd() {
+                            debug!("{} ({}) - tgd: {}", past_t, *sv, tgd);
+                            cd.set_group_delay(tgd);
+                        }
+                    }
+
+                    let tropo = TropoComponents::Unknown;
+                    cd.set_tropo_components(tropo);
+
+                    let mut iono = IonoComponents::Unknown;
+
+                    match ctx.data.brdc_navigation() {
+                        Some(brdc) => {
+                            if let Some(model) = kb_model(brdc, past_t) {
+                                iono = IonoComponents::KbModel(model);
+                            } else if let Some(model) = ng_model(brdc, past_t) {
+                                iono = IonoComponents::NgModel(model);
+                            } else if let Some(model) = bd_model(brdc, past_t) {
+                                iono = IonoComponents::BdModel(model);
+                            }
+                        },
+                        None => {
+                            cd.set_iono_components(IonoComponents::Unknown);
+                        },
+                    }
+
+                    match iono {
+                        IonoComponents::Unknown => {
+                            warn!("{} ({}) - undefined ionosphere parameters", past_t, *sv)
+                        },
+                        IonoComponents::KbModel(_) => info!(
+                            "{} ({}) - using KLOBUCHAR ionosphere parameters",
+                            past_t, *sv
+                        ),
+                        IonoComponents::NgModel(_) => info!(
+                            "{} ({}) - using NEQUICK-G ionosphere parameters",
+                            past_t, *sv
+                        ),
+                        IonoComponents::BdModel(_) => {
+                            info!("{} ({}) - using BDGIM ionosphere parameters", past_t, *sv)
+                        },
+                        _ => {},
+                    }
+
+                    cd.set_iono_components(iono);
+
+                    candidates.push(cd);
+                }
+
                 match solver.resolve(t, &candidates) {
                     Ok((t, pvt)) => {
                         solutions.insert(t, pvt);
@@ -72,91 +132,57 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
             }
         }
 
-        if let Some((_, sv_observation)) = sv_observations
+        if let Some((_, observations)) = sv_observations
             .iter_mut()
             .filter(|(k, _)| **k == signal.sv)
             .reduce(|k, _| k)
         {
-            match signal.observable {
-                Observable::PhaseRange(_) => {
-                    sv_observation.set_ambiguous_phase_range(signal.value);
-                },
-                Observable::PseudoRange(_) => {
-                    sv_observation.set_pseudo_range(signal.value);
-                },
-                Observable::Doppler(_) => {
-                    sv_observation.set_doppler(signal.value);
-                },
-                _ => {},
+            if let Some(observation) = observations
+                .iter_mut()
+                .filter(|k| k.carrier == rtk_carrier)
+                .reduce(|k, _| k)
+            {
+                match signal.observable {
+                    Observable::PhaseRange(_) => {
+                        observation.set_ambiguous_phase_range(signal.value);
+                    },
+                    Observable::PseudoRange(_) => {
+                        observation.set_pseudo_range(signal.value);
+                    },
+                    Observable::Doppler(_) => {
+                        observation.set_doppler(signal.value);
+                    },
+                    _ => {},
+                }
+            } else {
             }
         } else {
             match signal.observable {
                 Observable::PhaseRange(_) => {
                     sv_observations.insert(
-                        sv,
-                        Observation::ambiguous_phase_range(rtk_carrier, signal.value),
+                        signal.sv,
+                        vec![Observation::ambiguous_phase_range(
+                            rtk_carrier,
+                            signal.value,
+                            None,
+                        )],
                     );
                 },
-                Observable::PseudoRange(_) => {},
-                Observable::Doppler(_) => {},
+                Observable::PseudoRange(_) => {
+                    sv_observations.insert(
+                        signal.sv,
+                        vec![Observation::pseudo_range(rtk_carrier, signal.value, None)],
+                    );
+                },
+                Observable::Doppler(_) => {
+                    sv_observations.insert(
+                        signal.sv,
+                        vec![Observation::doppler(rtk_carrier, signal.value, None)],
+                    );
+                },
                 _ => {},
             }
         }
-
-        // if let Some(lli) = signal.lli {
-        //     if lli != LliFlags::OK_OR_UNKNOWN {
-        //         // TODO : manage this event
-        //         warn!("{}({}) - {:?}", t, signal.sv, lli);
-        //     }
-        // }
-
-        // // create [Candidate]
-        // let mut candidate = Candidate::new(*sv, *t, observations.clone());
-
-        // // customization: clock corr
-        // match clock.next_clock_at(*t, *sv) {
-        //     Some(dt) => {
-        //         candidate.set_clock_correction(dt);
-        //     },
-        //     None => {
-        //         error!("{} ({}) - no clock correction available", *t, *sv);
-        //     },
-        // }
-        // // customization: TGD
-        // if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
-        //     if let Some(tgd) = eph.tgd() {
-        //         debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
-        //         candidate.set_group_delay(tgd);
-        //     }
-        // }
-        // // customization: Tropo
-        // // TODO (Meteo)
-        // let tropo = TropoComponents::Unknown;
-        // candidate.set_tropo_components(tropo);
-
-        // // customization: Iono
-        // match ctx.data.brdc_navigation() {
-        //     Some(brdc) => {
-        //         if let Some(model) = kb_model(brdc, *t) {
-        //             candidate.set_iono_components(IonoComponents::KbModel(model));
-        //         } else if let Some(model) = ng_model(brdc, *t) {
-        //             candidate.set_iono_components(IonoComponents::NgModel(model));
-        //         } else if let Some(model) = bd_model(brdc, *t) {
-        //             candidate.set_iono_components(IonoComponents::BdModel(model));
-        //         } else {
-        //             //TODO STEC/IONEX
-        //             candidate.set_iono_components(IonoComponents::Unknown);
-        //         }
-        //     },
-        //     None => {
-        //         candidate.set_iono_components(IonoComponents::Unknown);
-        //     },
-        // }
-        // // Customization: Remote
-        // if !remote_observations.is_empty() {
-        //     candidate.set_remote_observations(remote_observations);
-        // }
-        // candidates.push(candidate);
 
         past_epoch = Some(t);
     }
