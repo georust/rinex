@@ -5,12 +5,16 @@ use std::{
     str::FromStr,
 };
 
-use anise::math::Matrix6;
+use anise::{
+    math::Vector6,
+    prelude::{Frame, Orbit},
+};
+
 use itertools::Itertools;
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 
-use rinex::prelude::nav::Orbit;
+use rinex::prelude::Epoch;
 use rinex_qc::prelude::{QcConfig, QcContext, QcReportType};
 
 mod fops;
@@ -394,26 +398,31 @@ Otherwise it gets automatically picked up."))
         self.matches.get_flag("zero-repair")
     }
 
-    // /// Parse 3D coordinates (infaillible)
-    // fn parse_3d_coordinates(desc: &String) -> (f64, f64, f64) {
-    //     let content = desc.split(',').collect::<Vec<&str>>();
-    //     if content.len() < 3 {
-    //         panic!("expecting x, y and z coordinates (3D)");
-    //     }
-    //     let x = f64::from_str(content[0].trim())
-    //         .unwrap_or_else(|_| panic!("failed to parse x coordinates"));
-    //     let y = f64::from_str(content[1].trim())
-    //         .unwrap_or_else(|_| panic!("failed to parse y coordinates"));
-    //     let z = f64::from_str(content[2].trim())
-    //         .unwrap_or_else(|_| panic!("failed to parse z coordinates"));
-    //     (x, y, z)
-    // }
+    /// Parse 3D coordinates (tuplets)
+    fn parse_3d_coordinates(desc: &String) -> (f64, f64, f64) {
+        let content = desc.split(',').collect::<Vec<&str>>();
+        if content.len() < 3 {
+            panic!("expecting x, y and z coordinates (3D)");
+        }
 
-    // fn manual_ecef_km(&self) -> Option<(f64, f64, f64)> {
-    //     let desc = self.matches.get_one::<String>("rx-ecef")?;
-    //     let ecef = Self::parse_3d_coordinates(desc);
-    //     Some(ecef)
-    // }
+        let x = f64::from_str(content[0].trim())
+            .unwrap_or_else(|e| panic!("failed to parse x coordinates: {}", e));
+
+        let y = f64::from_str(content[1].trim())
+            .unwrap_or_else(|e| panic!("failed to parse y coordinates: {}", e));
+
+        let z = f64::from_str(content[2].trim())
+            .unwrap_or_else(|e| panic!("failed to parse z coordinates: {}", e));
+
+        (x, y, z)
+    }
+
+    /// Returns possible ECEF km triplet manually defined
+    fn manual_ecef_km(&self) -> Option<(f64, f64, f64)> {
+        let desc = self.matches.get_one::<String>("rx-ecef")?;
+        let ecef = Self::parse_3d_coordinates(desc);
+        Some(ecef)
+    }
 
     // fn manual_geodetic_ddeg(&self) -> Option<(f64, f64, f64)> {
     //     let desc = self.matches.get_one::<String>("rx-geo")?;
@@ -421,15 +430,16 @@ Otherwise it gets automatically picked up."))
     //     Some(geo)
     // }
 
-    // /// Returns RX Position possibly specified by user, in km ECEF.
-    // pub fn manual_rx_orbit(&self) -> Option<Orbit> {
-    //     if let Some(position) = self.manual_ecef_km() {
-    //         Some(Orbit::from_cartesian_pos_vel(pos_vel, epoch, frame))
-    //     } else {
-    //         let (lat_ddeg, long_ddeg, alt_km) = self.manual_geodetic_ddeg()?;
-    //         panic!("rx-geo is not feasible yet: prefer rx-ecef after conversion to ECEF");
-    //     }
-    // }
+    /// Returns RX Position possibly specified by user, in km ECEF.
+    pub fn manual_rx_orbit(&self, epoch: Epoch, frame: Frame) -> Option<Orbit> {
+        if let Some((x0_km, y0_km, z0_km)) = self.manual_ecef_km() {
+            let pos_vel = Vector6::new(x0_km, y0_km, z0_km, 0.0, 0.0, 0.0);
+            Some(Orbit::from_cartesian_pos_vel(pos_vel, epoch, frame))
+        } else {
+            // let (lat_ddeg, long_ddeg, alt_km) = self.manual_geodetic_ddeg()?;
+            panic!("rx-geo is not feasible yet: prefer rx-ecef after conversion to ECEF");
+        }
+    }
 
     /// True if File Operations to generate data is being deployed
     pub fn has_fops_output_product(&self) -> bool {
@@ -447,11 +457,7 @@ Otherwise it gets automatically picked up."))
         self.matches.get_flag("report-force")
     }
 
-    /*
-     * We hash all vital CLI information.
-     * This helps in determining whether we need to update an existing report
-     * or not.
-     */
+    /// Hash all critical parameters, defining a user session uniquely
     pub fn hash(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
         let mut string = self

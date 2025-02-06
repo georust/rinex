@@ -144,29 +144,61 @@ fn user_data_parsing(
             }
         }
     }
+
     // load individual files
     for fp in single_files.iter() {
         let path = Path::new(fp);
-        if let Ok(rinex) = Rinex::from_file(path) {
-            let loading = ctx.load_rinex(path, rinex);
-            if loading.is_err() {
-                warn!(
-                    "failed to load RINEX file \"{}\": {}",
-                    path.display(),
-                    loading.err().unwrap()
-                );
-            }
-        } else if let Ok(sp3) = SP3::from_path(path) {
-            let loading = ctx.load_sp3(path, sp3);
-            if loading.is_err() {
-                warn!(
-                    "failed to load SP3 file \"{}\": {}",
-                    path.display(),
-                    loading.err().unwrap()
-                );
+
+        let extension = path
+            .extension()
+            .unwrap_or_else(|| panic!("failed to determine file extension: \"{}\"", path.display()))
+            .to_string_lossy()
+            .to_string();
+
+        if extension == "gz" {
+            if let Ok(rinex) = Rinex::from_gzip_file(path) {
+                let loading = ctx.load_rinex(path, rinex);
+                if loading.is_err() {
+                    warn!(
+                        "failed to load RINEX file \"{}\": {}",
+                        path.display(),
+                        loading.err().unwrap()
+                    );
+                }
+            } else if let Ok(sp3) = SP3::from_path(path) {
+                let loading = ctx.load_sp3(path, sp3);
+                if loading.is_err() {
+                    warn!(
+                        "failed to load SP3 file \"{}\": {}",
+                        path.display(),
+                        loading.err().unwrap()
+                    );
+                }
+            } else {
+                warn!("non supported file format \"{}\"", path.display());
             }
         } else {
-            warn!("non supported file format \"{}\"", path.display());
+            if let Ok(rinex) = Rinex::from_file(path) {
+                let loading = ctx.load_rinex(path, rinex);
+                if loading.is_err() {
+                    warn!(
+                        "failed to load RINEX file \"{}\": {}",
+                        path.display(),
+                        loading.err().unwrap()
+                    );
+                }
+            } else if let Ok(sp3) = SP3::from_path(path) {
+                let loading = ctx.load_sp3(path, sp3);
+                if loading.is_err() {
+                    warn!(
+                        "failed to load SP3 file \"{}\": {}",
+                        path.display(),
+                        loading.err().unwrap()
+                    );
+                }
+            } else {
+                warn!("non supported file format \"{}\"", path.display());
+            }
         }
     }
     /*
@@ -190,7 +222,7 @@ fn user_data_parsing(
     ctx
 }
 
-// Determine and store RX (ECEF) position
+// Possibly parse & define RX ECEF position (from user input)
 // Either manually defined by User
 //    this is useful in case not a single file has such information
 //    or we want to use a custom location
