@@ -290,14 +290,14 @@ Null NAV RINEX content is also invalid by definition."))
             .next_help_heading("Receiver Antenna")
                 .arg(Arg::new("rx-ecef")
                     .long("rx-ecef")
-                    .value_name("\"x,y,z\" coordinates in ECEF [m]")
-                    .help("Define the (RX) antenna position manually, in [m] ECEF.
+                    .value_name("\"x,y,z\" coordinates in ECEF !!KM!!")
+                    .help("Define the (RX) antenna position manually, in kilometers ECEF.
 Especially if your dataset does not define such position. 
 Otherwise it gets automatically picked up."))
                 .arg(Arg::new("rx-geo")
                     .long("rx-geo")
-                    .value_name("\"lat,lon,alt\" coordinates in ddeg [°]")
-                    .help("Define the (RX) antenna position manualy, in decimal degrees."))
+                    .value_name("\"lat,lon,alt\" Units: (ddeg, ddeg, !!KM!!)")
+                    .help("Define the (RX) antenna position manualy, in decimal degrees and kilometers."))
                 .next_help_heading("Exclusive Opmodes: you can only run one at a time.")
                 .subcommand(filegen::subcommand());
 
@@ -424,11 +424,11 @@ Otherwise it gets automatically picked up."))
         Some(ecef)
     }
 
-    // fn manual_geodetic_ddeg(&self) -> Option<(f64, f64, f64)> {
-    //     let desc = self.matches.get_one::<String>("rx-geo")?;
-    //     let geo = Self::parse_3d_coordinates(desc);
-    //     Some(geo)
-    // }
+    fn manual_geodetic_ddeg_ddeg_km(&self) -> Option<(f64, f64, f64)> {
+        let desc = self.matches.get_one::<String>("rx-geo")?;
+        let geo = Self::parse_3d_coordinates(desc);
+        Some(geo)
+    }
 
     /// Returns RX Position possibly specified by user, in km ECEF.
     pub fn manual_rx_orbit(&self, epoch: Epoch, frame: Frame) -> Option<Orbit> {
@@ -436,8 +436,9 @@ Otherwise it gets automatically picked up."))
             let pos_vel = Vector6::new(x0_km, y0_km, z0_km, 0.0, 0.0, 0.0);
             Some(Orbit::from_cartesian_pos_vel(pos_vel, epoch, frame))
         } else {
-            // let (lat_ddeg, long_ddeg, alt_km) = self.manual_geodetic_ddeg()?;
-            panic!("rx-geo is not feasible yet: prefer rx-ecef after conversion to ECEF");
+            let (lat_ddeg, long_ddeg, alt_km) = self.manual_geodetic_ddeg_ddeg_km()?;
+            panic!("rx-geo not available yet. Prefer rx-ecef with conversion to ECEF first");
+            // Some(Orbit::from_latlongalt(lat_ddeg, long_ddeg, alt_km))
         }
     }
 

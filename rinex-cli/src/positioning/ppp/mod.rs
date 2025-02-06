@@ -48,6 +48,14 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     let mut remote_observations = Vec::<Observation>::new();
 
     for (t, signal) in obs_data.signal_observations_sampling_ok_iter() {
+        let carrier = Carrier::from_observable(signal.sv.constellation, &signal.observable);
+        if carrier.is_err() {
+            continue;
+        }
+
+        let carrier = carrier.unwrap();
+        let rtk_carrier = cast_rtk_carrier(carrier);
+
         if let Some(past_t) = past_epoch {
             if t != past_t {
                 // Attempt solving on new Epoch
@@ -64,30 +72,36 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
             }
         }
 
-        // match signal.observable {
-        //     Observable::PhaseRange(_) => {
-        //         if let Some(obs) = sv_observations
-        //             .iter_mut()
-        //             .filter(|(k, v)| k == rtk_carrier)
-        //             .reduce(|k, _| k)
-        //         {
-        //             obs.set_ambiguous_phase_range(data.obs);
-        //         } else {
-        //             observations.push(Observation::ambiguous_phase_range(
-        //                 rtk_carrier,
-        //                 data.obs,
-        //                 data.snr.map(|snr| snr.into()),
-        //             ));
-        //         }
-        //     },
-        //     Observable::Doppler(_) => {
-        //     },
-        //     Observable::PseudoRange(_) => {
-        //     },
-        //     _ => {
-        //         continue; // not interesting in this section
-        //     }
-        // }
+        if let Some((_, sv_observation)) = sv_observations
+            .iter_mut()
+            .filter(|(k, _)| **k == signal.sv)
+            .reduce(|k, _| k)
+        {
+            match signal.observable {
+                Observable::PhaseRange(_) => {
+                    sv_observation.set_ambiguous_phase_range(signal.value);
+                },
+                Observable::PseudoRange(_) => {
+                    sv_observation.set_pseudo_range(signal.value);
+                },
+                Observable::Doppler(_) => {
+                    sv_observation.set_doppler(signal.value);
+                },
+                _ => {},
+            }
+        } else {
+            match signal.observable {
+                Observable::PhaseRange(_) => {
+                    sv_observations.insert(
+                        sv,
+                        Observation::ambiguous_phase_range(rtk_carrier, signal.value),
+                    );
+                },
+                Observable::PseudoRange(_) => {},
+                Observable::Doppler(_) => {},
+                _ => {},
+            }
+        }
 
         // if let Some(lli) = signal.lli {
         //     if lli != LliFlags::OK_OR_UNKNOWN {
@@ -95,14 +109,6 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
         //         warn!("{}({}) - {:?}", t, signal.sv, lli);
         //     }
         // }
-
-        // let carrier = Carrier::from_observable(signal.sv.constellation, signal.observable);
-        // if carrier.is_err() {
-        //     continue ;
-        // }
-
-        // let carrier = carrier.unwrap();
-        // let rtk_carrier = cast_rtk_carrier(carrier);
 
         // // create [Candidate]
         // let mut candidate = Candidate::new(*sv, *t, observations.clone());
