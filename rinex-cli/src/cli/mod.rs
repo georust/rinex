@@ -6,6 +6,7 @@ use std::{
 };
 
 use anise::{
+    constants::usual_planetary_constants::MEAN_EARTH_ANGULAR_VELOCITY_DEG_S,
     math::Vector6,
     prelude::{Frame, Orbit},
 };
@@ -437,8 +438,16 @@ Otherwise it gets automatically picked up."))
             Some(Orbit::from_cartesian_pos_vel(pos_vel, epoch, frame))
         } else {
             let (lat_ddeg, long_ddeg, alt_km) = self.manual_geodetic_ddeg_ddeg_km()?;
-            panic!("rx-geo not available yet. Prefer rx-ecef with conversion to ECEF first");
-            // Some(Orbit::from_latlongalt(lat_ddeg, long_ddeg, alt_km))
+            let orbit = Orbit::try_latlongalt(
+                lat_ddeg,
+                long_ddeg,
+                alt_km,
+                MEAN_EARTH_ANGULAR_VELOCITY_DEG_S,
+                epoch,
+                frame,
+            )
+            .unwrap_or_else(|e| panic!("physical error: {}", e));
+            Some(orbit)
         }
     }
 
