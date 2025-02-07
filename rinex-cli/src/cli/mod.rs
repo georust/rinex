@@ -60,11 +60,9 @@ pub struct Context {
     /// $WORKSPACE is either manually definedd by CLI or we create it (as is).
     /// $PRIMARYFILE is determined from the most major file contained in the dataset.
     pub workspace: Workspace,
-    /// (RX) reference position to be used in further analysis.
-    /// It is either (priority order is important)
-    ///  1. manually defined by CLI
-    ///  2. determined from dataset
-    pub rx_ecef: Option<(f64, f64, f64)>,
+    /// (RX) [Orbit] to use, whether is was automatically picked up,
+    /// or manually overwritten.
+    pub rx_orbit: Option<Orbit>,
 }
 
 impl Context {
@@ -87,24 +85,12 @@ impl Context {
         let primary_stem: Vec<&str> = ctx_major_stem.split('.').collect();
         primary_stem[0].to_string()
     }
-    /*
-     * Utility to create a file in this session
-     */
+
+    /// Creates file within session workspace
     fn create_file(&self, path: &Path) -> std::fs::File {
         std::fs::File::create(path).unwrap_or_else(|e| {
             panic!("failed to create {}: {:?}", path.display(), e);
         })
-    }
-    // Returns True if this context is compatible with RTK positioning
-    pub fn rtk_compatible(&self) -> bool {
-        if let Some(remote) = &self.reference_site {
-            self.data.observation().is_some()
-                && self.rx_ecef.is_some()
-                && remote.data.observation().is_some()
-                && remote.rx_ecef.is_some()
-        } else {
-            false
-        }
     }
 }
 

@@ -62,9 +62,7 @@ pub enum Error {
     CsvError(#[from] CsvError),
 }
 
-/*
- * Parses and preprepocess all files passed by User
- */
+/// Parses and preprepocess all files passed by User
 fn user_data_parsing(
     cli: &Cli,
     single_files: Vec<&String>,
@@ -201,9 +199,8 @@ fn user_data_parsing(
             }
         }
     }
-    /*
-     * Preprocessing
-     */
+
+    /// Preprocessing
     preprocess(&mut ctx, cli);
 
     match cli.matches.subcommand() {
@@ -222,65 +219,9 @@ fn user_data_parsing(
     ctx
 }
 
-// Possibly parse & define RX ECEF position (from user input)
-// Either manually defined by User
-//    this is useful in case not a single file has such information
-//    or we want to use a custom location
-// Or with smart determination from all previously parsed data
-//    this is useful in case we don't want to bother
-//    but we must be sure that the OBSRINEX describes the correct location
-fn user_manual_rx_orbit(_: &Cli, _: &QcContext) -> Option<Orbit> {
-    // let rx_ecef = match cli.manual_position() {
-    //     Some((x, y, z)) => {
-    //         let (lat, lon, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-    //         let (lat_ddeg, lon_ddeg) = (lat.to_degrees(), lon.to_degrees());
-    //         info!(
-    //             "Manually defined position: {:?} [ECEF] (lat={:.5}°, lon={:.5}°)",
-    //             (x, y, z),
-    //             lat_ddeg,
-    //             lon_ddeg
-    //         );
-    //         Some((x, y, z))
-    //     },
-    //     None => {
-    //         if let Some(ctx_orbit) = ctx_orbit {
-    //             let pos_vel = ctx_orbit.to_cartesian_pos_vel();
-    //             let (x0_km, y0_km, z0_km) = (pos_vel[0], pos_vel[1], pos_vel[2]);
-
-    //             let (lat, lon, _) = ecef2geodetic(
-    //                 x0_km * 1.0E3,
-    //                 y0_km * 1.0E3,
-    //                 z0_km * 1.0E3,
-    //                 Ellipsoid::WGS84,
-    //             );
-
-    //             let (lat_ddeg, lon_ddeg) = (lat.to_degrees(), lon.to_degrees());
-
-    //             info!(
-    //                 "Position defined in dataset: {:.3E}km, {:.3E}km, {:.3E}km  [ECEF] (lat={:.5}°, lon={:.5}°)",
-    //                 x0_km, y0_km, z0_km,
-    //                 lat_ddeg,
-    //                 lon_ddeg
-    //             );
-
-    //             Some((x0_km * 1.0E3, y0_km * 1.0E3, z0_km * 1.0E3))
-    //         } else {
-    //             /*
-    //              * Dataset does not contain any position,
-    //              * and User did not specify any.
-    //              * This is not problematic unless user is interested in
-    //              * advanced operations, which will most likely fail soon or later.
-    //              */
-    //             warn!("No RX position defined");
-    //             None
-    //         }
-    //     },
-    // };
-    None
-}
-
 pub fn main() -> Result<(), Error> {
     let mut builder = Builder::from_default_env();
+
     builder
         .target(Target::Stdout)
         .format_timestamp_secs()
@@ -306,11 +247,22 @@ pub fn main() -> Result<(), Error> {
     let ctx_orbit = data_ctx.reference_rx_orbit();
     let ctx_stem = Context::context_stem(&mut data_ctx);
 
-    let rx_orbit = user_manual_rx_orbit(&cli, &data_ctx);
-
-    // Form context
+    // Input context
     let ctx = Context {
         name: ctx_stem.clone(),
+        rx_orbit: {
+            // possible reference point
+            if let Some(rx_orbit) = data_ctx.reference_rx_orbit() {
+                let posvel = rx_orbit.to_cartesian_pos_vel();
+                let (x0_km, y0_km, z0_km) = (posvel[0], posvel[1], posvel[2]);
+                let (lat_ddeg, long_ddeg, _) = rx_orbit
+                    .latlongalt()
+                    .unwrap_or_else(|e| panic!("latlongalt - physical error: {}", e));
+                info!("reference point identified: {:.5E}km, {:.5E}km, {:.5E}km (lat={:.5}°, long={:.5}°)", x0_km, y0_km, z0_km, lat_ddeg, long_ddeg);
+            } else {
+                warn!("no reference point identifed");
+            }
+        },
         data: data_ctx,
         reference_site: {
             match cli.matches.subcommand() {
@@ -333,18 +285,50 @@ pub fn main() -> Result<(), Error> {
         },
         quiet: cli.matches.get_flag("quiet"),
         workspace: Workspace::new(&ctx_stem, &cli),
-        rx_ecef: None,
     };
 
-    // On File Operations (Data synthesis)
-    //  prepare one subfolder to store the output products
+    // ground reference point
+    match ctx.rx_orbit {
+        Some(orbit) => {
+            if let Some(obs_rinex) = ctx.data.observation() {
+                if let Some(t0) = obs_rinex.first_epoch() {
+                    if let Some(rx_orbit) = cli.manual_rx_orbit(t0, ctx.data.earth_cef) {
+                        let posvel = rx_orbit.to_cartesian_pos_vel();
+                        let (x0_km, y0_km, z0_km) = (posvel[0], posvel[1], posvel[2]);
+                        let (lat_ddeg, long_ddeg, _) = rx_orbit
+                            .latlongalt()
+                            .unwrap_or_else(|e| panic!("latlongalt - physical error: {}", e));
+                        info!("reference point manually overwritten: {:.5E}km, {:.5E}km, {:.5E}km (lat={:.5}°, long={:.5}°)", x0_km, y0_km, z0_km, lat_ddeg, long_ddeg);
+                        ctx.rx_orbit = Some(rx_orbit);
+                    }
+                }
+            }
+        },
+        None => {
+            if let Some(obs_rinex) = ctx.data.observation() {
+                if let Some(t0) = obs_rinex.first_epoch() {
+                    if let Some(rx_orbit) = cli.manual_rx_orbit(t0, ctx.data.earth_cef) {
+                        let posvel = rx_orbit.to_cartesian_pos_vel();
+                        let (x0_km, y0_km, z0_km) = (posvel[0], posvel[1], posvel[2]);
+                        let (lat_ddeg, long_ddeg, _) = rx_orbit
+                            .latlongalt()
+                            .unwrap_or_else(|e| panic!("latlongalt - physical error: {}", e));
+                        info!("manually defined reference point: {:.5E}km, {:.5E}km, {:.5E}km (lat={:.5}°, long={:.5}°)", x0_km, y0_km, z0_km, lat_ddeg, long_ddeg);
+                        ctx.rx_orbit = Some(rx_orbit);
+                    }
+                }
+            } else {
+                error!("manual definition of a reference point requires OBS RINEX");
+            }
+        },
+    }
+
+    // Prepare for output productes (on any FOPS)
     if cli.has_fops_output_product() {
         ctx.workspace.create_subdir("OUTPUT");
     }
 
-    /*
-     * Exclusive opmodes
-     */
+    // Exclusive opmodes to follow
     let mut extra_pages = Vec::<QcExtraPage>::new();
 
     match cli.matches.subcommand() {
@@ -392,7 +376,7 @@ pub fn main() -> Result<(), Error> {
         report.customize(extra);
     }
 
-    // generation
+    // synthesis
     report.generate(&cli, &ctx)?;
 
     if !ctx.quiet {

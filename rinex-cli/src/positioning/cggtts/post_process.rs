@@ -47,9 +47,16 @@ pub fn post_process(
         .receiver(rcvr.clone())
         .ims(rcvr.clone()) // TODO : improve this ?
         .apc_coordinates({
-            // TODO: wrong, coordinates should be expressed in ITRF: need some conversion
-            let (x, y, z) = ctx.rx_ecef.unwrap(); // infallible at this point
-            Coordinates { x, y, z }
+            // TODO: coordinates should be expressed in ITRF: need some conversion
+            let rx_orbit = ctx.rx_orbit.expect("undefined (x0, y0, z0)");
+            let pos_vel = rx_orbit.to_cartesian_pos_vel();
+
+            let (x0_m, y0_m, z0_m) = (pos_vel[0] * 1.0E3, pos_vel[1] * 1.0E3, pos_vel[2] * 1.0E3);
+            Coordinates {
+                x: x0_m,
+                y: y0_m,
+                z: z0_m,
+            }
         })
         .reference_frame("WGS84") //TODO: ITRF
         .reference_time({

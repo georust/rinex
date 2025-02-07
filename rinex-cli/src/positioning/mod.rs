@@ -335,31 +335,18 @@ pub fn precise_positioning(
 
     // let mut rtk_reference = RemoteRTKReference::from_ctx(&ctx);
 
-    // The CGGTTS opmode (TimeOnly) is not designed
-    // to support lack of apriori knowledge
+    // reference point is mandatory to CGGTTS opmode
     #[cfg(feature = "cggtts")]
-    let apriori = if matches.get_flag("cggtts") {
-        if let Some((x, y, z)) = ctx.rx_ecef {
-            Some(Orbit::from_position(
-                x / 1.0E3,
-                y / 1.0E3,
-                z / 1.0E3,
-                Epoch::default(),
-                ctx.data.earth_cef,
-            ))
-        } else {
+    if matches.get_flag("cggtts") {
+        if ctx.rx_orbit.is_none() {
             panic!(
-                "--cggtts opmode cannot work without a priori position knowledge.
-You either need to specify it manually (see --help), or use RINEX files that define
-a static reference position"
+                "cggtts needs a reference point (x0, y0, z0).
+If your dataset does not describe one, you can manually describe one, see --help."
             );
         }
-    } else {
-        None
-    };
+    }
 
-    #[cfg(not(feature = "cggtts"))]
-    let apriori = None;
+    let apriori = ctx.rx_orbit;
 
     let solver = Solver::new_almanac_frame(
         &cfg,

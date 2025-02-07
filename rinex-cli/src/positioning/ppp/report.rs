@@ -13,8 +13,6 @@ use rinex_qc::{
 
 use itertools::Itertools;
 
-use map_3d::{ecef2geodetic, Ellipsoid};
-
 struct ReportTab {}
 
 impl Render for ReportTab {
@@ -62,8 +60,8 @@ struct Summary {
     duration: Duration,
     satellites: Vec<SV>,
     timescale: TimeScale,
-    final_geo: (f64, f64, f64),
     final_err_m: (f64, f64, f64),
+    lat_long_alt_ddeg_ddeg_km: (f64, f64, f64),
 }
 
 impl Render for Summary {
@@ -155,13 +153,13 @@ impl Render for Summary {
                                             "WGS84"
                                         }
                                         td {
-                                            (format!("x={:.5}°", self.final_geo.0.to_degrees()))
+                                            (format!("x={:.5}°", self.lat_long_alt_ddeg_ddeg_km.0.to_degrees()))
                                         }
                                         td {
-                                            (format!("x={:.5}°", self.final_geo.1.to_degrees()))
+                                            (format!("x={:.5}°", self.lat_long_alt_ddeg_ddeg_km.1.to_degrees()))
                                         }
                                         td {
-                                            (format!("alt={:.3}m", self.final_geo.2))
+                                            (format!("alt={:.3}km", self.lat_long_alt_ddeg_ddeg_km.2))
                                         }
                                     }
                                     tr {
@@ -193,15 +191,17 @@ impl Summary {
         cfg: &NaviConfig,
         ctx: &Context,
         solutions: &BTreeMap<Epoch, PVTSolution>,
-        rx_ecef: (f64, f64, f64),
+        x0_y0_z0_km: (f64, f64, f64),
     ) -> Self {
-        let (x0, y0, z0) = rx_ecef;
-        //let (lat0_rad, lon0_rad, alt0_m) = ecef2geodetic(x0, y0, z0, Ellipsoid::WGS84);
+        let (x0_km, y0_km, z0_km) = x0_y0_z0_km;
+        let (x0_m, y0_m, z0_m) = (x0_km * 1.0E3, y0_km * 1.0E3, z0_km * 1.0E3);
 
         let mut timescale = TimeScale::default();
+
         let (mut first_epoch, mut last_epoch) = (Epoch::default(), Epoch::default());
+
         let mut final_err_m = (0.0_f64, 0.0_f64, 0.0_f64);
-        let mut final_geo = (0.0_f64, 0.0_f64, 0.0_f64);
+        let (mut lat_ddeg, mut long_ddeg, mut alt_km) = (0.0_f64, 0.0_f64, 0.0_f64);
 
         let satellites = solutions
             .values()
@@ -221,11 +221,18 @@ impl Summary {
             if index == 0 {
                 first_epoch = *t;
             }
-            let state = sol.state.to_cartesian_pos_vel() * 1.0E3;
-            let (x, y, z) = (state[0], state[1], state[2]);
-            let (err_x, err_y, err_z) = (x - x0, y - y0, z - z0);
+
+            let posvel = sol.state.to_cartesian_pos_vel();
+            (lat_ddeg, long_ddeg, alt_km) = sol
+                .state
+                .latlongalt()
+                .unwrap_or_else(|e| panic!("latlongalt: physical error {}", e));
+
+            let (x_m, y_m, z_m) = (posvel[0] * 1.0E3, posvel[1] * 1.0E3, posvel[2] * 1.0E3);
+
+            let (err_x, err_y, err_z) = (x_m - x0_m, y_m - y0_m, z_m - z0_m);
+
             final_err_m = (err_x, err_y, err_z);
-            final_geo = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
 
             last_epoch = *t;
             timescale = sol.timescale;
@@ -235,8 +242,8 @@ impl Summary {
             last_epoch,
             timescale,
             satellites,
-            final_geo,
             final_err_m,
+            lat_long_alt_ddeg_ddeg_km: (lat_ddeg, long_ddeg, alt_km),
             orbit: {
                 if ctx.data.has_sp3() {
                     format!("Interpolation X{}", cfg.interp_order)
@@ -290,11 +297,15 @@ impl ReportContent {
         let nb_solutions = solutions.len();
         let epochs = solutions.keys().cloned().collect::<Vec<_>>();
 
-        let (x0_ecef, y0_ecef, z0_ecef) = ctx.rx_ecef.unwrap_or_default();
-        let (lat0_rad, lon0_rad, _) = ecef2geodetic(x0_ecef, y0_ecef, z0_ecef, Ellipsoid::WGS84);
-        let (lat0_ddeg, lon0_ddeg) = (lat0_rad.to_degrees(), lon0_rad.to_degrees());
+        let rx_orbit = ctx.rx_orbit.expect("rx orbit not defined!");
+        let pos_vel = rx_orbit.to_cartesian_pos_vel();
 
-        let summary = Summary::new(cfg, ctx, solutions, (x0_ecef, y0_ecef, z0_ecef));
+        let (x0_km, y0_km, z0_km) = (pos_vel[0], pos_vel[1], pos_vel[2]);
+        let (lat0_ddeg, lon0_ddeg, _) = rx_orbit
+            .latlongalt()
+            .unwrap_or_else(|e| panic!("latlongalt() physical error: {}", e));
+
+        let summary = Summary::new(cfg, ctx, solutions, (x0_km, y0_km, z0_km));
 
         Self {
             map_proj: {
@@ -320,16 +331,22 @@ impl ReportContent {
                 let mut prev_pct = 0;
                 for (index, (_, sol_i)) in solutions.iter().enumerate() {
                     let pct = index * 100 / nb_solutions;
+
                     if pct % 10 == 0 && index > 0 && pct != prev_pct || index == nb_solutions - 1 {
                         let (name, visible) = if index == nb_solutions - 1 {
                             ("FINAL".to_string(), true)
                         } else {
                             (format!("Solver: {:02}%", pct), false)
                         };
-                        let state = sol_i.state.to_cartesian_pos_vel() * 1.0E3;
-                        let (x, y, z) = (state[0], state[1], state[2]);
-                        let (lat_rad, lon_rad, _) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
-                        let (lat_ddeg, lon_ddeg) = (lat_rad.to_degrees(), lon_rad.to_degrees());
+
+                        let posvel = sol_i.state.to_cartesian_pos_vel();
+                        let (x_m, y_m, z_m) =
+                            (posvel[0] * 1.0E3, pos_vel[1] * 1.0E3, pos_vel[2] * 1.0E3);
+                        let (lat_ddeg, long_ddeg, alt_km) = sol_i
+                            .state
+                            .latlongalt()
+                            .unwrap_or_else(|e| panic!("latlongalt: physical error: {}", e));
+
                         let scatter = Plot::mapbox(
                             vec![lat_ddeg],
                             vec![lon_ddeg],
@@ -340,6 +357,7 @@ impl ReportContent {
                             1.0,
                             visible,
                         );
+
                         map_proj.add_trace(scatter);
                     }
                     prev_pct = pct;
