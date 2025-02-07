@@ -339,17 +339,6 @@ impl SP3 {
         self.data.iter().map(|(k, _)| k.epoch).unique()
     }
 
-    /// Returns ([Epoch], [SV]) where satellite maneuver is being repored
-    pub fn satellite_epoch_maneuver_iter(&self) -> impl Iterator<Item = (Epoch, SV)> + '_ {
-        self.date.iter().filter_map(|(k, v)| {
-            if v.maneuver {
-                Some((k.epoch, k.sv))
-            } else {
-                None
-            }
-        })
-    }
-
     /// Returns a unique [Constellation] iterator
     pub fn constellations_iter(&self) -> impl Iterator<Item = Constellation> + '_ {
         self.satellites_iter().map(|sv| sv.constellation).unique()
@@ -366,34 +355,48 @@ impl SP3 {
     }
 
     /// [SV] position attitude in kilometers ECEF with theoretical 10⁻³m precision.
+    /// NB: all satellites being maneuvered are sorted out, which makes this method
+    /// compatible with navigation.
     /// All coordinates expressed in Coordinates system (always fixed body frame).
-    pub fn satellites_position_km_iter(&self) -> impl Iterator<Item = (Epoch, SV, Vector3D)> + '_ {
-        self.data
-            .iter()
-            .map(|(k, v)| (k.epoch, k.sv, v.position_km))
+    pub fn satellites_position_km_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, Vector3D)> + '_> {
+        Box::new(self.data.iter().filter_map(|(k, v)| {
+            if !v.maneuver {
+                Some((k.epoch, k.sv, v.position_km))
+            } else {
+                None
+            }
+        }))
     }
 
     /// [SV] position attitude [Iterator] expressed as [Orbit] in desired reference [Frame].
     /// For this to be correct:
     /// - [Frame] must be ECEF
     /// - [Frame] should match the coordinates system described in [Header]
+    /// NB: all satellites being maneuvered are sorted out, which makes this method
+    /// compatible with navigation.
     #[cfg(feature = "anise")]
     #[cfg_attr(docsrs, doc(cfg(feature = "anise")))]
     pub fn satellites_orbit_iter(
         &self,
         frame_cef: Frame,
-    ) -> impl Iterator<Item = (Epoch, SV, Orbit)> + '_ {
-        self.data.iter().map(move |(k, v)| {
-            let (x_km, y_km, z_km) = v.position_km;
-            let (vx_km_s, vy_km_s, vz_km_s) = match v.velocity_km_s {
-                Some((vx_km_s, vy_km_s, vz_km_s)) => (vx_km_s, vy_km_s, vz_km_s),
-                None => (0.0, 0.0, 0.0),
-            };
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, Orbit)> + '_> {
+        Box::new(self.data.iter().filter_map(move |(k, v)| {
+            if !v.maneuver {
+                let (x_km, y_km, z_km) = v.position_km;
+                let (vx_km_s, vy_km_s, vz_km_s) = match v.velocity_km_s {
+                    Some((vx_km_s, vy_km_s, vz_km_s)) => (vx_km_s, vy_km_s, vz_km_s),
+                    None => (0.0, 0.0, 0.0),
+                };
 
-            let pos_vel = Vector6::new(x_km, y_km, z_km, vx_km_s, vy_km_s, vz_km_s);
-            let orbit = Orbit::from_cartesian_pos_vel(pos_vel, k.epoch, frame_cef);
-            (k.epoch, k.sv, orbit)
-        })
+                let pos_vel = Vector6::new(x_km, y_km, z_km, vx_km_s, vy_km_s, vz_km_s);
+                let orbit = Orbit::from_cartesian_pos_vel(pos_vel, k.epoch, frame_cef);
+                Some((k.epoch, k.sv, orbit))
+            } else {
+                None
+            }
+        }))
     }
 
     /// [SV] (elevation, azimuth, range) attitude vector [Iterator], as [AzElRange].
@@ -419,18 +422,33 @@ impl SP3 {
         )
     }
 
-    /// Returns an [Iterator] over [SV] velocity vector, in km.s⁻¹
-    /// and 0.1 10⁻⁷m precision.
-    pub fn satellites_velocity_km_s_iter(
-        &self,
-    ) -> impl Iterator<Item = (Epoch, SV, Vector3D)> + '_ {
-        self.data.iter().filter_map(|(k, v)| {
-            let (vx_dm_s, vy_dm_s, vz_dm_s) = v.velocity_km_s?;
-            Some((k.epoch, k.sv, (vx_dm_s, vy_dm_s, vz_dm_s)))
-        })
+    /// Returns ([Epoch], [SV]) [Iterator] where satellite maneuver is being reported
+    pub fn satellites_epoch_maneuver_iter(&self) -> Box<dyn Iterator<Item = (Epoch, SV)> + '_> {
+        Box::new(self.data.iter().filter_map(|(k, v)| {
+            if v.maneuver {
+                Some((k.epoch, k.sv))
+            } else {
+                None
+            }
+        }))
     }
 
-    /// [SV] clock offset in seconds (with 10⁻¹² theoreetical precision) [Iterator].
+    /// Returns an [Iterator] over [SV] velocity vector, in km.s⁻¹
+    /// and 0.1 10⁻⁷m precision, for all satellites in correct Orbit (not being maneuvered).
+    pub fn satellites_velocity_km_s_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, Vector3D)> + '_> {
+        Box::new(self.data.iter().filter_map(|(k, v)| {
+            if !v.maneuver {
+                let (vx_dm_s, vy_dm_s, vz_dm_s) = v.velocity_km_s?;
+                Some((k.epoch, k.sv, (vx_dm_s, vy_dm_s, vz_dm_s)))
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// [SV] clock offset in seconds (with 10⁻¹² theoretical precision) [Iterator].
     pub fn satellites_clock_offset_sec_iter(&self) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
         self.data.iter().filter_map(|(k, v)| {
             let clock = v.clock_us? * 1.0E-6;
@@ -566,8 +584,7 @@ impl SP3 {
         self.satellite_position_interpolate(sv, t, order, lagrange_interpolation)
     }
 
-    /// Macro to apply the Lagrangian interpolation with 9th interpolation order,
-    /// which is compatible with high precision geodesy
+    /// Applies 9th order Lagrangian interpolation method, which is compatible with high precision geodesy.
     pub fn satellite_position_lagrangian_9_interpolation(
         &self,
         sv: SV,
@@ -576,8 +593,7 @@ impl SP3 {
         self.satellite_position_lagrangian_interpolation(sv, t, 9)
     }
 
-    /// Macro to apply the Lagrangian interpolation with 11th interpolation order,
-    /// which is compatible with high precision geodesy
+    /// Applies 11th order Lagrangian interpolation method, which is compatible with high precision geodesy.
     pub fn satellite_position_lagrangian_11_interpolation(
         &self,
         sv: SV,
@@ -586,8 +602,7 @@ impl SP3 {
         self.satellite_position_lagrangian_interpolation(sv, t, 11)
     }
 
-    /// Macro to apply the Lagrangian interpolation with 17th interpolation order,
-    /// which is compatible with high precision geodesy
+    /// Applies 17th order Lagrangian interpolation method, which is compatible with high precision geodesy.
     pub fn satellite_position_lagrangian_17_interpolation(
         &self,
         sv: SV,
