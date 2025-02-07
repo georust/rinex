@@ -63,7 +63,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                     // Create new candidate
                     let mut cd = Candidate::new(*sv, past_t, observations.clone());
 
-                    // candidate "fixup" and customizations
+                    // candidate "fixup" or customizations
                     match clock.next_clock_at(past_t, *sv) {
                         Some(dt) => cd.set_clock_correction(dt),
                         None => error!("{} ({}) - no clock correction available", past_t, *sv),

@@ -84,178 +84,188 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     };
 
     let mut trk_duration = cv_duration;
+
     if trk_duration == Scheduler::bipm_tracking_duration() {
         trk_duration = Scheduler::bipm_tracking_duration() - 3.0 * Unit::Minute;
     }
 
-    // infaillible, at this point
+    // grab relevant structures: infaillible, at this point
     let obs_data = ctx.data.observation().unwrap();
     let nav_data = ctx.data.brdc_navigation().unwrap();
-    // let meteo_data = ctx.data.meteo(); //TODO
 
     let dominant_sampling_period = obs_data
         .dominant_sampling_interval()
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
+    let mut past_t = Option::<Epoch>::None;
+
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
-    let sched = Scheduler::new(cv_duration);
+
+    let track_scheduler = Scheduler::new(cv_duration);
+
+    let mut trk_midpoint = Option::<Epoch>::None;
     let mut next_cv_start_time = Option::<Epoch>::None;
     let mut next_tracking_start_time = Option::<Epoch>::None;
-    let mut should_release = false;
+
     let mut should_skip = false;
-    let mut trk_midpoint = Option::<Epoch>::None;
-    let mut trackers = HashMap::<(SV, Observable), SVTracker>::new();
+    let mut should_release = false;
 
-    // for ((t, flag), (_clk, vehicles)) in obs_data.observation() {
-    //     /*
-    //      * We only consider _valid_ epochs"
-    //      * TODO: make use of LLI marker here
-    //      */
-    //     if !flag.is_ok() {
-    //         continue;
-    //     }
+    let mut sv_observations = HashMap::<SV, Vec<Observation>>::new();
 
-    //     // Nearest TROPO: TODO
-    //     // let zwd_zdd = tropo_components(meteo_data, *t, rx_lat_ddeg);
-    //     if !should_skip {
+    for (t, signal) in obs_data.signal_observations_sampling_ok_iter() {
+        if let Some(past_t) = past_t {
+            if t != past_t && !should_skip {
+                // New epoch: solving attempt
+                // Creates and forwards Candidate for each SV
+                for (sv, observations) in sv_observations.iter() {
+                    let mut cd = Candidate::new(*sv, past_t, observations.clone());
+
+                    // candidate "fixup" or customizations
+                    match clock.next_clock_at(past_t, *sv) {
+                        Some(dt) => cd.set_clock_correction(dt),
+                        None => error!("{} ({}) - no clock correction available", past_t, *sv),
+                    }
+
+                    if let Some((_, _, eph)) = eph.borrow_mut().select(past_t, *sv) {
+                        if let Some(tgd) = eph.tgd() {
+                            debug!("{} ({}) - tgd: {}", past_t, *sv, tgd);
+                            cd.set_group_delay(tgd);
+                        }
+                    }
+
+                    let tropo = TropoComponents::Unknown;
+                    cd.set_tropo_components(tropo);
+
+                    let mut iono = IonoComponents::Unknown;
+
+                    if let Some(model) = kb_model(nav_data, past_t) {
+                        iono = IonoComponents::KbModel(model);
+                    } else if let Some(model) = ng_model(nav_data, past_t) {
+                        iono = IonoComponents::NgModel(model);
+                    } else if let Some(model) = bd_model(nav_data, past_t) {
+                        iono = IonoComponents::BdModel(model);
+                    }
+
+                    match iono {
+                        IonoComponents::Unknown => {
+                            warn!("{} ({}) - undefined ionosphere parameters", past_t, *sv)
+                        },
+                        IonoComponents::KbModel(_) => info!(
+                            "{} ({}) - using KLOBUCHAR ionosphere parameters",
+                            past_t, *sv
+                        ),
+                        IonoComponents::NgModel(_) => info!(
+                            "{} ({}) - using NEQUICK-G ionosphere parameters",
+                            past_t, *sv
+                        ),
+                        IonoComponents::BdModel(_) => {
+                            info!("{} ({}) - using BDGIM ionosphere parameters", past_t, *sv)
+                        },
+                        _ => {},
+                    }
+
+                    cd.set_iono_components(iono);
+
+                    match solver.resolve(past_t, &[cd]) {
+                        Ok((t, pvt_solution)) => {
+                            info!(
+                                "({:?} ({}) : new pvt solution {:?}",
+                                past_t, signal.sv, pvt_solution
+                            );
+                        },
+                        Err(e) => {
+                            // any PVT solution failure will introduce a gap in the track fitter
+                            error!("pvt solver error: {}", e);
+                        },
+                    }
+                } // for each sv
+
+                sv_observations.clear();
+            } // new track attempt
+        } // epoch
+
+        let carrier = Carrier::from_observable(signal.sv.constellation, &signal.observable);
+        if carrier.is_err() {
+            continue;
+        }
+
+        let carrier = carrier.unwrap();
+        let rtk_carrier = cast_rtk_carrier(carrier);
+
+        if let Some((_, observations)) = sv_observations
+            .iter_mut()
+            .filter(|(k, _)| **k == signal.sv)
+            .reduce(|k, _| k)
+        {
+            if let Some(observation) = observations
+                .iter_mut()
+                .filter(|k| k.carrier == rtk_carrier)
+                .reduce(|k, _| k)
+            {
+                match signal.observable {
+                    Observable::PhaseRange(_) => {
+                        observation.set_ambiguous_phase_range(signal.value);
+                    },
+                    Observable::PseudoRange(_) => {
+                        observation.set_pseudo_range(signal.value);
+                    },
+                    Observable::Doppler(_) => {
+                        observation.set_doppler(signal.value);
+                    },
+                    _ => {},
+                }
+            } else {
+            }
+        } else {
+            match signal.observable {
+                Observable::PhaseRange(_) => {
+                    sv_observations.insert(
+                        signal.sv,
+                        vec![Observation::ambiguous_phase_range(
+                            rtk_carrier,
+                            signal.value,
+                            None,
+                        )],
+                    );
+                },
+                Observable::PseudoRange(_) => {
+                    sv_observations.insert(
+                        signal.sv,
+                        vec![Observation::pseudo_range(rtk_carrier, signal.value, None)],
+                    );
+                },
+                Observable::Doppler(_) => {
+                    sv_observations.insert(
+                        signal.sv,
+                        vec![Observation::doppler(rtk_carrier, signal.value, None)],
+                    );
+                },
+                _ => {},
+            }
+        }
+
+        // When last Epoch of the CV period is reached: we should release a track
+        let next_release_duration = next_cv_start_time.unwrap() - t;
+
+        should_release = next_release_duration <= dominant_sampling_period;
+        should_release &= next_release_duration > Duration::ZERO;
+
+        trk_midpoint = Some(next_cv_start_time.unwrap() - trk_duration / 2);
+
+        info!(
+            "{:?} - {} until next cv period",
+            t,
+            next_cv_start_time.unwrap() - t,
+        );
+
+        // skip the prepare duration
+        should_skip = next_release_duration < Duration::ZERO;
+
+        past_t = Some(t);
+    }
+
     //         for (sv, rinex_obs) in vehicles {
-    //             // tries to form a candidate for each signal
-    //             for (observable, data) in rinex_obs {
-    //                 let carrier = Carrier::from_observable(sv.constellation, observable);
-    //                 if carrier.is_err() {
-    //                     continue; //can't proceed further
-    //                 }
-
-    //                 let carrier = carrier.unwrap();
-    //                 let rtk_carrier = cast_rtk_carrier(carrier);
-
-    //                 // We consider a reference Pseudo Range
-    //                 // and possibly gather other signals later on
-    //                 if !observable.is_pseudorange_observable() {
-    //                     continue;
-    //                 }
-
-    //                 let mut ref_observable = observable.to_string();
-
-    //                 let mut observations = vec![Observation {
-    //                     carrier: rtk_carrier,
-    //                     pseudo: Some(data.obs),
-    //                     ambiguity: None,
-    //                     doppler: None,
-    //                     phase: None,
-    //                     snr: data.snr.map(|snr| snr.into()),
-    //                 }];
-
-    //                 // Subsidary Pseudo Range (if needed)
-    //                 if matches!(solver.cfg.method, Method::CPP | Method::PPP) {
-    //                     // add any other signal
-    //                     for (second_obs, second_data) in rinex_obs {
-    //                         if second_obs == observable {
-    //                             continue;
-    //                         }
-
-    //                         let rhs_carrier =
-    //                             Carrier::from_observable(sv.constellation, second_obs);
-
-    //                         if rhs_carrier.is_err() {
-    //                             continue;
-    //                         }
-
-    //                         let rhs_carrier = rhs_carrier.unwrap();
-    //                         let rhs_rtk_carrier = cast_rtk_carrier(rhs_carrier);
-
-    //                         if second_obs.is_pseudorange_observable() {
-    //                             observations.push(Observation {
-    //                                 carrier: rhs_rtk_carrier,
-    //                                 doppler: None,
-    //                                 phase: None,
-    //                                 ambiguity: None,
-    //                                 pseudo: Some(second_data.obs),
-    //                                 snr: data.snr.map(|snr| snr.into()),
-    //                             });
-    //                         } else if second_obs.is_phase_observable() {
-    //                             let lambda = rhs_carrier.wavelength();
-    //                             if let Some(obs) = observations
-    //                                 .iter_mut()
-    //                                 .filter(|ob| ob.carrier == rhs_rtk_carrier)
-    //                                 .reduce(|k, _| k)
-    //                             {
-    //                                 obs.phase = Some(second_data.obs * lambda);
-    //                             } else {
-    //                                 observations.push(Observation {
-    //                                     carrier: rhs_rtk_carrier,
-    //                                     doppler: None,
-    //                                     pseudo: None,
-    //                                     ambiguity: None,
-    //                                     phase: Some(second_data.obs * lambda),
-    //                                     snr: data.snr.map(|snr| snr.into()),
-    //                                 });
-    //                             }
-    //                         } else if second_obs.is_doppler_observable() {
-    //                             if let Some(obs) = observations
-    //                                 .iter_mut()
-    //                                 .filter(|ob| ob.carrier == rhs_rtk_carrier)
-    //                                 .reduce(|k, _| k)
-    //                             {
-    //                                 obs.doppler = Some(second_data.obs);
-    //                             } else {
-    //                                 observations.push(Observation {
-    //                                     phase: None,
-    //                                     carrier: rhs_rtk_carrier,
-    //                                     pseudo: None,
-    //                                     ambiguity: None,
-    //                                     doppler: Some(second_data.obs),
-    //                                     snr: data.snr.map(|snr| snr.into()),
-    //                                 });
-    //                             }
-    //                         }
-
-    //                         // update ref. observable if this one is to serve as reference
-    //                         if rtk_reference_carrier(rtk_carrier) {
-    //                             ref_observable = second_obs.to_string();
-    //                         }
-    //                     }
-    //                 }
-
-    //                 let mut candidate = Candidate::new(*sv, *t, observations);
-
-    //                 // customizations
-    //                 match clock.next_clock_at(*t, *sv) {
-    //                     Some(corr) => {
-    //                         candidate.set_clock_correction(corr);
-    //                     },
-    //                     None => {
-    //                         error!("{} ({}) - no clock correction available", *t, *sv);
-    //                     },
-    //                 }
-
-    //                 if let Some((_, _, eph)) = eph.borrow_mut().select(*t, *sv) {
-    //                     if let Some(tgd) = eph.tgd() {
-    //                         debug!("{} ({}) - tgd: {}", *t, *sv, tgd);
-    //                         candidate.set_group_delay(tgd);
-    //                     }
-    //                 }
-
-    //                 // TODO: Meteo
-    //                 let tropo = TropoComponents::Unknown;
-    //                 candidate.set_tropo_components(tropo);
-
-    //                 let iono = if let Some(model) = kb_model(nav_data, *t) {
-    //                     IonoComponents::KbModel(model)
-    //                 } else if let Some(model) = bd_model(nav_data, *t) {
-    //                     IonoComponents::BdModel(model)
-    //                 } else if let Some(model) = ng_model(nav_data, *t) {
-    //                     IonoComponents::NgModel(model)
-    //                 } else {
-    //                     // TODO STEC/IONEX
-    //                     IonoComponents::Unknown
-    //                 };
-
-    //                 candidate.set_iono_components(iono);
-
-    //                 // TODO: RTK
-    //                 //candidate.set_remote_observations(remote);
     //                 let target = &(*sv, observable.clone());
 
     //                 let tracker = match trackers.get_mut(target) {
@@ -407,16 +417,6 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     //                             tracker.latch_measurement(t, fitdata);
     //                         }
     //                     },
-    //                     Err(e) => {
-    //                         /*
-    //                          * Any PVT resolution failures would introduce a data gap
-    //                          * which is incompatible with CGGTTS track fitting
-    //                          */
-    //                         error!("pvt solver error - {}", e);
-    //                         // if let Some(tracker) = trackers.get_mut(&(*sv, observable.clone())) {
-    //                         //     tracker.reset();
-    //                         // }
-    //                     },
     //                 } //.pvt resolve
     //                   // after release, reset so we start a new track
     //                 if should_release {
@@ -431,21 +431,6 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     //         let cv_prepare_duration = 3.0 * Unit::Minute;
     //         next_cv_start_time = Some(next_cv_start_time.unwrap() - cv_prepare_duration);
     //     }
-
-    //     // If the last epoch is reached, should release track
-    //     let next_release_duration = next_cv_start_time.unwrap() - *t;
-    //     should_release = (next_release_duration <= dominant_sampling_period)
-    //         && (next_release_duration > Duration::ZERO);
-    //     trk_midpoint = Some(next_cv_start_time.unwrap() - trk_duration / 2);
-    //     info!(
-    //         "{:?} - {} until next cv period",
-    //         t,
-    //         next_cv_start_time.unwrap() - *t,
-    //     );
-
-    //     // skip the prepare duration
-    //     should_skip = next_release_duration < Duration::ZERO;
-    // } //.observations()
 
     tracks.sort_by(|a, b| a.epoch.cmp(&b.epoch));
 
