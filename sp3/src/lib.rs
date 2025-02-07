@@ -46,9 +46,6 @@ use serde::{Deserialize, Serialize};
 
 use header::Header;
 
-/*
- * 3D position
- */
 type Vector3D = (f64, f64, f64);
 
 pub mod prelude {
@@ -86,6 +83,8 @@ pub struct SP3Entry {
     pub position_km: Vector3D,
     /// ECEF velocity vectori in km.s⁻¹.
     pub velocity_km_s: Option<Vector3D>,
+    /// Vehicle being maneuvered since last Epoch
+    pub maneuver: bool,
 }
 
 impl SP3Entry {
@@ -95,17 +94,19 @@ impl SP3Entry {
         Self {
             position_km,
             clock_us: None,
+            maneuver: false,
             velocity_km_s: None,
             clock_drift_ns: None,
         }
     }
 
     /// Builds new [SP3Entry] with given position and velocity vector,
-    /// any other fields are unknown
+    /// any other fields are unknown.
     pub fn from_position_velocity_km_km_s(position_km: Vector3D, velocity_km_s: Vector3D) -> Self {
         Self {
             position_km,
             clock_us: None,
+            maneuver: false,
             clock_drift_ns: None,
             velocity_km_s: Some(velocity_km_s),
         }
@@ -246,6 +247,7 @@ pub(crate) fn lagrange_interpolation(
     for i in 0..order + 1 {
         let mut l_i = 1.0_f64;
         let (t_i, (x_km_i, y_km_i, z_km_i)) = x[i];
+
         for j in 0..order + 1 {
             let (t_j, _) = x[j];
             if j != i {
@@ -253,6 +255,7 @@ pub(crate) fn lagrange_interpolation(
                 l_i /= (t_i - t_j).to_seconds();
             }
         }
+
         polynomials.0 += x_km_i * l_i;
         polynomials.1 += y_km_i * l_i;
         polynomials.2 += z_km_i * l_i;
@@ -296,6 +299,12 @@ impl SP3 {
         self.satellites_clock_drift_sec_sec_iter().count() > 0
     }
 
+    /// Returns true if at least 1 [SV] (whatever the constellation) is being maneuvered
+    /// during this entire time frame
+    pub fn has_satellite_maneuver(&self) -> bool {
+        self.satellites_epoch_maneuver_iter().count() > 0
+    }
+
     /// Returns true if this [SP3] publication is correct
     /// - all data points are correctly evenly spaced in time
     /// according to the sampling interval.
@@ -328,6 +337,17 @@ impl SP3 {
     /// Returns [Epoch] [Iterator]
     pub fn epochs_iter(&self) -> impl Iterator<Item = Epoch> + '_ {
         self.data.iter().map(|(k, _)| k.epoch).unique()
+    }
+
+    /// Returns ([Epoch], [SV]) where satellite maneuver is being repored
+    pub fn satellite_epoch_maneuver_iter(&self) -> impl Iterator<Item = (Epoch, SV)> + '_ {
+        self.date.iter().filter_map(|(k, v)| {
+            if v.maneuver {
+                Some((k.epoch, k.sv))
+            } else {
+                None
+            }
+        })
     }
 
     /// Returns a unique [Constellation] iterator
