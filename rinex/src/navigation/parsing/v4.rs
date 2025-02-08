@@ -36,14 +36,6 @@ pub fn parse(content: &str) -> Result<(NavKey, NavFrame), ParsingError> {
             let (epoch, _, ephemeris) = Ephemeris::parse_v4(msgtype, lines, ts)?;
             (epoch, NavFrame::EPH(ephemeris))
         },
-        NavFrameType::SystemTimeOffset => {
-            let (epoch, system_time) = SystemTime::parse(lines, ts)?;
-            (epoch, NavFrame::STO(system_time))
-        },
-        NavFrameType::EarthOrientation => {
-            let (epoch, eop) = EarthOrientation::parse(lines, ts)?;
-            (epoch, NavFrame::EOP(eop))
-        },
         NavFrameType::IonosphereModel => {
             let (epoch, model) = match msgtype {
                 NavMessageType::IFNV => {
@@ -66,6 +58,21 @@ pub fn parse(content: &str) -> Result<(NavKey, NavFrame), ParsingError> {
                 },
             };
             (epoch, NavFrame::ION(model))
+        },
+        NavFrameType::SystemTimeOffset => {
+            // grab next lines
+            let line_1 = lines.next().ok_or(ParsingError::EmptyEpoch)?;
+            let line_2 = lines.next().ok_or(ParsingError::EmptyEpoch)?;
+            let (epoch, system_time) = SystemTime::parse(line_1, line_2, ts)?;
+            (epoch, NavFrame::STO(system_time))
+        },
+        NavFrameType::EarthOrientation => {
+            // grab next lines
+            let line_1 = lines.next().ok_or(ParsingError::EmptyEpoch)?;
+            let line_2 = lines.next().ok_or(ParsingError::EmptyEpoch)?;
+            let line_3 = lines.next().ok_or(ParsingError::EmptyEpoch)?;
+            let (epoch, eop) = EarthOrientation::parse(line_1, line_2, line_3, ts)?;
+            (epoch, NavFrame::EOP(eop))
         },
     };
 

@@ -61,8 +61,8 @@ impl IonosphereModel {
                 let (a3, _) = rem.split_at(12);
                 // World or QZSS special orbital plan
                 let region = match system.contains("QZS") {
-                    true => KbRegionCode::JapanArea,
-                    false => KbRegionCode::WideArea,
+                    true => KbRegionCode::Japan,
+                    false => KbRegionCode::Worldwide,
                 };
                 /* determine which field we're dealing with */
                 if system.ends_with('A') {
@@ -111,7 +111,7 @@ impl IonosphereModel {
             Ok(Self::Klobuchar(KbModel {
                 alpha: (a0, a1, a2, a3),
                 beta: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
-                region: KbRegionCode::WideArea,
+                region: KbRegionCode::Worldwide,
             }))
         } else {
             // Assume marker.contains("BETA")
@@ -123,7 +123,7 @@ impl IonosphereModel {
             Ok(Self::Klobuchar(KbModel {
                 alpha: (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64),
                 beta: (b0, b1, b2, b3),
-                region: KbRegionCode::WideArea,
+                region: KbRegionCode::Worldwide,
             }))
         }
     }
@@ -217,7 +217,7 @@ mod test {
             IonosphereModel::Klobuchar(KbModel {
                 alpha: (7.4506E-9, -1.4901E-8, -5.9605E-8, 1.1921E-7),
                 beta: (0.0, 0.0, 0.0, 0.0),
-                region: KbRegionCode::WideArea,
+                region: KbRegionCode::Worldwide,
             })
         );
 
@@ -231,7 +231,7 @@ mod test {
             IonosphereModel::Klobuchar(KbModel {
                 alpha: (0.0, 0.0, 0.0, 0.0),
                 beta: (9.0112E4, -6.5536E4, -1.3107E5, 4.5875E5),
-                region: KbRegionCode::WideArea,
+                region: KbRegionCode::Worldwide,
             })
         );
 
@@ -245,7 +245,7 @@ mod test {
             IonosphereModel::Klobuchar(KbModel {
                 alpha: (1.1176E-8, 2.9802E-8, -4.1723E-7, 6.5565E-7),
                 beta: (0.0, 0.0, 0.0, 0.0),
-                region: KbRegionCode::WideArea,
+                region: KbRegionCode::Worldwide,
             })
         );
 
@@ -259,7 +259,7 @@ mod test {
             IonosphereModel::Klobuchar(KbModel {
                 alpha: (0.0, 0.0, 0.0, 0.0),
                 beta: (1.4131E5, -5.2429E5, 1.6384E6, -4.5875E5),
-                region: KbRegionCode::WideArea,
+                region: KbRegionCode::Worldwide,
             })
         );
 
@@ -274,7 +274,7 @@ mod test {
         let kb = kb.as_klobuchar().unwrap();
         assert_eq!(
             kb.region,
-            KbRegionCode::JapanArea,
+            KbRegionCode::Japan,
             "QZSA ionospheric corr badly interprated as worldwide correction"
         );
 
@@ -286,7 +286,7 @@ mod test {
         let kb = kb.as_klobuchar().unwrap();
         assert_eq!(
             kb.region,
-            KbRegionCode::JapanArea,
+            KbRegionCode::Japan,
             "QZSB ionospheric corr badly interprated as worldwide correction"
         );
     }
@@ -319,7 +319,7 @@ mod test {
                 IonosphereModel::Klobuchar(KbModel {
                     alpha,
                     beta: (0.0, 0.0, 0.0, 0.0),
-                    region: KbRegionCode::WideArea,
+                    region: KbRegionCode::Worldwide,
                 })
             );
         }
@@ -350,7 +350,7 @@ mod test {
                 IonosphereModel::Klobuchar(KbModel {
                     alpha: (0.0, 0.0, 0.0, 0.0),
                     beta,
-                    region: KbRegionCode::WideArea,
+                    region: KbRegionCode::Worldwide,
                 })
             );
         }

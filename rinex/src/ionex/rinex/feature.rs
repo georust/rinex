@@ -77,7 +77,7 @@ impl Rinex {
 
     /// Returns fixed altitude (in kilometers) if this is a 2D IONEX (only).
     /// Note that this is only based on Header definitions. If provided
-    /// content did not follow those specs (incorrect), the returned value here will not
+    /// content does not follow those specs (incorrect data), the returned value here will not
     /// reflect actual content.
     /// ```
     /// use rinex::prelude::*;
@@ -89,7 +89,7 @@ impl Rinex {
     ///     .unwrap();
     /// assert_eq!(rnx.ionex_fixed_altitude_km(), Some(350.0));
     /// ```
-    pub fn ionex_fixed_altitude_km(&self) -> Option<f64> {
+    pub fn ionex_2d_fixed_altitude_km(&self) -> Option<f64> {
         if self.is_ionex_2d() {
             let header = self.header.ionex.as_ref()?;
             Some(header.grid.height.start)
@@ -98,22 +98,20 @@ impl Rinex {
         }
     }
 
-    /// Returns altitude range of this 3D IONEX TEC maps, expressed as {min, max}
-    /// both in kilometers. Returns None if this is not a 3D IONEX.
+    /// Returns altitude range of the IONEX TEC maps, expressed as {min, max}
+    /// both in kilometers.
+    /// - if this is a 2D IONEX: you will obtain (min, min)
+    /// - if this is a 3D IONEX: you will obtain (min, max)
     /// Note that this is only based on Header definitions. If provided
-    /// content did not follow those specs (incorrect), the returned value here will not
+    /// content does not follow those specs (incorrect data), the returned value here will not
     /// reflect actual content.
     ///
     /// ```
     /// example
     /// ```
     pub fn ionex_altitude_range_km(&self) -> Option<(f64, f64)> {
-        if self.is_ionex_3d() {
-            let header = self.header.ionex.as_ref()?;
-            Some((header.grid.height.start, header.grid.height.end))
-        } else {
-            None
-        }
+        let header = self.header.ionex.as_ref()?;
+        Some((header.grid.height.start, header.grid.height.end))
     }
 
     /// Designs an TEC isosurface iterator starting at lowest altitude,
