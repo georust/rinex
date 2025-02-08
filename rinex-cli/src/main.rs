@@ -248,7 +248,7 @@ pub fn main() -> Result<(), Error> {
     let ctx_stem = Context::context_stem(&mut data_ctx);
 
     // Input context
-    let ctx = Context {
+    let mut ctx = Context {
         name: ctx_stem.clone(),
         rx_orbit: {
             // possible reference point
@@ -259,8 +259,10 @@ pub fn main() -> Result<(), Error> {
                     .latlongalt()
                     .unwrap_or_else(|e| panic!("latlongalt - physical error: {}", e));
                 info!("reference point identified: {:.5E}km, {:.5E}km, {:.5E}km (lat={:.5}°, long={:.5}°)", x0_km, y0_km, z0_km, lat_ddeg, long_ddeg);
+                Some(rx_orbit)
             } else {
                 warn!("no reference point identifed");
+                None
             }
         },
         data: data_ctx,
