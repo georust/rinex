@@ -221,7 +221,7 @@ fn v1_jplg0010_17i() {
 
     // verify iso altitude
     assert!(dut.is_ionex_2d());
-    assert_eq!(dut.ionex_fixed_altitude_km(), Some(450.0));
+    assert_eq!(dut.ionex_2d_fixed_altitude_km(), Some(450.0));
     assert_eq!(dut.ionex_altitude_range_km(), Some((450.0, 450.0)));
 
     for (k, _) in dut.ionex_tec_maps_iter() {
