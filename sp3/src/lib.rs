@@ -361,7 +361,7 @@ impl SP3 {
         t0_utc
     }
 
-    /// Returns last [Epoch] to be find in this record
+    /// Returns last [Epoch] to be found in this record.
     pub fn last_epoch(&self) -> Option<Epoch> {
         self.epochs_iter().last()
     }
@@ -468,7 +468,7 @@ impl SP3 {
         }))
     }
 
-    /// [SV] position attitude [Iterator] expressed as [Orbit] in desired reference [Frame].  
+    /// [SV] [Orbit]al state [Iterator] with theoretical 10⁻³m precision.
     /// For this to be correct:
     /// - [Frame] must be ECEF
     /// - [Frame] should match the coordinates system described in [Header]
@@ -611,12 +611,7 @@ impl SP3 {
     /// we return [Error::InterpolationWindow] that you should catch.
     /// - The interpolation window is [(N +1)/2 * τ;  (N +1)/2 * τ],
     /// where N is the interpolation order and τ the sampling interval.
-    ///
-    /// TODO
-    /// See [Bibliography::Japhet2021].
-    /// We propose none (interpolation not feasible) if `t` the interpolation [Epoch] is too
-    /// early or too late, with respect to interpolation order.
-    /// In order to preserve SP3 precision, an interpolation order between 7 and 11 is recommended.
+    /// - in order to data precision, an interpolation order between 7 and 11 is recommended.
     pub fn satellite_position_interpolate(
         &self,
         sv: SV,
@@ -668,11 +663,12 @@ impl SP3 {
     }
 
     /// Applies the Lagrangian interpolation method
-    /// at desired [Epoch] `t` using desired interpoation order.
+    /// at desired [Epoch] `t` using desired interpoation order,
+    /// as per [Bibliography::Japhet2021].
     /// NB:
-    /// - only odd interpolation is supported, otherwise returns [Error::EvenInterpolationOrder]
-    /// - returns [Error::InterpolationWindow] error if [Epoch] is too early or too late,
-    /// with respect of interpolation order.
+    /// - only odd interpolation is supported, otherwise fails with [Error::EvenInterpolationOrder]
+    /// - Fails with [Error::InterpolationWindow] if [Epoch] is too early or too late,
+    /// with respect to interpolation order.
     pub fn satellite_position_lagrangian_interpolation(
         &self,
         sv: SV,
@@ -683,6 +679,7 @@ impl SP3 {
     }
 
     /// Applies 9th order Lagrangian interpolation method, which is compatible with high precision geodesy.
+    /// See [Self::satellite_position_lagrangian_interpolation].
     pub fn satellite_position_lagrangian_9_interpolation(
         &self,
         sv: SV,
@@ -692,6 +689,7 @@ impl SP3 {
     }
 
     /// Applies 11th order Lagrangian interpolation method, which is compatible with high precision geodesy.
+    /// See [Self::satellite_position_lagrangian_interpolation].
     pub fn satellite_position_lagrangian_11_interpolation(
         &self,
         sv: SV,
@@ -701,6 +699,7 @@ impl SP3 {
     }
 
     /// Applies 17th order Lagrangian interpolation method, which is compatible with high precision geodesy.
+    /// See [Self::satellite_position_lagrangian_interpolation].
     pub fn satellite_position_lagrangian_17_interpolation(
         &self,
         sv: SV,
