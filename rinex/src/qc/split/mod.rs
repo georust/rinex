@@ -1,4 +1,4 @@
-use crate::prelude::{qc::Split, Duration, Epoch, Record, Rinex};
+use crate::prelude::{qc::Split, Duration, Epoch, Header, Record, Rinex};
 
 mod clock;
 mod doris;
@@ -80,6 +80,11 @@ impl Split for Rinex {
     }
 
     fn split_mut(&mut self, t: Epoch) -> Self {
+        self.header.program = Some(format!(
+            "geo-rust v{}",
+            Header::format_pkg_version(env!("CARGO_PKG_VERSION"),)
+        ));
+
         let record = if let Some(r) = self.record.as_mut_obs() {
             Record::ObsRecord(obs_split_mut(r, t))
         } else if let Some(r) = self.record.as_mut_nav() {

@@ -50,9 +50,7 @@ pub fn preprocess(ctx: &mut QcContext, cli: &Cli) {
     }
 
     for filt_str in cli.preprocessing() {
-        /*
-         * Apply other -P filter specs
-         */
+        // Apply other -P filter specs
         if let Ok(filter) = Filter::from_str(filt_str) {
             ctx.filter_mut(&filter);
             trace!("applied filter \"{}\"", filt_str);

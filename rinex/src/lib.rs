@@ -61,6 +61,10 @@ mod sampling;
 #[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
 mod qc;
 
+#[cfg(feature = "processing")]
+#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
+mod processing;
+
 #[macro_use]
 pub(crate) mod macros;
 
@@ -202,33 +206,14 @@ pub mod prod {
 }
 
 #[cfg(feature = "processing")]
-use qc_traits::{
-    Decimate, DecimationFilter, MaskFilter, Masking, Preprocessing, Repair, RepairTrait,
-};
+use qc_traits::{DecimationFilter, MaskFilter, Masking, Preprocessing};
 
 #[cfg(feature = "processing")]
 use crate::{
-    clock::record::{clock_decim_mut, clock_mask_mut},
-    doris::{
-        decim::decim_mut as doris_decim_mut, mask::mask_mut as doris_mask_mut,
-        repair::repair_mut as doris_repair_mut,
-    },
-    header::processing::header_mask_mut,
-    ionex::{
-        decim_mut as ionex_decim_mut, mask_mut as ionex_mask_mut, repair_mut as ionex_repair_mut,
-    },
-    meteo::{
-        decim::decim_mut as meteo_decim_mut, mask::mask_mut as meteo_mask_mut,
-        repair::repair_mut as meteo_repair_mut,
-    },
-    navigation::{
-        decim::decim_mut as navigation_decim_mut, mask::mask_mut as navigation_mask_mut,
-        repair::repair_mut as navigation_repair_mut,
-    },
-    observation::{
-        decim::decim_mut as observation_decim_mut, mask::mask_mut as observation_mask_mut,
-        repair::repair_mut as observation_repair_mut,
-    },
+    clock::record::clock_mask_mut, doris::mask::mask_mut as doris_mask_mut,
+    header::processing::header_mask_mut, ionex::mask_mut as ionex_mask_mut,
+    meteo::mask::mask_mut as meteo_mask_mut, navigation::mask::mask_mut as navigation_mask_mut,
+    observation::mask::mask_mut as observation_mask_mut,
 };
 
 use carrier::Carrier;
@@ -1450,33 +1435,6 @@ impl Rinex {
 
 #[cfg(feature = "processing")]
 #[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
-impl Preprocessing for Rinex {}
-
-#[cfg(feature = "processing")]
-#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
-impl RepairTrait for Rinex {
-    fn repair(&self, r: Repair) -> Self {
-        let mut s = self.clone();
-        s.repair_mut(r);
-        s
-    }
-    fn repair_mut(&mut self, r: Repair) {
-        if let Some(rec) = self.record.as_mut_obs() {
-            observation_repair_mut(rec, r);
-        } else if let Some(rec) = self.record.as_mut_meteo() {
-            meteo_repair_mut(rec, r);
-        } else if let Some(rec) = self.record.as_mut_doris() {
-            doris_repair_mut(rec, r);
-        } else if let Some(rec) = self.record.as_mut_ionex() {
-            ionex_repair_mut(rec, r);
-        } else if let Some(rec) = self.record.as_mut_nav() {
-            navigation_repair_mut(rec, r);
-        }
-    }
-}
-
-#[cfg(feature = "processing")]
-#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 impl Masking for Rinex {
     fn mask(&self, f: &MaskFilter) -> Self {
         let mut s = self.clone();
@@ -1497,31 +1455,6 @@ impl Masking for Rinex {
             doris_mask_mut(rec, f);
         } else if let Some(rec) = self.record.as_mut_ionex() {
             ionex_mask_mut(rec, f);
-        }
-    }
-}
-
-#[cfg(feature = "processing")]
-#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
-impl Decimate for Rinex {
-    fn decimate(&self, f: &DecimationFilter) -> Self {
-        let mut s = self.clone();
-        s.decimate_mut(f);
-        s
-    }
-    fn decimate_mut(&mut self, f: &DecimationFilter) {
-        if let Some(rec) = self.record.as_mut_obs() {
-            observation_decim_mut(rec, f)
-        } else if let Some(rec) = self.record.as_mut_nav() {
-            navigation_decim_mut(rec, f)
-        } else if let Some(rec) = self.record.as_mut_clock() {
-            clock_decim_mut(rec, f)
-        } else if let Some(rec) = self.record.as_mut_meteo() {
-            meteo_decim_mut(rec, f)
-        } else if let Some(rec) = self.record.as_mut_doris() {
-            doris_decim_mut(rec, f)
-        } else if let Some(rec) = self.record.as_mut_ionex() {
-            ionex_decim_mut(rec, f)
         }
     }
 }

@@ -179,6 +179,11 @@ impl Merge for Header {
         // add special comment
         let now = Epoch::now().map_err(|_| MergeError::Other)?;
 
+        self.program = Some(format!(
+            "geo-rust v{}",
+            Self::format_pkg_version(env!("CARGO_PKG_VERSION"))
+        ));
+
         let merge_comment = Self::merge_comment(env!("CARGO_PKG_VERSION"), now);
         self.comments.push(merge_comment);
         Ok(())

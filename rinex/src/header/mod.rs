@@ -26,6 +26,9 @@ mod parsing;
 #[cfg(feature = "qc")]
 mod qc;
 
+#[cfg(feature = "processing")]
+mod decim;
+
 #[cfg(feature = "nav")]
 use anise::{
     math::Vector6,
