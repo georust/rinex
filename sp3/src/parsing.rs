@@ -164,27 +164,49 @@ impl SP3 {
                 }
 
                 let entry = PositionEntry::from_str(line)?;
-                let (sv, (x_km, y_km, z_km), clk_us) = entry.to_parts();
 
                 //TODO : move this into %c config frame
-                if !vehicles.contains(&sv) {
-                    vehicles.push(sv);
+                if !vehicles.contains(&entry.sv) {
+                    vehicles.push(entry.sv);
                 }
 
                 // verify entry validity
-                if x_km != 0.0_f64 && y_km != 0.0_f64 && z_km != 0.0_f64 {
-                    let key = SP3Key { epoch, sv };
+                if entry.x_km != 0.0_f64 && entry.y_km != 0.0_f64 && entry.z_km != 0.0_f64 {
+                    let key = SP3Key {
+                        epoch,
+                        sv: entry.sv,
+                    };
+
                     if let Some(e) = data.get_mut(&key) {
-                        e.position_km = (x_km, y_km, z_km);
+                        e.position_km = (entry.x_km, entry.y_km, entry.z_km);
+                        e.orbit_prediction = entry.orbit_prediction;
                     } else {
-                        if let Some(clk_us) = clk_us {
-                            data.insert(
-                                key,
-                                SP3Entry::from_position_km((x_km, y_km, z_km))
-                                    .with_clock_offset_us(clk_us),
-                            );
+                        if let Some(clk_us) = entry.clock_us {
+                            let value = if entry.orbit_prediction {
+                                SP3Entry::from_predicted_position_km((
+                                    entry.x_km, entry.y_km, entry.z_km,
+                                ))
+                            } else {
+                                SP3Entry::from_position_km((entry.x_km, entry.y_km, entry.z_km))
+                            };
+
+                            let value = if entry.clock_prediction {
+                                value.with_predicted_clock_offset_us(clk_us)
+                            } else {
+                                value.with_clock_offset_us(clk_us)
+                            };
+
+                            data.insert(key, value);
                         } else {
-                            data.insert(key, SP3Entry::from_position_km((x_km, y_km, z_km)));
+                            let value = if entry.orbit_prediction {
+                                SP3Entry::from_predicted_position_km((
+                                    entry.x_km, entry.y_km, entry.z_km,
+                                ))
+                            } else {
+                                SP3Entry::from_position_km((entry.x_km, entry.y_km, entry.z_km))
+                            };
+
+                            data.insert(key, value);
                         }
                     }
                 }
