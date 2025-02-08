@@ -773,8 +773,6 @@ fn nav_v4_kms300dnk_r2022() {
     // test ION frames
     let mut tests_passed = 0;
 
-    for (k, v) in dut.nav_ionosphere_models_iter() {}
-
     // test STO frames
     let mut tests_passed = 0;
 
