@@ -113,7 +113,7 @@ fn v3_pots00deu() {
         &dut,
         "3.05",
         "HR, PR, TD",
-        TimeFrame::from_inclusive_csv("2023-09-11T00:00:00 UTC, 22023-09-11T23:55:00 UTC, 300s"),
+        TimeFrame::from_inclusive_csv("2023-09-11T00:00:00 UTC, 2023-09-11T23:55:00 UTC, 300 s"),
     );
 
     dut.to_file("v3_pots00deu.txt").unwrap();
@@ -132,7 +132,7 @@ fn v4_example_1() {
         &dut,
         "4.00",
         "PR, TD, HR",
-        TimeFrame::from_inclusive_csv("2021-01-07T00:00:00 UTC, 2021-01-07T00:02:00 UTC, 30s"),
+        TimeFrame::from_inclusive_csv("2021-01-07T00:00:00 UTC, 2021-01-07T00:02:00 UTC, 30 s"),
     );
 
     dut.to_file("v4_example_1.txt").unwrap();
