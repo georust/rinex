@@ -163,7 +163,12 @@ pub mod prelude {
             errors::AlmanacResult,
             prelude::{Almanac, Frame, Orbit},
         };
-        pub use hifitime::ut1::DeltaTaiUt1;
+    }
+
+    #[cfg(feature = "ut1")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ut1")))]
+    pub mod ut1 {
+        pub use hifitime::ut1::{DeltaTaiUt1, Ut1Provider};
     }
 
     #[cfg(feature = "qc")]

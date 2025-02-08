@@ -32,7 +32,7 @@ rust-version = "1.64"
 ################################################################
 
 [features]
-default = ["full"]
+default = []
 
 # OBSERVATION RINEX Iterators & methods. Unlocks signal combinations.
 obs = []
@@ -41,8 +41,12 @@ obs = []
 # Unlocks navigation calculations including Kepler solver and Ut1Provider.
 nav = [
     "nalgebra",
-    "hifitime/ut1",
     "anise",
+]
+
+# Provides the special UT1-TAI methods
+ut1 = [
+    "hifitime/ut1",
 ]
 
 # METEO RINEX dedicated Iterators & methods.

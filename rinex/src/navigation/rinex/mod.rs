@@ -2,6 +2,10 @@
 #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
 mod feature; // feature dependent, high level methods
 
+#[cfg(feature = "ut1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ut1")))]
+mod ut1; // feature dependent stuff
+
 use crate::{
     navigation::{
         EarthOrientation, Ephemeris, NavFrame, NavFrameType, NavKey, NavMessageType, SystemTime,
