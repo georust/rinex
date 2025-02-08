@@ -371,6 +371,22 @@ impl SP3 {
         self.header.data_type == DataType::Velocity
     }
 
+    /// Returns true if at least one state vector (whatever the constellation)
+    /// was predicted
+    pub fn has_satellite_positions_prediction(&self) -> bool {
+        self.data
+            .iter()
+            .filter_map(|(k, v)| {
+                if v.orbit_prediction {
+                    Some((k, v))
+                } else {
+                    None
+                }
+            })
+            .count()
+            > 0
+    }
+
     /// Returns true if this [SP3] has satellites clock offset
     pub fn has_satellite_clock_offset(&self) -> bool {
         self.satellites_clock_offset_sec_iter().count() > 0
