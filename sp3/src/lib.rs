@@ -18,9 +18,11 @@ use gnss_rs::constellation::ParsingError as ConstellationParsingError;
 use thiserror::Error;
 
 #[cfg(feature = "qc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
 mod qc;
 
 #[cfg(feature = "processing")]
+#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 mod processing;
 
 #[cfg(feature = "anise")]
