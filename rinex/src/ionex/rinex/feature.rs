@@ -108,12 +108,8 @@ impl Rinex {
     /// example
     /// ```
     pub fn ionex_altitude_range_km(&self) -> Option<(f64, f64)> {
-        if self.is_ionex_3d() {
-            let header = self.header.ionex.as_ref()?;
-            Some((header.grid.height.start, header.grid.height.end))
-        } else {
-            None
-        }
+        let header = self.header.ionex.as_ref()?;
+        Some((header.grid.height.start, header.grid.height.end))
     }
 
     /// Designs an TEC isosurface iterator starting at lowest altitude,
