@@ -242,10 +242,10 @@ impl SP3Entry {
 pub struct SP3 {
     /// File [Header]
     pub header: Header,
-    /// File content are [SP3Entry]s sorted per [SP3Key]
-    pub data: BTreeMap<SP3Key, SP3Entry>,
     /// File header comments, stored as is.
     pub comments: Vec<String>,
+    /// File content are [SP3Entry]s sorted per [SP3Key]
+    pub data: BTreeMap<SP3Key, SP3Entry>,
 }
 
 #[derive(Debug, Error)]
@@ -452,10 +452,10 @@ impl SP3 {
         self.header.satellites.iter().copied()
     }
 
-    /// [SV] position attitude in kilometers ECEF with theoretical 10⁻³m precision.
+    /// [SV] position attitude [Iterator], in kilometers ECEF, with theoretical 10⁻³m precision.  
+    /// All coordinates expressed in Coordinates system (always fixed body frame).  
     /// NB: all satellites being maneuvered are sorted out, which makes this method
     /// compatible with navigation.
-    /// All coordinates expressed in Coordinates system (always fixed body frame).
     pub fn satellites_position_km_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (Epoch, SV, Vector3D)> + '_> {
@@ -468,7 +468,7 @@ impl SP3 {
         }))
     }
 
-    /// [SV] position attitude [Iterator] expressed as [Orbit] in desired reference [Frame].
+    /// [SV] position attitude [Iterator] expressed as [Orbit] in desired reference [Frame].  
     /// For this to be correct:
     /// - [Frame] must be ECEF
     /// - [Frame] should match the coordinates system described in [Header]
