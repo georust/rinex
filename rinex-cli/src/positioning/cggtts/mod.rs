@@ -70,6 +70,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     // rx_lat_ddeg: f64,
     matches: &ArgMatches,
 ) -> Result<Vec<Track>, PositioningError> {
+
     // custom tracking duration
     let cv_duration = match matches.get_one::<Duration>("tracking") {
         Some(tracking) => {
@@ -83,30 +84,49 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
         },
     };
 
+    let bipm_warmup_duration = 3.0 * Unit::Minute;
+
     let mut trk_duration = cv_duration;
 
     if trk_duration == Scheduler::bipm_tracking_duration() {
         trk_duration = Scheduler::bipm_tracking_duration() - 3.0 * Unit::Minute;
     }
 
-    // grab relevant structures: infaillible, at this point
-    let obs_data = ctx.data.observation().unwrap();
-    let nav_data = ctx.data.brdc_navigation().unwrap();
+    let obs_data = ctx
+        .data
+        .observation()
+        .expect("RNX2CGGTTS requires OBS RINEX");
+
+    let nav_data = ctx
+        .data
+        .brdc_navigation()
+        .expect("RNX2CGGTTS requires NAV RINEX");
+
+    let t0 = obs_data
+        .first_epoch()
+        .expect("failed to determine first epoch, empty observations?");
 
     let dominant_sampling_period = obs_data
         .dominant_sampling_interval()
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
-    let mut past_t = Option::<Epoch>::None;
+    let mut past_t = t0;
 
     // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
-
     let track_scheduler = Scheduler::new(cv_duration);
 
     let mut trk_midpoint = Option::<Epoch>::None;
-    let mut next_cv_start_time = Option::<Epoch>::None;
-    let mut next_tracking_start_time = Option::<Epoch>::None;
+
+    // start of next CV period
+    let mut next_cv_start_time = track_scheduler.next_track_start(t0);
+
+    if cv_duration == Scheduler::bipm_tracking_duration() {
+        next_cv_start_time -= bipm_warmup_duration;
+    }
+    
+    // start of next CV traking (possible warmup time)
+    let mut next_tracking_start_time = next_cv_start_time;
 
     let mut should_skip = false;
     let mut should_release = false;
@@ -114,76 +134,74 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     let mut sv_observations = HashMap::<SV, Vec<Observation>>::new();
 
     for (t, signal) in obs_data.signal_observations_sampling_ok_iter() {
-        if let Some(past_t) = past_t {
-            if t != past_t && !should_skip {
-                // New epoch: solving attempt
-                // Creates and forwards Candidate for each SV
-                for (sv, observations) in sv_observations.iter() {
-                    let mut cd = Candidate::new(*sv, past_t, observations.clone());
+        if t != past_t && !should_skip {
+            // New epoch: solving attempt
+            // Creates and forwards Candidate for each SV
+            for (sv, observations) in sv_observations.iter() {
+                let mut cd = Candidate::new(*sv, past_t, observations.clone());
 
-                    // candidate "fixup" or customizations
-                    match clock.next_clock_at(past_t, *sv) {
-                        Some(dt) => cd.set_clock_correction(dt),
-                        None => error!("{} ({}) - no clock correction available", past_t, *sv),
+                // candidate "fixup" or customizations
+                match clock.next_clock_at(past_t, *sv) {
+                    Some(dt) => cd.set_clock_correction(dt),
+                    None => error!("{} ({}) - no clock correction available", past_t, *sv),
+                }
+
+                if let Some((_, _, eph)) = eph.borrow_mut().select(past_t, *sv) {
+                    if let Some(tgd) = eph.tgd() {
+                        debug!("{} ({}) - tgd: {}", past_t, *sv, tgd);
+                        cd.set_group_delay(tgd);
                     }
+                }
 
-                    if let Some((_, _, eph)) = eph.borrow_mut().select(past_t, *sv) {
-                        if let Some(tgd) = eph.tgd() {
-                            debug!("{} ({}) - tgd: {}", past_t, *sv, tgd);
-                            cd.set_group_delay(tgd);
-                        }
-                    }
+                let tropo = TropoComponents::Unknown;
+                cd.set_tropo_components(tropo);
 
-                    let tropo = TropoComponents::Unknown;
-                    cd.set_tropo_components(tropo);
+                let mut iono = IonoComponents::Unknown;
 
-                    let mut iono = IonoComponents::Unknown;
+                if let Some(model) = kb_model(nav_data, past_t) {
+                    iono = IonoComponents::KbModel(model);
+                } else if let Some(model) = ng_model(nav_data, past_t) {
+                    iono = IonoComponents::NgModel(model);
+                } else if let Some(model) = bd_model(nav_data, past_t) {
+                    iono = IonoComponents::BdModel(model);
+                }
 
-                    if let Some(model) = kb_model(nav_data, past_t) {
-                        iono = IonoComponents::KbModel(model);
-                    } else if let Some(model) = ng_model(nav_data, past_t) {
-                        iono = IonoComponents::NgModel(model);
-                    } else if let Some(model) = bd_model(nav_data, past_t) {
-                        iono = IonoComponents::BdModel(model);
-                    }
+                match iono {
+                    IonoComponents::Unknown => {
+                        warn!("{} ({}) - undefined ionosphere parameters", past_t, *sv)
+                    },
+                    IonoComponents::KbModel(_) => info!(
+                        "{} ({}) - using KLOBUCHAR ionosphere parameters",
+                        past_t, *sv
+                    ),
+                    IonoComponents::NgModel(_) => info!(
+                        "{} ({}) - using NEQUICK-G ionosphere parameters",
+                        past_t, *sv
+                    ),
+                    IonoComponents::BdModel(_) => {
+                        info!("{} ({}) - using BDGIM ionosphere parameters", past_t, *sv)
+                    },
+                    _ => {},
+                }
 
-                    match iono {
-                        IonoComponents::Unknown => {
-                            warn!("{} ({}) - undefined ionosphere parameters", past_t, *sv)
-                        },
-                        IonoComponents::KbModel(_) => info!(
-                            "{} ({}) - using KLOBUCHAR ionosphere parameters",
-                            past_t, *sv
-                        ),
-                        IonoComponents::NgModel(_) => info!(
-                            "{} ({}) - using NEQUICK-G ionosphere parameters",
-                            past_t, *sv
-                        ),
-                        IonoComponents::BdModel(_) => {
-                            info!("{} ({}) - using BDGIM ionosphere parameters", past_t, *sv)
-                        },
-                        _ => {},
-                    }
+                cd.set_iono_components(iono);
 
-                    cd.set_iono_components(iono);
+                match solver.resolve(past_t, &[cd]) {
+                    Ok((t, pvt_solution)) => {
+                        info!(
+                            "({:?} ({}) : new pvt solution {:?}",
+                            past_t, signal.sv, pvt_solution
+                        );
+                    },
+                    Err(e) => {
+                        // any PVT solution failure will introduce a gap in the track fitter
+                        error!("pvt solver error: {}", e);
+                    },
+                }
+            } // for each sv
 
-                    match solver.resolve(past_t, &[cd]) {
-                        Ok((t, pvt_solution)) => {
-                            info!(
-                                "({:?} ({}) : new pvt solution {:?}",
-                                past_t, signal.sv, pvt_solution
-                            );
-                        },
-                        Err(e) => {
-                            // any PVT solution failure will introduce a gap in the track fitter
-                            error!("pvt solver error: {}", e);
-                        },
-                    }
-                } // for each sv
-
-                sv_observations.clear();
-            } // new track attempt
-        } // epoch
+            sv_observations.clear();
+        } // new track attempt
 
         let carrier = Carrier::from_observable(signal.sv.constellation, &signal.observable);
         if carrier.is_err() {
@@ -216,6 +234,26 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                     _ => {},
                 }
             } else {
+                match signal.observable {
+                    Observable::PhaseRange(_) => {
+                        observations.push(Observation::ambiguous_phase_range(
+                            rtk_carrier,
+                            signal.value,
+                            None,
+                        ));
+                    },
+                    Observable::PseudoRange(_) => {
+                        observations.push(Observation::pseudo_range(
+                            rtk_carrier,
+                            signal.value,
+                            None,
+                        ));
+                    },
+                    Observable::Doppler(_) => {
+                        observations.push(Observation::doppler(rtk_carrier, signal.value, None));
+                    },
+                    _ => {},
+                }
             }
         } else {
             match signal.observable {
@@ -246,23 +284,31 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
         }
 
         // When last Epoch of the CV period is reached: we should release a track
-        let next_release_duration = next_cv_start_time.unwrap() - t;
+        let next_release_duration = next_cv_start_time - t;
 
         should_release = next_release_duration <= dominant_sampling_period;
         should_release &= next_release_duration > Duration::ZERO;
 
-        trk_midpoint = Some(next_cv_start_time.unwrap() - trk_duration / 2);
+        trk_midpoint = Some(next_cv_start_time - trk_duration / 2);
 
         info!(
             "{:?} - {} until next cv period",
             t,
-            next_cv_start_time.unwrap() - t,
+            next_cv_start_time - t,
         );
 
         // skip the prepare duration
         should_skip = next_release_duration < Duration::ZERO;
 
-        past_t = Some(t);
+        // next track
+        next_tracking_start_time = track_scheduler.next_track_start(t);
+        next_cv_start_time = next_tracking_start_time;
+        
+        if cv_duration == Scheduler::bipm_tracking_duration() {
+            next_cv_start_time -= bipm_warmup_duration;
+        }
+
+        past_t = t;
     }
 
     //         for (sv, rinex_obs) in vehicles {
@@ -425,14 +471,6 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     //             } // for all OBS
     //         } //.sv()
     //     }
-    //     next_tracking_start_time = Some(sched.next_track_start(*t));
-    //     next_cv_start_time = next_tracking_start_time;
-    //     if cv_duration == Scheduler::bipm_tracking_duration() {
-    //         let cv_prepare_duration = 3.0 * Unit::Minute;
-    //         next_cv_start_time = Some(next_cv_start_time.unwrap() - cv_prepare_duration);
-    //     }
-
-    tracks.sort_by(|a, b| a.epoch.cmp(&b.epoch));
 
     Ok(tracks)
 }
