@@ -155,6 +155,26 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                     _ => {},
                 }
             } else {
+                match signal.observable {
+                    Observable::PhaseRange(_) => {
+                        observations.push(Observation::ambiguous_phase_range(
+                            rtk_carrier,
+                            signal.value,
+                            None,
+                        ));
+                    },
+                    Observable::PseudoRange(_) => {
+                        observations.push(Observation::pseudo_range(
+                            rtk_carrier,
+                            signal.value,
+                            None,
+                        ));
+                    },
+                    Observable::Doppler(_) => {
+                        observations.push(Observation::doppler(rtk_carrier, signal.value, None));
+                    },
+                    _ => {},
+                }
             }
         } else {
             match signal.observable {
