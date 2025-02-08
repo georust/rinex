@@ -304,6 +304,8 @@ pub fn main() -> Result<(), Error> {
                         ctx.rx_orbit = Some(rx_orbit);
                     }
                 }
+            } else {
+                panic!("manual definition of a reference point requires OBS RINEX");
             }
         },
         None => {
@@ -319,8 +321,6 @@ pub fn main() -> Result<(), Error> {
                         ctx.rx_orbit = Some(rx_orbit);
                     }
                 }
-            } else {
-                error!("manual definition of a reference point requires OBS RINEX");
             }
         },
     }
@@ -328,6 +328,20 @@ pub fn main() -> Result<(), Error> {
     // Prepare for output productes (on any FOPS)
     if cli.has_fops_output_product() {
         ctx.workspace.create_subdir("OUTPUT");
+
+        // possible seamless CRINEX/RINEX compression
+        if cli.rnx2crnx() {
+            if let Some(observation) = ctx.data.observation_mut() {
+                info!("internal RNX2CRX compression");
+                observation.rnx2crnx_mut();
+            }
+        }
+        if cli.crnx2rnx() {
+            if let Some(observation) = ctx.data.observation_mut() {
+                info!("internal CRX2RNX decompression");
+                observation.crnx2rnx_mut();
+            }
+        }
     }
 
     // Exclusive opmodes to follow

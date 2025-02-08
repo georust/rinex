@@ -191,6 +191,14 @@ to obtain highest precision."))
                 .help("Customize output file or report name.
 In analysis opmode, report is named index.html by default, this will redefine that.
 In file operations (filegen, etc..) we can manually define output filenames with this option."))
+            .arg(Arg::new("rnx2crx")
+                .long("rnx2crx")
+                .action(ArgAction::SetTrue)
+                .help("Any (Observation RINEX) output products is compressed to CRINEX"))
+            .arg(Arg::new("crx2rnx")
+                .long("crx2rnx")
+                .action(ArgAction::SetTrue)
+                .help("Any (Observation CRINEX) output products is decompressed to readable RINEX"))
         .next_help_heading("Report customization")
         .arg(
             Arg::new("report-sum")
@@ -500,5 +508,15 @@ Otherwise it gets automatically picked up."))
     /// True if jpl_bpc_update is requested
     pub fn jpl_bpc_update(&self) -> bool {
         self.matches.get_flag("jpl-bpc")
+    }
+
+    /// Internal seamless CRNX2RNX decompression
+    pub fn crnx2rnx(&self) -> bool {
+        self.matches.get_flag("crx2rnx")
+    }
+
+    /// Internal seamless RNX2CRX compression
+    pub fn rnx2crnx(&self) -> bool {
+        self.matches.get_flag("rnx2crx")
     }
 }

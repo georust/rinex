@@ -1,4 +1,7 @@
-use crate::prelude::{Epoch, Header, TimeScale};
+use crate::{
+    epoch::epoch_decompose as epoch_decomposition,
+    prelude::{Epoch, Header, TimeScale},
+};
 
 use qc_traits::{Decimate, DecimationFilter};
 
@@ -16,7 +19,11 @@ impl Decimate for Header {
 
         if let Ok(now) = Epoch::now() {
             let now_utc = now.to_time_scale(TimeScale::UTC);
-            // self.date =
+            let (y, m, d, hh, mm, ss, _) = epoch_decomposition(now_utc);
+            self.date = Some(format!(
+                "{:04}{:02}{:02} {:02}{:02}{:02} UTC",
+                y, m, d, hh, mm, ss
+            ));
         }
     }
 }

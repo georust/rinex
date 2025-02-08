@@ -18,9 +18,19 @@ pub fn diff(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
 
     let path_b = matches.get_one::<PathBuf>("file").unwrap();
 
-    let path_b = path_b.to_string_lossy().to_string();
-    let rinex_b = Rinex::from_file(&path_b)
-        .unwrap_or_else(|_| panic!("failed to load {}: invalid RINEX", path_b));
+    let extension_b = path_b
+        .extension()
+        .unwrap_or_else(|| panic!("failed to determine file extension: {}", path_b.display()))
+        .to_string_lossy()
+        .to_string();
+
+    let rinex_b = if extension_b == "gz" {
+        Rinex::from_gzip_file(&path_b)
+    } else {
+        Rinex::from_file(&path_b)
+    };
+
+    let rinex_b = rinex_b.unwrap_or_else(|e| panic!("{} parsing error: {}", path_b.display(), e));
 
     let rinex_c = match rinex_b.header.rinex_type {
         RinexType::ObservationData => {
@@ -28,8 +38,7 @@ pub fn diff(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
                 .observation()
                 .expect("RINEX (A) - (B) requires OBS RINEX files");
 
-            //TODO: change this to crnx2rnx_mut()
-            rinex_a.crnx2rnx().observation_substract(&rinex_b)
+            rinex_a.observation_substract(&rinex_b)
         },
         t => panic!("operation not feasible for {}", t),
     };

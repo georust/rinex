@@ -11,9 +11,25 @@ pub fn merge(ctx: &Context, matches: &ArgMatches) -> Result<(), Error> {
     let ctx_data = &ctx.data;
     let merge_path = matches.get_one::<PathBuf>("file").unwrap();
 
-    let merge_filepath = merge_path.to_string_lossy().to_string();
+    let extension = merge_path
+        .extension()
+        .unwrap_or_else(|| {
+            panic!(
+                "failed to determine file extension: {}",
+                merge_path.display()
+            )
+        })
+        .to_string_lossy()
+        .to_string();
 
-    let rinex_b = Rinex::from_file(&merge_filepath)?;
+    let rinex_b = if extension == "gz" {
+        Rinex::from_gzip_file(&merge_path)
+    } else {
+        Rinex::from_file(&merge_path)
+    };
+
+    let rinex_b =
+        rinex_b.unwrap_or_else(|e| panic!("failed to parse {}: {}", merge_path.display(), e));
 
     let rinex_c = match rinex_b.header.rinex_type {
         RinexType::ObservationData => {
