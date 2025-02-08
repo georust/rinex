@@ -99,7 +99,7 @@ impl Rinex {
     }
 
     /// Returns altitude range of the IONEX TEC maps, expressed as {min, max}
-    /// both in kilometers. 
+    /// both in kilometers.
     /// - if this is a 2D IONEX: you will obtain (min, min)
     /// - if this is a 3D IONEX: you will obtain (min, max)
     /// Note that this is only based on Header definitions. If provided
