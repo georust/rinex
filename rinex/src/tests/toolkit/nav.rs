@@ -1,5 +1,6 @@
 use crate::{
-    prelude::{Rinex, RinexType},
+    navigation::NavMessageType,
+    prelude::{Constellation, Rinex, RinexType},
     tests::toolkit::{generic_rinex_test, sv_csv as sv_csv_parser, TimeFrame},
 };
 
@@ -54,6 +55,68 @@ pub fn generic_test(
 
     assert_eq!(dut.sv_iter().collect::<Vec<_>>(), sv);
     assert_eq!(dut.nav_ephemeris_frames_iter().count(), nb_ephemeris);
+
+    // EPH frames logic
+    for (k, v) in dut.nav_ephemeris_frames_iter() {
+        if k.sv.constellation.is_sbas() {
+            let expected = [NavMessageType::LNAV, NavMessageType::SBAS];
+            assert!(
+                expected.contains(&k.msgtype),
+                "parsed invalid SBAS message: \"{}\"",
+                k.msgtype
+            );
+        }
+        match k.sv.constellation {
+            Constellation::GPS | Constellation::QZSS => {
+                let expected = [
+                    NavMessageType::LNAV,
+                    NavMessageType::CNAV,
+                    NavMessageType::CNV2,
+                ];
+                assert!(
+                    expected.contains(&k.msgtype),
+                    "parsed invalid GPS/QZSS message: \"{}\"",
+                    k.msgtype,
+                );
+            },
+            Constellation::Galileo => {
+                let expected = [
+                    NavMessageType::LNAV,
+                    NavMessageType::FNAV,
+                    NavMessageType::INAV,
+                ];
+                assert!(
+                    expected.contains(&k.msgtype),
+                    "parsed invalid Galileo message: \"{}\"",
+                    k.msgtype,
+                );
+            },
+            Constellation::BeiDou => {
+                let expected = [
+                    NavMessageType::D1,
+                    NavMessageType::D2,
+                    NavMessageType::CNV1,
+                    NavMessageType::CNV2,
+                    NavMessageType::CNV3,
+                    NavMessageType::LNAV,
+                ];
+                assert!(
+                    expected.contains(&k.msgtype),
+                    "parsed invalid BeiDou message: \"{}\"",
+                    k.msgtype,
+                );
+            },
+            Constellation::Glonass => {
+                let expected = [NavMessageType::LNAV, NavMessageType::FDMA];
+                assert!(
+                    expected.contains(&k.msgtype),
+                    "parsed invalid Glonass message: \"{}\"",
+                    k.msgtype,
+                );
+            },
+            _ => {},
+        }
+    }
 }
 
 pub fn generic_comparison(dut: &Rinex, model: &Rinex) {

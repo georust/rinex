@@ -477,52 +477,6 @@ fn v2_cbw10010_21n() {
 // #[cfg(feature = "flate2")]
 // fn v4_kms300dnk_r_202215910() {
 
-//     let mut eop_count = 0;
-//     let mut ion_count = 0;
-//     let mut sto_count = 0;
-//     for (e, frames) in record {
-//         for fr in frames {
-//             if let Some(fr) = fr.as_eph() {
-//                 let (msgtype, sv, ephemeris) = fr;
-//                 if sv.constellation == Constellation::QZSS {
-//                     if sv.prn != 4 {
-//                         panic!("got unexpected QZSS vehicle \"{}\"", sv.prn)
-//                     }
-//                     assert_eq!(*e, Epoch::from_str("2022-06-08T11:00:00 GPST").unwrap());
-//                     assert_eq!(msgtype, NavMsgType::LNAV);
-//                     assert_eq!(ephemeris.clock_bias, 1.080981455743E-04);
-//                     assert_eq!(ephemeris.clock_drift, 3.751665644813E-12);
-//                     assert_eq!(ephemeris.clock_drift_rate, 0.0);
-//                 }
-//             } else if let Some(fr) = fr.as_sto() {
-//                 let (_msg, _sv, sto) = fr;
-//                 if sto.system.eq("GAUT") {
-//                     assert_eq!(*e, Epoch::from_str("2022-06-08T00:00:00 GST").unwrap());
-//                     assert_eq!(sto.t_tm, 295207);
-//                     assert_eq!(
-//                         sto.a,
-//                         (-1.862645149231E-09, 8.881784197001E-16, 0.000000000000E+00)
-//                     );
-//                 } else if sto.system.eq("GAGP") {
-//                     assert_eq!(*e, Epoch::from_str("2022-06-08T00:00:00 GST").unwrap());
-//                     assert_eq!(
-//                         sto.a,
-//                         (3.201421350241E-09, -4.440892098501E-15, 0.000000000000E+00)
-//                     );
-//                     assert_eq!(sto.t_tm, 295240);
-//                 } else if sto.system.eq("GPUT") {
-//                     assert_eq!(*e, Epoch::from_str("2022-06-10T19:56:48 GPST").unwrap());
-//                     assert_eq!(
-//                         sto.a,
-//                         (9.313225746155E-10, 2.664535259100E-15, 0.000000000000E+00)
-//                     );
-//                     assert_eq!(sto.t_tm, 295284);
-//                 } else {
-//                     panic!("got unexpected system time \"{}\"", sto.system)
-//                 }
-//             } else if let Some(_fr) = fr.as_eop() {
-//                 eop_count += 1; // EOP test
-//                                 //TODO
 //                                 // we do not have EOP frame examples at the moment
 //             } else if let Some(fr) = fr.as_ion() {
 //                 ion_count += 1; // ION test
@@ -773,11 +727,13 @@ fn nav_v4_kms300dnk_r2022() {
     let t0 = Epoch::from_str("2022-06-10T19:56:48 GPST").unwrap();
     let t1 = Epoch::from_str("2022-06-08T00:00:00 GST").unwrap();
     let t2 = Epoch::from_str("2022-06-08T09:50:00 GST").unwrap();
+    let t_11_00_00_gpst = Epoch::from_str("2022-06-08T11:00:00 GPST").unwrap();
     let t_last = Epoch::from_str("2022-06-10T19:56:48 GPST").unwrap();
 
     let g26 = SV::from_str("G26").unwrap();
     let e01 = SV::from_str("E01").unwrap();
     let e14 = SV::from_str("E14").unwrap();
+    let j04 = SV::from_str("J04").unwrap();
 
     // test EPH frames
     let mut tests_passed = 0;
@@ -787,6 +743,13 @@ fn nav_v4_kms300dnk_r2022() {
 
         // test first epoch
         if k.epoch == t0 {
+        } else if k.epoch == t_11_00_00_gpst {
+            assert_eq!(k.sv, j04);
+            assert_eq!(k.msgtype, NavMessageType::LNAV);
+            assert_eq!(v.clock_bias, 1.080981455743E-04);
+            assert_eq!(v.clock_drift, 3.751665644813E-12);
+            assert_eq!(v.clock_drift_rate, 0.0);
+            tests_passed += 1;
         } else if k.epoch == t2 {
             if k.sv == e14 {
                 if k.msgtype == NavMessageType::INAV {
@@ -805,7 +768,12 @@ fn nav_v4_kms300dnk_r2022() {
         }
     }
 
-    assert_eq!(tests_passed, 2);
+    assert_eq!(tests_passed, 3);
+
+    // test ION frames
+    let mut tests_passed = 0;
+
+    for (k, v) in dut.nav_ionosphere_models_iter() {}
 
     // test STO frames
     let mut tests_passed = 0;
@@ -828,10 +796,11 @@ fn nav_v4_kms300dnk_r2022() {
                 assert_eq!(k.msgtype, NavMessageType::IFNV);
                 assert_eq!(k.frmtype, NavFrameType::SystemTimeOffset);
                 assert_eq!(v.system, "GAGP");
-                assert_eq!(v.utc, "UTCGAL");
+                assert_eq!(v.utc, "");
+                assert_eq!(v.t_tm, 0);
                 assert_eq!(
                     v.a,
-                    (2.952070000000E+05, -1.862645149231E-09, 8.881784197001E-16)
+                    (2.952400000000E+05, 3.201421350241E-09, -4.440892098501E-15),
                 );
                 tests_passed += 1;
             }
@@ -840,59 +809,6 @@ fn nav_v4_kms300dnk_r2022() {
 
     assert_eq!(tests_passed, 2);
 }
-
-//     for (_epoch, (msg, sv, _ephemeris)) in rinex.ephemeris() {
-//         match sv.constellation {
-//             Constellation::GPS | Constellation::QZSS => {
-//                 let expected = [NavMsgType::LNAV, NavMsgType::CNAV, NavMsgType::CNV2];
-//                 assert!(
-//                     expected.contains(&msg),
-//                     "parsed invalid GPS/QZSS V4 message \"{}\"",
-//                     msg
-//                 );
-//             },
-//             Constellation::Galileo => {
-//                 let expected = [NavMsgType::FNAV, NavMsgType::INAV];
-//                 assert!(
-//                     expected.contains(&msg),
-//                     "parsed invalid Galileo V4 message \"{}\"",
-//                     msg
-//                 );
-//             },
-//             Constellation::BeiDou => {
-//                 let expected = [
-//                     NavMsgType::D1,
-//                     NavMsgType::D2,
-//                     NavMsgType::CNV1,
-//                     NavMsgType::CNV2,
-//                     NavMsgType::CNV3,
-//                 ];
-//                 assert!(
-//                     expected.contains(&msg),
-//                     "parsed invalid BeiDou V4 message \"{}\"",
-//                     msg
-//                 );
-//             },
-//             Constellation::Glonass => {
-//                 assert_eq!(
-//                     msg,
-//                     NavMsgType::FDMA,
-//                     "parsed invalid Glonass V4 message \"{}\"",
-//                     msg
-//                 );
-//             },
-//             Constellation::SBAS => {
-//                 assert_eq!(
-//                     msg,
-//                     NavMsgType::SBAS,
-//                     "parsed invalid SBAS V4 message \"{}\"",
-//                     msg
-//                 );
-//             },
-//             _ => {},
-//         }
-//     }
-// }
 
 // #[test]
 // #[cfg(feature = "nav")]
