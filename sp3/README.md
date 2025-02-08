@@ -100,9 +100,9 @@ This library is shipped with `flate2` support (gzip compressed SP3 files) by def
 
 ## Main dependencies
 
-This library relies on `Nyx-space::Hifitime` at all times.
+This library relies on `Nyx-Space/Hifitime` at all times.
 
-The `anise` feature is the heaviest library option. 
+The `Nyx-Space/ANISE` feature is the heaviest library option. 
 
 ## Satellite attitude interpolation
 
