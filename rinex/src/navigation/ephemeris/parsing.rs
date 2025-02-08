@@ -181,7 +181,7 @@ impl Ephemeris {
     /// Parse Ephemeris (V4) from line iterator
     pub(crate) fn parse_v4(
         msg: NavMessageType,
-        mut lines: std::str::Lines<'_>,
+        mut lines: Lines<'_>,
         ts: TimeScale,
     ) -> Result<(Epoch, SV, Self), ParsingError> {
         let line = match lines.next() {

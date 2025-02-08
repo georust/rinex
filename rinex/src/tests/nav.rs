@@ -767,7 +767,7 @@ fn nav_v4_kms300dnk_r2022() {
         C28, C29, C30, C32, C33, C35, C36, C38, C41, C42, C45, C46, C60,
         J04,
         S48, S36, S26, S44, S23, S25, S27, S26, S28",
-        187,
+        357,
     );
 
     let t0 = Epoch::from_str("2022-06-10T19:56:48 GPST").unwrap();
@@ -783,22 +783,29 @@ fn nav_v4_kms300dnk_r2022() {
     let mut tests_passed = 0;
 
     for (k, v) in dut.nav_ephemeris_frames_iter() {
+        assert_eq!(k.frmtype, NavFrameType::Ephemeris);
+
         // test first epoch
         if k.epoch == t0 {
         } else if k.epoch == t2 {
             if k.sv == e14 {
-                assert_eq!(k.msgtype, NavMessageType::INAV);
-                assert_eq!(k.frmtype, NavFrameType::Ephemeris);
-                assert_eq!(v.clock_bias, -1.813994604163E-03);
-                assert_eq!(v.clock_drift, 1.104183411371E-11);
-                assert_eq!(v.clock_drift_rate, 0.000000000000E+00);
-                tests_passed += 1;
+                if k.msgtype == NavMessageType::INAV {
+                    assert_eq!(v.clock_bias, -1.813994604163E-03);
+                    assert_eq!(v.clock_drift, 1.104183411371E-11);
+                    assert_eq!(v.clock_drift_rate, 0.000000000000E+00);
+                    tests_passed += 1;
+                } else if k.msgtype == NavMessageType::FNAV {
+                    assert_eq!(v.clock_bias, -1.813993556425E-03);
+                    assert_eq!(v.clock_drift, 1.104183411371E-11);
+                    assert_eq!(v.clock_drift_rate, 0.000000000000E+00);
+                    tests_passed += 1;
+                }
             }
         } else if k.epoch == t_last {
         }
     }
 
-    assert_eq!(tests_passed, 1);
+    assert_eq!(tests_passed, 2);
 
     // test STO frames
     let mut tests_passed = 0;
