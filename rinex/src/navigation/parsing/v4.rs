@@ -30,43 +30,48 @@ pub fn parse(content: &str) -> Result<(NavKey, NavFrame), ParsingError> {
         .timescale()
         .ok_or(ParsingError::NoTimescaleDefinition)?;
 
+    // grab next lines
+    let line_1 = lines.next().ok_or(ParsingError::EmptyEpoch)?;
+    let line_2 = lines.next().ok_or(ParsingError::EmptyEpoch)?;
+
     // Parses navframe type dependent and epoch of publication
     let (epoch, fr) = match frmtype {
-        NavFrameType::Ephemeris => {
-            let (epoch, _, ephemeris) = Ephemeris::parse_v4(msgtype, lines, ts)?;
-            (epoch, NavFrame::EPH(ephemeris))
-        },
+        //NavFrameType::Ephemeris => {
+        //    let (epoch, _, ephemeris) = Ephemeris::parse_v4(msgtype, lines, ts)?;
+        //    (epoch, NavFrame::EPH(ephemeris))
+        //},
         NavFrameType::SystemTimeOffset => {
-            let (epoch, system_time) = SystemTime::parse(lines, ts)?;
+            let (epoch, system_time) = SystemTime::parse(line_1, line_2, ts)?;
             (epoch, NavFrame::STO(system_time))
         },
-        NavFrameType::EarthOrientation => {
-            let (epoch, eop) = EarthOrientation::parse(lines, ts)?;
-            (epoch, NavFrame::EOP(eop))
-        },
-        NavFrameType::IonosphereModel => {
-            let (epoch, model) = match msgtype {
-                NavMessageType::IFNV => {
-                    let (epoch, model) = NgModel::parse(lines, ts)?;
-                    (epoch, IonosphereModel::NequickG(model))
-                },
-                NavMessageType::CNVX => match sv.constellation {
-                    Constellation::BeiDou => {
-                        let (epoch, model) = BdModel::parse(lines, ts)?;
-                        (epoch, IonosphereModel::Bdgim(model))
-                    },
-                    _ => {
-                        let (epoch, model) = KbModel::parse(lines, ts)?;
-                        (epoch, IonosphereModel::Klobuchar(model))
-                    },
-                },
-                _ => {
-                    let (epoch, model) = KbModel::parse(lines, ts)?;
-                    (epoch, IonosphereModel::Klobuchar(model))
-                },
-            };
-            (epoch, NavFrame::ION(model))
-        },
+        _ => panic!("oops"),
+        //NavFrameType::EarthOrientation => {
+        //    let (epoch, eop) = EarthOrientation::parse(lines, ts)?;
+        //    (epoch, NavFrame::EOP(eop))
+        //},
+        //NavFrameType::IonosphereModel => {
+        //    let (epoch, model) = match msgtype {
+        //        NavMessageType::IFNV => {
+        //            let (epoch, model) = NgModel::parse(lines, ts)?;
+        //            (epoch, IonosphereModel::NequickG(model))
+        //        },
+        //        NavMessageType::CNVX => match sv.constellation {
+        //            Constellation::BeiDou => {
+        //                let (epoch, model) = BdModel::parse(lines, ts)?;
+        //                (epoch, IonosphereModel::Bdgim(model))
+        //            },
+        //            _ => {
+        //                let (epoch, model) = KbModel::parse(lines, ts)?;
+        //                (epoch, IonosphereModel::Klobuchar(model))
+        //            },
+        //        },
+        //        _ => {
+        //            let (epoch, model) = KbModel::parse(lines, ts)?;
+        //            (epoch, IonosphereModel::Klobuchar(model))
+        //        },
+        //    };
+        //    (epoch, NavFrame::ION(model))
+        //},
     };
 
     let key = NavKey {
