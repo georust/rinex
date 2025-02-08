@@ -77,6 +77,7 @@ impl SP3 {
     }
 
     #[cfg(feature = "flate2")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "flate2")))]
     /// Parse [SP3] data from gzip encoded local file.
     pub fn from_gzip_file(path: impl AsRef<Path>) -> Result<Self, Error> {
         let fd = File::open(path).expect("file is not readable");

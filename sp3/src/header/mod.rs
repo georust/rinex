@@ -9,6 +9,9 @@ use crate::{
     prelude::{Constellation, Duration, ParsingError, TimeScale, SV},
 };
 
+#[cfg(docsrs)]
+use crate::prelude::Epoch;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -101,16 +104,16 @@ pub struct Header {
     /// Type of [Constellation] found in this record.
     /// For example [Constellation::GPS] means you will only find GPS satellite vehicles.
     pub constellation: Constellation,
-    /// [TimeScale] that applies to all following [Epoch]
+    /// [TimeScale] that applies to all following [Epoch]s.
     pub timescale: TimeScale,
-    /// [TimeScale] week counter
+    /// [TimeScale] week counter.
     pub week_counter: u32,
-    /// [TimeScale] seconds of current week
+    /// [TimeScale] seconds in current week.
     pub week_sow: f64,
     /// Datetime of first record entry, expressed as integral and frational MJD in [TimeScale].
     pub mjd: f64,
-    /// Sampling interval as [Duration].
+    /// Sampling period, as [Duration].
     pub epoch_interval: Duration,
-    /// [SV] to be found.
+    /// [SV] to be found in this record.
     pub satellites: Vec<SV>,
 }
