@@ -476,360 +476,6 @@ fn v2_cbw10010_21n() {
 // #[test]
 // #[cfg(feature = "flate2")]
 // fn v4_kms300dnk_r_202215910() {
-//     let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
-//         + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
-//     let rinex = Rinex::from_gzip_file(&test_resource);
-//     assert!(rinex.is_ok());
-//     let rinex = rinex.unwrap();
-//     assert!(rinex.is_navigation_rinex());
-//     assert!(rinex.header.obs.is_none());
-//     assert!(rinex.header.meteo.is_none());
-
-//     let record = rinex.record.as_nav();
-//     assert!(record.is_some());
-//     let record = record.unwrap();
-
-//     // test first epoch
-//     assert_eq!(
-//         rinex.first_epoch(),
-//         Some(Epoch::from_str("2022-06-07T23:59:44 GPST").unwrap()),
-//         "wrong first epoch",
-//     );
-
-//     // test last epoch
-//     assert_eq!(
-//         rinex.last_epoch(),
-//         Some(Epoch::from_str("2022-06-10T19:56:48 GPST").unwrap()),
-//         "wrong last epoch",
-//     );
-
-//     let mut vehicles: Vec<_> = vec![
-//         sv!("G02"),
-//         sv!("G04"),
-//         sv!("G05"),
-//         sv!("G09"),
-//         sv!("G11"),
-//         sv!("G12"),
-//         sv!("G16"),
-//         sv!("G18"),
-//         sv!("G20"),
-//         sv!("G22"),
-//         sv!("G23"),
-//         sv!("G25"),
-//         sv!("G26"),
-//         sv!("G27"),
-//         sv!("G29"),
-//         sv!("G31"),
-//         sv!("G07"),
-//         sv!("G10"),
-//         sv!("G15"),
-//         sv!("G13"),
-//         sv!("G08"),
-//         sv!("R03"),
-//         sv!("R04"),
-//         sv!("R05"),
-//         sv!("R10"),
-//         sv!("R11"),
-//         sv!("R12"),
-//         sv!("R20"),
-//         sv!("R21"),
-//         sv!("R21"),
-//         sv!("R11"),
-//         sv!("R12"),
-//         sv!("R20"),
-//         sv!("R04"),
-//         sv!("R05"),
-//         sv!("R10"),
-//         sv!("R13"),
-//         sv!("R21"),
-//         sv!("R12"),
-//         sv!("R11"),
-//         sv!("R05"),
-//         sv!("R13"),
-//         sv!("R20"),
-//         sv!("R04"),
-//         sv!("R23"),
-//         sv!("E01"),
-//         sv!("E03"),
-//         sv!("E05"),
-//         sv!("E07"),
-//         sv!("E08"),
-//         sv!("E09"),
-//         sv!("E10"),
-//         sv!("E12"),
-//         sv!("E13"),
-//         sv!("E14"),
-//         sv!("E15"),
-//         sv!("E21"),
-//         sv!("E24"),
-//         sv!("E25"),
-//         sv!("E26"),
-//         sv!("E31"),
-//         sv!("E33"),
-//         sv!("E01"),
-//         sv!("E03"),
-//         sv!("E05"),
-//         sv!("E07"),
-//         sv!("E08"),
-//         sv!("E09"),
-//         sv!("E10"),
-//         sv!("E12"),
-//         sv!("E13"),
-//         sv!("E14"),
-//         sv!("E15"),
-//         sv!("E21"),
-//         sv!("E24"),
-//         sv!("E25"),
-//         sv!("E26"),
-//         sv!("E31"),
-//         sv!("E33"),
-//         sv!("E07"),
-//         sv!("E07"),
-//         sv!("E26"),
-//         sv!("E14"),
-//         sv!("E26"),
-//         sv!("E25"),
-//         sv!("E08"),
-//         sv!("E01"),
-//         sv!("E10"),
-//         sv!("E10"),
-//         sv!("E11"),
-//         sv!("E14"),
-//         sv!("E25"),
-//         sv!("E26"),
-//         sv!("E08"),
-//         sv!("E10"),
-//         sv!("E14"),
-//         sv!("E10"),
-//         sv!("E25"),
-//         sv!("E26"),
-//         sv!("E08"),
-//         sv!("E14"),
-//         sv!("E26"),
-//         sv!("E08"),
-//         sv!("E25"),
-//         sv!("E10"),
-//         sv!("E14"),
-//         sv!("E10"),
-//         sv!("E25"),
-//         sv!("E26"),
-//         sv!("E08"),
-//         sv!("E25"),
-//         sv!("E14"),
-//         sv!("E26"),
-//         sv!("E08"),
-//         sv!("E10"),
-//         sv!("E14"),
-//         sv!("E10"),
-//         sv!("E25"),
-//         sv!("E26"),
-//         sv!("E08"),
-//         sv!("E33"),
-//         sv!("E11"),
-//         sv!("S48"),
-//         sv!("S36"),
-//         sv!("S26"),
-//         sv!("S44"),
-//         sv!("S23"),
-//         sv!("S25"),
-//         sv!("S27"),
-//         sv!("S26"),
-//         sv!("S48"),
-//         sv!("S27"),
-//         sv!("S36"),
-//         sv!("S44"),
-//         sv!("S23"),
-//         sv!("S48"),
-//         sv!("S26"),
-//         sv!("S36"),
-//         sv!("S44"),
-//         sv!("S23"),
-//         sv!("S48"),
-//         sv!("S27"),
-//         sv!("S44"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S26"),
-//         sv!("S48"),
-//         sv!("S44"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S48"),
-//         sv!("S26"),
-//         sv!("S44"),
-//         sv!("S27"),
-//         sv!("S36"),
-//         sv!("S48"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S26"),
-//         sv!("S36"),
-//         sv!("S48"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S27"),
-//         sv!("S48"),
-//         sv!("S36"),
-//         sv!("S26"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S48"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S26"),
-//         sv!("S44"),
-//         sv!("S48"),
-//         sv!("S27"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S48"),
-//         sv!("S26"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S48"),
-//         sv!("S27"),
-//         sv!("S36"),
-//         sv!("S26"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S48"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S48"),
-//         sv!("S44"),
-//         sv!("S26"),
-//         sv!("S27"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S48"),
-//         sv!("S44"),
-//         sv!("S26"),
-//         sv!("S36"),
-//         sv!("S48"),
-//         sv!("S44"),
-//         sv!("S23"),
-//         sv!("S36"),
-//         sv!("S48"),
-//         sv!("S26"),
-//         sv!("S44"),
-//         sv!("S23"),
-//         sv!("S48"),
-//         sv!("S36"),
-//         sv!("S44"),
-//         sv!("S23"),
-//         sv!("S26"),
-//         sv!("S48"),
-//         sv!("S36"),
-//         sv!("S44"),
-//         sv!("S23"),
-//         sv!("S26"),
-//         sv!("S48"),
-//         sv!("S44"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S28"),
-//         sv!("S48"),
-//         sv!("S44"),
-//         sv!("S26"),
-//         sv!("S27"),
-//         sv!("S28"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S48"),
-//         sv!("S44"),
-//         sv!("S36"),
-//         sv!("S26"),
-//         sv!("S23"),
-//         sv!("S48"),
-//         sv!("S44"),
-//         sv!("S27"),
-//         sv!("S36"),
-//         sv!("S48"),
-//         sv!("S23"),
-//         sv!("S26"),
-//         sv!("S44"),
-//         sv!("S36"),
-//         sv!("S48"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S26"),
-//         sv!("S27"),
-//         sv!("S48"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S28"),
-//         sv!("S48"),
-//         sv!("S36"),
-//         sv!("S26"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S48"),
-//         sv!("S27"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S26"),
-//         sv!("S44"),
-//         sv!("S48"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S48"),
-//         sv!("S26"),
-//         sv!("S28"),
-//         sv!("S27"),
-//         sv!("S36"),
-//         sv!("S23"),
-//         sv!("S44"),
-//         sv!("S48"),
-//         sv!("C05"),
-//         sv!("C08"),
-//         sv!("C10"),
-//         sv!("C13"),
-//         sv!("C14"),
-//         sv!("C20"),
-//         sv!("C21"),
-//         sv!("C26"),
-//         sv!("C27"),
-//         sv!("C28"),
-//         sv!("C29"),
-//         sv!("C30"),
-//         sv!("C32"),
-//         sv!("C33"),
-//         sv!("C35"),
-//         sv!("C36"),
-//         sv!("C38"),
-//         sv!("C41"),
-//         sv!("C42"),
-//         sv!("C45"),
-//         sv!("C46"),
-//         sv!("C60"),
-//         sv!("C29"),
-//         sv!("C45"),
-//         sv!("C30"),
-//         sv!("C26"),
-//         sv!("C35"),
-//         sv!("C32"),
-//         sv!("C41"),
-//         sv!("C36"),
-//         sv!("C20"),
-//         sv!("C13"),
-//         sv!("C08"),
-//         sv!("C38"),
-//         sv!("C05"),
-//         sv!("C24"),
-//         sv!("J04"),
-//     ]
-//     .into_iter()
-//     .unique()
-//     .collect();
-//     vehicles.sort(); // for comparison
-//     assert!(
-//         rinex.sv_iter().sorted().eq(vehicles),
-//         "parsed wrong sv content"
-//     );
 
 //     let mut eop_count = 0;
 //     let mut ion_count = 0;
@@ -849,7 +495,6 @@ fn v2_cbw10010_21n() {
 //                     assert_eq!(ephemeris.clock_drift_rate, 0.0);
 //                 }
 //             } else if let Some(fr) = fr.as_sto() {
-//                 sto_count += 1; // STO test
 //                 let (_msg, _sv, sto) = fr;
 //                 if sto.system.eq("GAUT") {
 //                     assert_eq!(*e, Epoch::from_str("2022-06-08T00:00:00 GST").unwrap());
@@ -934,9 +579,6 @@ fn v2_cbw10010_21n() {
 //             }
 //         }
 //     }
-//     assert_eq!(sto_count, 3);
-//     assert_eq!(ion_count, 3);
-//     assert_eq!(eop_count, 0); // no EOP in this file
 // }
 
 #[test]
@@ -1122,14 +764,16 @@ fn nav_v4_kms300dnk_r2022() {
         R03, R04, R05, R10, R11, R12, R13,
         R20, R21, R23, 
         C05, C08, C10, C13, C14, C20, C21, C24, C26, C27,
-        C28, C29, C30, C32, C33, C35, C36, C38, C41, C42, C45, C46, 
-        J04",
+        C28, C29, C30, C32, C33, C35, C36, C38, C41, C42, C45, C46, C60,
+        J04,
+        S48, S36, S26, S44, S23, S25, S27, S26, S28",
         187,
     );
 
     let t0 = Epoch::from_str("2022-06-10T19:56:48 GPST").unwrap();
     let t1 = Epoch::from_str("2022-06-08T00:00:00 GST").unwrap();
     let t2 = Epoch::from_str("2022-06-08T09:50:00 GST").unwrap();
+    let t_last = Epoch::from_str("2022-06-10T19:56:48 GPST").unwrap();
 
     let g26 = SV::from_str("G26").unwrap();
     let e01 = SV::from_str("E01").unwrap();
@@ -1139,7 +783,9 @@ fn nav_v4_kms300dnk_r2022() {
     let mut tests_passed = 0;
 
     for (k, v) in dut.nav_ephemeris_frames_iter() {
-        if k.epoch == t2 {
+        // test first epoch
+        if k.epoch == t0 {
+        } else if k.epoch == t2 {
             if k.sv == e14 {
                 assert_eq!(k.msgtype, NavMessageType::INAV);
                 assert_eq!(k.frmtype, NavFrameType::Ephemeris);
@@ -1148,6 +794,7 @@ fn nav_v4_kms300dnk_r2022() {
                 assert_eq!(v.clock_drift_rate, 0.000000000000E+00);
                 tests_passed += 1;
             }
+        } else if k.epoch == t_last {
         }
     }
 
