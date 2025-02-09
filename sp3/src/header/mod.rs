@@ -40,7 +40,7 @@ impl std::str::FromStr for DataType {
         } else if s.eq("V") {
             Ok(Self::Velocity)
         } else {
-            Err(ParsingError::UnknownDataType(s.to_string()))
+            Err(ParsingError::UnknownDataType)
         }
     }
 }
@@ -82,7 +82,7 @@ impl std::str::FromStr for OrbitType {
         } else if s.eq("HLM") {
             Ok(Self::HLM)
         } else {
-            Err(ParsingError::UnknownOrbitType(s.to_string()))
+            Err(ParsingError::UnknownOrbitType)
         }
     }
 }

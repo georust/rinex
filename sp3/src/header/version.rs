@@ -10,10 +10,10 @@ use serde::{Deserialize, Serialize};
 pub enum Version {
     A,
     B,
-    /// SP3-C defined in [Bibliography::SP3cRev]
+    /// SP3-C revision. See <https://igs.org/formats-and-standards/>
     C,
     #[default]
-    /// SP3-D defined in [Bibliography::SP3dRev]
+    /// SP3-D revision (latest). See <https://igs.org/formats-and-standards/>
     D,
 }
 
@@ -40,7 +40,7 @@ impl std::str::FromStr for Version {
         } else if s.eq("d") {
             Ok(Self::D)
         } else {
-            Err(ParsingError::UnknownVersion(s.to_string()))
+            Err(ParsingError::NonSupportedRevision)
         }
     }
 }

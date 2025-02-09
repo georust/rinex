@@ -9,7 +9,7 @@
 
 SP3 Precise GNSS Orbit files parser. 
 
-This file format is specifid by the International GNSS Symposium (IGS) [right here](https://igs.org/products/#orbits_clocks).
+This file format is specifid by the International GNSS Service (IGS) [right here](https://igs.org/products/#orbits_clocks).
 
 NB: this library only supports revisions C & D (latest).
 
