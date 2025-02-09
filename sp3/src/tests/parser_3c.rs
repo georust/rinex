@@ -16,15 +16,7 @@ mod test {
             .join("SP3")
             .join("ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz");
 
-        let sp3 = SP3::from_gzip_file(&path);
-
-        assert!(
-            sp3.is_ok(),
-            "failed to parse ESA0OPSRAP_20232390000_01D_15M_ORB.SP3.gz : {:?}",
-            sp3.err()
-        );
-
-        let sp3 = sp3.unwrap();
+        let sp3 = SP3::from_gzip_file(&path).unwrap();
 
         assert_eq!(sp3.header.version, Version::C);
         assert_eq!(sp3.header.data_type, DataType::Position);
@@ -32,6 +24,7 @@ mod test {
         assert!(sp3.has_satellite_clock_offset());
         assert!(!sp3.has_satellite_clock_drift());
         assert!(!sp3.has_satellite_velocity());
+        assert!(!sp3.has_satellite_maneuver());
 
         assert_eq!(
             sp3.first_epoch(),

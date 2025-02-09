@@ -547,6 +547,18 @@ impl SP3 {
         }))
     }
 
+    /// Returns ([Epoch], [SV]) [Iterator] where satellite clock
+    /// event flag was asserted.
+    pub fn satellites_epoch_clock_event_iter(&self) -> Box<dyn Iterator<Item = (Epoch, SV)> + '_> {
+        Box::new(self.data.iter().filter_map(|(k, v)| {
+            if v.clock_event {
+                Some((k.epoch, k.sv))
+            } else {
+                None
+            }
+        }))
+    }
+
     /// Returns an [Iterator] over [SV] velocity vector, in km.s⁻¹
     /// and 0.1 10⁻⁷m precision, for all satellites in correct Orbit (not being maneuvered).
     pub fn satellites_velocity_km_s_iter(

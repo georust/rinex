@@ -180,6 +180,7 @@ impl SP3 {
 
                     if let Some(e) = data.get_mut(&key) {
                         e.position_km = (entry.x_km, entry.y_km, entry.z_km);
+                        e.maneuver = entry.maneuver;
                         e.orbit_prediction = entry.orbit_prediction;
                     } else {
                         if let Some(clk_us) = entry.clock_us {
@@ -191,21 +192,27 @@ impl SP3 {
                                 SP3Entry::from_position_km((entry.x_km, entry.y_km, entry.z_km))
                             };
 
-                            let value = if entry.clock_prediction {
+                            let mut value = if entry.clock_prediction {
                                 value.with_predicted_clock_offset_us(clk_us)
                             } else {
                                 value.with_clock_offset_us(clk_us)
                             };
 
+                            value.maneuver = entry.maneuver;
+                            value.clock_event = entry.clock_event;
+
                             data.insert(key, value);
                         } else {
-                            let value = if entry.orbit_prediction {
+                            let mut value = if entry.orbit_prediction {
                                 SP3Entry::from_predicted_position_km((
                                     entry.x_km, entry.y_km, entry.z_km,
                                 ))
                             } else {
                                 SP3Entry::from_position_km((entry.x_km, entry.y_km, entry.z_km))
                             };
+
+                            value.maneuver = entry.maneuver;
+                            value.clock_event = entry.clock_event;
 
                             data.insert(key, value);
                         }
