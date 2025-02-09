@@ -403,6 +403,11 @@ impl SP3 {
             > 0
     }
 
+    /// Returns true if at least one clock event was reported for one [SV] (whatever the constellation)
+    pub fn has_satellite_clock_event(&self) -> bool {
+        self.satellites_epoch_clock_event_iter().count() > 0
+    }
+
     /// Returns true if this [SP3] has satellites clock offset
     pub fn has_satellite_clock_offset(&self) -> bool {
         self.satellites_clock_offset_sec_iter().count() > 0
