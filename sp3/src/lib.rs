@@ -607,7 +607,7 @@ impl SP3 {
     /// The time frame being [(N +1)/2 * τ;  (N +1)/2 * τ].
     /// A 7th order will create an 8 data point window.
     /// ## Output
-    /// - Your function pointer should return Option<[Vector3D]>,
+    /// - Your function pointer should return Option<(f64, f64, f64)>,
     /// and is summoned with `order`, `t` and the time frame.
     /// - This method will return None if `t` is either
     /// to early or too late with respect to interpolation order.
