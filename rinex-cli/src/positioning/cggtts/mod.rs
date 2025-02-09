@@ -48,7 +48,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     method: Method,
     matches: &ArgMatches,
 ) -> Result<Vec<Track>, PositioningError> {
-    // custom tracking duration
+    // possible custom tracking
     let (cv_period_duration, cv_warmup_duration) = match matches.get_one::<Duration>("tracking") {
         Some(tracking) => {
             info!("Using custom tracking duration {:?}", *tracking);
@@ -266,17 +266,22 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
 
             sv_observations.clear();
 
-            // define new cv period
-            cv_period_start = track_scheduler.next_track_start(past_t);
-            trk_midpoint = cv_period_start + cv_warmup_duration + half_fit_duration;
-            debug!(
-                "{:?} - new cv period: start={:?} midpoint={:?}",
-                past_t, cv_period_start, trk_midpoint
-            );
+            if should_release {
+                // we did (or at least attempted to) publish a track
 
-            // reset all trackers
-            for (_, sv_tracker) in sv_trackers.iter_mut() {
-                sv_tracker.reset();
+                // reset all trackers
+                for (_, sv_tracker) in sv_trackers.iter_mut() {
+                    sv_tracker.reset();
+                }
+
+                // define new period
+                cv_period_start = track_scheduler.next_track_start(past_t);
+                trk_midpoint = cv_period_start + cv_warmup_duration + half_fit_duration;
+
+                debug!(
+                    "{:?} - new cv period: start={:?} midpoint={:?}",
+                    past_t, cv_period_start, trk_midpoint
+                );
             }
         } // new epoch
 
