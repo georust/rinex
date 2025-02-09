@@ -11,7 +11,10 @@ pub use report::Report;
 
 use gnss::prelude::{Constellation, SV};
 
-use rinex::{carrier::Carrier, prelude::Observable};
+use rinex::{
+    carrier::Carrier,
+    prelude::{Observable, TimeScale},
+};
 
 use gnss_rtk::prelude::{
     Candidate, Carrier as RTKCarrier, Duration, Epoch, IonoComponents, IonosphereBias, Method,
@@ -249,6 +252,53 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                                             trk_data.refsv,
                                             trk_data.refsys,
                                         );
+
+                                        // publish new track
+                                        let track = match sv.constellation {
+                                            Constellation::Glonass => {
+                                                Track::new_glonass(
+                                                    *sv,
+                                                    past_t.to_time_scale(TimeScale::UTC),
+                                                    fit_duration,
+                                                    CommonViewClass::SingleChannel,
+                                                    trk_elev,
+                                                    trk_azim,
+                                                    trk_data,
+                                                    match method {
+                                                        Method::CPP | Method::PPP => {
+                                                            // TODO: grab ionod from pvt sol
+                                                            None
+                                                        },
+                                                        _ => None,
+                                                    },
+                                                    0, // TODO "rcvr_channel"
+                                                    GlonassChannel::default(), // TODO
+                                                    &sv_reference_obs.to_string(),
+                                                )
+                                            },
+                                            _ => {
+                                                Track::new(
+                                                    *sv,
+                                                    past_t.to_time_scale(TimeScale::UTC),
+                                                    fit_duration,
+                                                    CommonViewClass::SingleChannel,
+                                                    trk_elev,
+                                                    trk_azim,
+                                                    trk_data,
+                                                    match method {
+                                                        Method::CPP | Method::PPP => {
+                                                            // TODO: grab ionod from pvt
+                                                            None
+                                                        },
+                                                        _ => None,
+                                                    },
+                                                    0, // TODO rcvr_channel
+                                                    &sv_reference_obs.to_string(),
+                                                )
+                                            },
+                                        };
+
+                                        tracks.push(track);
                                     },
                                     Err(e) => {
                                         error!("{:?} - track fitting error: {}", past_t, e);
@@ -385,72 +435,5 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
         }
         past_t = t;
     }
-
-    //                                         let track = match sv.constellation {
-    //                                             Constellation::Glonass => {
-    //                                                 Track::new_glonass(
-    //                                                     *sv,
-    //                                                     next_tracking_start_time,
-    //                                                     trk_duration,
-    //                                                     CommonViewClass::SingleChannel,
-    //                                                     trk_elev,
-    //                                                     trk_azi,
-    //                                                     trk_data,
-    //                                                     match solver.cfg.method {
-    //                                                         Method::CPP | Method::PPP => {
-    //                                                             // TODO: grab IONOD from PVTSol
-    //                                                             None
-    //                                                         },
-    //                                                         _ => None,
-    //                                                     },
-    //                                                     0, // TODO "rcvr_channel" > 0 if known
-    //                                                     GlonassChannel::default(), //TODO
-    //                                                     &ref_observable,
-    //                                                 )
-    //                                             },
-    //                                             _ => {
-    //                                                 Track::new(
-    //                                                     *sv,
-    //                                                     next_tracking_start_time,
-    //                                                     trk_duration,
-    //                                                     CommonViewClass::SingleChannel,
-    //                                                     trk_elev,
-    //                                                     trk_azi,
-    //                                                     trk_data,
-    //                                                     match solver.cfg.method {
-    //                                                         Method::CPP | Method::PPP => {
-    //                                                             // TODO: grab IONOD from PVTSol
-    //                                                             None
-    //                                                         },
-    //                                                         _ => None,
-    //                                                     },
-    //                                                     0, // TODO "rcvr_channel" > 0 if known
-    //                                                     &ref_observable,
-    //                                                 )
-    //                                             },
-    //                                         }; // match constellation
-    //                                         tracks.push(track);
-    //                                     },
-    //                                 } //.fit()
-    //                             }
-    //                             // time to release a track
-    //                             else {
-    //                                 tracker.latch_measurement(t, fitdata);
-    //                             }
-    //                         }
-    //                         //release.is_none()
-    //                         else {
-    //                             tracker.latch_measurement(t, fitdata);
-    //                         }
-    //                     },
-    //                 } //.pvt resolve
-    //                   // after release, reset so we start a new track
-    //                 if should_release {
-    //                     tracker.reset();
-    //                 }
-    //             } // for all OBS
-    //         } //.sv()
-    //     }
-
     Ok(tracks)
 }
