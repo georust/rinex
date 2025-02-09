@@ -5,7 +5,7 @@ use gnss_rtk::prelude::{Epoch, PVTSolution};
 
 #[derive(Default)]
 pub struct QcNavPostPPPSolutions {
-    summary: Summary,
+    pub summary: Summary,
 }
 
 impl QcNavPostPPPSolutions {

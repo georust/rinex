@@ -1,4 +1,7 @@
-use crate::analysis::solutions::{ppp::QcNavPostPPPSolutions, ppp::Summary};
+use crate::analysis::solutions::ppp::{
+    QcNavPostPPPSolutions,
+    // Summary,
+};
 
 use crate::prelude::{html, Markup, QcAnalysis, QcHtmlReporting};
 
@@ -13,9 +16,9 @@ impl QcHtmlReporting for QcNavPostPPPSolutions {
                         th class="is-info" {
                             "Summary"
                         }
-                        td {
-                            (self.summary.render())
-                        }
+                        // td {
+                        //     (self.summary.render())
+                        // }
                     }
                 }
             }
@@ -23,8 +26,8 @@ impl QcHtmlReporting for QcNavPostPPPSolutions {
     }
 }
 
-impl QcHtmlReporting for Summary {
-    fn render(&self) -> Markup {
-        html! {}
-    }
-}
+// impl QcHtmlReporting for Summary {
+//     fn render(&self) -> Markup {
+//         html! {}
+//     }
+// }
