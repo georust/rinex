@@ -405,11 +405,11 @@ impl SP3 {
         self.satellites_epoch_maneuver_iter().count() > 0
     }
 
-    /// Returns true if this [SP3] publication is correct
+    /// Returns true if this [SP3] publication is correct, that is:
     /// - all data points are correctly evenly spaced in time
     /// according to the sampling interval.
     /// You should use this verification method prior any interpolation (post processing).
-    pub fn has_correct_sampling(&self) -> bool {
+    pub fn has_steady_sampling(&self) -> bool {
         let dt = self.header.epoch_interval;
         let mut t = Epoch::default();
         let mut past_t = Option::<Epoch>::None;
@@ -603,12 +603,12 @@ impl SP3 {
     /// Designs an evenly spaced (in time) grouping of (x_km, y_km, z_km) attitude
     /// vectors for you to apply your own interpolation method (as a function pointer).
     /// NB:
-    /// - This only works on correct evenly spaced (in time) SP3 publications.
+    /// - This only works on correct SP3 publications with steady sample rate.
     /// - There is no internal verification here, you should verify the correctness
-    ///  of the SP3 publication with [Self::has_correct_sampling] prior running this.
+    ///  of the SP3 publication with [Self::has_steady_sampling] prior running this.
     /// - Only odd interpolation order is currently supported (for simplicity),
     /// this returns [Error::EvenInterpolationOrder].
-    /// For example, order 7 will design an 7 data point window.
+    /// For example, order 7 will design an 8 data point window.
     /// - If `t` is either too early or too late, with respect to interpolation order,
     /// we return [Error::InterpolationWindow] that you should catch.
     /// - The interpolation window is [(N +1)/2 * τ;  (N +1)/2 * τ],
