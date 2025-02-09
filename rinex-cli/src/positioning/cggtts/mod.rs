@@ -14,8 +14,8 @@ use gnss::prelude::{Constellation, SV};
 use rinex::{carrier::Carrier, prelude::Observable};
 
 use gnss_rtk::prelude::{
-    Candidate, Duration, Epoch, IonoComponents, IonosphereBias, Method, Observation, OrbitSource,
-    Solver, TropoComponents, SPEED_OF_LIGHT_M_S,
+    Candidate, Carrier as RTKCarrier, Duration, Epoch, IonoComponents, IonosphereBias, Method,
+    Observation, OrbitSource, Solver, TropoComponents, SPEED_OF_LIGHT_M_S,
 };
 
 use cggtts::{
@@ -39,58 +39,30 @@ use crate::{
     },
 };
 
-// fn reset_sv_tracker(sv: SV, trackers: &mut HashMap<(SV, Observable), SVTracker>) {
-//     for ((k_sv, _), tracker) in trackers {
-//         if *k_sv == sv {
-//             tracker.reset();
-//         }
-//     }
-// }
-
-//TODO: see TODO down below
-// fn reset_sv_sig_tracker(
-//     sv_sig: (SV, Observable),
-//     trackers: &mut HashMap<(SV, Observable), SVTracker>,
-// ) {
-//     for (k, tracker) in trackers {
-//         if k == &sv_sig {
-//             tracker.reset();
-//         }
-//     }
-// }
-
-/*
- * Resolves CGGTTS tracks from input context
- */
+/// Resolves CGGTTS tracks from input context
 pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     ctx: &Context,
     eph: &'a RefCell<EphemerisSource<'b>>,
     mut clock: CK,
     mut solver: Solver<O>,
-    // rx_lat_ddeg: f64,
+    method: Method,
     matches: &ArgMatches,
 ) -> Result<Vec<Track>, PositioningError> {
-
     // custom tracking duration
-    let cv_duration = match matches.get_one::<Duration>("tracking") {
+    let (cv_period_duration, cv_warmup_duration) = match matches.get_one::<Duration>("tracking") {
         Some(tracking) => {
             info!("Using custom tracking duration {:?}", *tracking);
-            *tracking
+            (*tracking, Duration::ZERO)
         },
         _ => {
             let tracking = Duration::from_seconds(Scheduler::BIPM_TRACKING_DURATION_SECONDS.into());
             info!("Using default tracking duration {:?}", tracking);
-            tracking
+            (tracking, 3.0 * Unit::Minute)
         },
     };
 
-    let bipm_warmup_duration = 3.0 * Unit::Minute;
-
-    let mut trk_duration = cv_duration;
-
-    if trk_duration == Scheduler::bipm_tracking_duration() {
-        trk_duration = Scheduler::bipm_tracking_duration() - 3.0 * Unit::Minute;
-    }
+    let fit_duration = cv_period_duration - cv_warmup_duration;
+    let half_fit_duration = fit_duration / 2.0;
 
     let obs_data = ctx
         .data
@@ -111,30 +83,36 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
         .expect("RNX2CGGTTS requires steady GNSS observations");
 
     let mut past_t = t0;
-
-    // CGGTTS specifics
     let mut tracks = Vec::<Track>::new();
-    let track_scheduler = Scheduler::new(cv_duration);
-
-    let mut trk_midpoint = Option::<Epoch>::None;
-
-    // start of next CV period
-    let mut next_cv_start_time = track_scheduler.next_track_start(t0);
-
-    if cv_duration == Scheduler::bipm_tracking_duration() {
-        next_cv_start_time -= bipm_warmup_duration;
-    }
-    
-    // start of next CV traking (possible warmup time)
-    let mut next_tracking_start_time = next_cv_start_time;
-
-    let mut should_skip = false;
-    let mut should_release = false;
-
     let mut sv_observations = HashMap::<SV, Vec<Observation>>::new();
 
-    for (t, signal) in obs_data.signal_observations_sampling_ok_iter() {
-        if t != past_t && !should_skip {
+    let track_scheduler = Scheduler::new(cv_period_duration);
+
+    let mut cv_period_start = track_scheduler.next_track_start(t0);
+    let mut trk_midpoint = cv_period_start + cv_warmup_duration + half_fit_duration;
+
+    // we have one reference signal per SV
+    let mut sv_reference = HashMap::<SV, Observable>::new();
+
+    // we have one SV tracker per SV and reference signal
+    let mut sv_trackers = HashMap::<(SV, Observable), SVTracker>::new();
+
+    for (index, (t, signal)) in obs_data.signal_observations_sampling_ok_iter().enumerate() {
+        // PVT solution contribution to fitting algorithm
+        let contributes = past_t >= cv_period_start + cv_warmup_duration;
+
+        // Time remaining, in case we're in warmup interval
+        let remaining_warmup = cv_period_start + cv_warmup_duration - past_t;
+
+        // Time before next publication (track fitting attempt).
+        // "now" is past the last contributing epoch
+        let should_release = past_t > (cv_period_start + cv_warmup_duration) + cv_period_duration;
+
+        if index > 0 && t != past_t {
+            // time to next CGGTTS publication
+            let dt = cv_period_start + cv_warmup_duration + cv_period_duration - t;
+            info!("{:?} - {} until next CGGTTS publication", past_t, dt);
+
             // New epoch: solving attempt
             // Creates and forwards Candidate for each SV
             for (sv, observations) in sv_observations.iter() {
@@ -188,10 +166,96 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
 
                 match solver.resolve(past_t, &[cd]) {
                     Ok((t, pvt_solution)) => {
+                        // grab "reference" signal
+                        let sv_reference_obs = match sv_reference.get(&sv) {
+                            Some(obs) => obs.clone(),
+                            None => panic!("cggtts: no reference signal for {}", sv),
+                        };
+
+                        // grab SV tracker or initialize
+                        if sv_trackers.get(&(*sv, sv_reference_obs.clone())).is_none() {
+                            sv_trackers
+                                .insert((*sv, sv_reference_obs.clone()), SVTracker::default());
+                        }
+
+                        let mut sv_tracker = sv_trackers
+                            .get_mut(&(*sv, sv_reference_obs.clone()))
+                            .unwrap();
+
+                        let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible
+
+                        let (azimuth, elevation) = (pvt_data.azimuth, pvt_data.elevation);
+
+                        let refsys = pvt_solution.dt.to_seconds();
+                        let correction = pvt_data.clock_correction.unwrap_or_default();
+                        let refsv = refsys + correction.to_seconds();
+
                         info!(
-                            "({:?} ({}) : new pvt solution {:?}",
-                            past_t, signal.sv, pvt_solution
+                            "({:?} ({}) : new pvt solution (elev={:.2}°, azim={:.2}°, refsv={:.3E}, refsys={:.3})",
+                            past_t, signal.sv, elevation, azimuth, refsv, refsys,
                         );
+
+                        if !contributes {
+                            debug!(
+                                "{:?} ({}) - warmup (still {} to go)",
+                                past_t, sv, remaining_warmup
+                            );
+                        } else {
+                            // PVT solution contributes to the CGGTTS fitting algorithm
+                            debug!("{:?} ({}) - contributes", past_t, sv);
+
+                            // tropod model
+                            let mdtr = pvt_data.tropo_bias.unwrap_or_default() / SPEED_OF_LIGHT_M_S;
+
+                            // ionod
+                            let mdio = match pvt_data.iono_bias {
+                                Some(IonosphereBias::Modeled(bias)) => Some(bias),
+                                _ => None,
+                            };
+
+                            let msio = match pvt_data.iono_bias {
+                                Some(IonosphereBias::Measured(bias)) => Some(bias),
+                                _ => None,
+                            };
+
+                            // track fitting
+                            let fitdata = FitData {
+                                refsv,
+                                refsys,
+                                mdtr,
+                                mdio,
+                                msio,
+                                azimuth,
+                                elevation,
+                            };
+
+                            sv_tracker.latch_measurement(t, fitdata);
+
+                            let ioe = 0; // TODO
+
+                            if should_release {
+                                match sv_tracker.fit(
+                                    ioe,
+                                    fit_duration,
+                                    dominant_sampling_period,
+                                    trk_midpoint,
+                                ) {
+                                    Ok(((trk_elev, trk_azim), trk_data, _iono_data)) => {
+                                        info!("{:?} ({}) - new cggtts solution (elev={:.2}°, azim={:.2}°, refsv={:.3E}, refsys={:.3E})",
+                                            past_t,
+                                            sv,
+                                            trk_elev,
+                                            trk_azim,
+                                            trk_data.refsv,
+                                            trk_data.refsys,
+                                        );
+                                    },
+                                    Err(e) => {
+                                        error!("{:?} - track fitting error: {}", past_t, e);
+                                    },
+                                } //tracker.fit()
+                            } // should release
+                        } //contributes
                     },
                     Err(e) => {
                         // any PVT solution failure will introduce a gap in the track fitter
@@ -201,7 +265,20 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
             } // for each sv
 
             sv_observations.clear();
-        } // new track attempt
+
+            // define new cv period
+            cv_period_start = track_scheduler.next_track_start(past_t);
+            trk_midpoint = cv_period_start + cv_warmup_duration + half_fit_duration;
+            debug!(
+                "{:?} - new cv period: start={:?} midpoint={:?}",
+                past_t, cv_period_start, trk_midpoint
+            );
+
+            // reset all trackers
+            for (_, sv_tracker) in sv_trackers.iter_mut() {
+                sv_tracker.reset();
+            }
+        } // new epoch
 
         let carrier = Carrier::from_observable(signal.sv.constellation, &signal.observable);
         if carrier.is_err() {
@@ -256,6 +333,7 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                 }
             }
         } else {
+            // first SV encounter
             match signal.observable {
                 Observable::PhaseRange(_) => {
                     sv_observations.insert(
@@ -266,12 +344,30 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                             None,
                         )],
                     );
+
+                    if method == Method::PPP {
+                        if matches!(
+                            rtk_carrier,
+                            RTKCarrier::L1 | RTKCarrier::E1 | RTKCarrier::B1aB1c | RTKCarrier::B1I
+                        ) {
+                            sv_reference.insert(signal.sv, signal.observable.clone());
+                        }
+                    }
                 },
                 Observable::PseudoRange(_) => {
                     sv_observations.insert(
                         signal.sv,
                         vec![Observation::pseudo_range(rtk_carrier, signal.value, None)],
                     );
+
+                    if method != Method::PPP {
+                        if matches!(
+                            rtk_carrier,
+                            RTKCarrier::L1 | RTKCarrier::E1 | RTKCarrier::B1aB1c | RTKCarrier::B1I
+                        ) {
+                            sv_reference.insert(signal.sv, signal.observable.clone());
+                        }
+                    }
                 },
                 Observable::Doppler(_) => {
                     sv_observations.insert(
@@ -282,125 +378,8 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
                 _ => {},
             }
         }
-
-        // When last Epoch of the CV period is reached: we should release a track
-        let next_release_duration = next_cv_start_time - t;
-
-        should_release = next_release_duration <= dominant_sampling_period;
-        should_release &= next_release_duration > Duration::ZERO;
-
-        trk_midpoint = Some(next_cv_start_time - trk_duration / 2);
-
-        info!(
-            "{:?} - {} until next cv period",
-            t,
-            next_cv_start_time - t,
-        );
-
-        // skip the prepare duration
-        should_skip = next_release_duration < Duration::ZERO;
-
-        // next track
-        next_tracking_start_time = track_scheduler.next_track_start(t);
-        next_cv_start_time = next_tracking_start_time;
-        
-        if cv_duration == Scheduler::bipm_tracking_duration() {
-            next_cv_start_time -= bipm_warmup_duration;
-        }
-
         past_t = t;
     }
-
-    //         for (sv, rinex_obs) in vehicles {
-    //                 let target = &(*sv, observable.clone());
-
-    //                 let tracker = match trackers.get_mut(target) {
-    //                     None => {
-    //                         // initialize new tracker
-    //                         trackers.insert((*sv, observable.clone()), SVTracker::default());
-    //                         trackers.get_mut(target).unwrap()
-    //                     },
-    //                     Some(tracker) => tracker,
-    //                 };
-
-    //                 match solver.resolve(*t, &vec![candidate]) {
-    //                     Ok((t, pvt_solution)) => {
-    //                         let pvt_data = pvt_solution.sv.get(sv).unwrap(); // infaillible
-
-    //                         let azimuth = pvt_data.azimuth;
-    //                         let elevation = pvt_data.elevation;
-
-    //                         let refsys = pvt_solution.dt.to_seconds();
-    //                         let correction = pvt_data.clock_correction.unwrap_or_default();
-    //                         let refsv = refsys + correction.to_seconds();
-
-    //                         /*
-    //                          * TROPO : always present
-    //                          *         convert to time delay (CGGTTS)
-    //                          */
-    //                         let mdtr = pvt_data.tropo_bias.unwrap_or_default() / SPEED_OF_LIGHT_M_S;
-
-    //                         let mdio = match pvt_data.iono_bias {
-    //                             Some(IonosphereBias::Modeled(bias)) => Some(bias),
-    //                             _ => None,
-    //                         };
-    //                         let msio = match pvt_data.iono_bias {
-    //                             Some(IonosphereBias::Measured(bias)) => Some(bias),
-    //                             _ => None,
-    //                         };
-    //                         debug!(
-    //                         "{:?} : new {}:{} solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
-    //                         t, sv, observable, elevation, azimuth, refsv, refsys
-    //                     );
-
-    //                         let fitdata = FitData {
-    //                             refsv,
-    //                             refsys,
-    //                             mdtr,
-    //                             mdio,
-    //                             msio,
-    //                             azimuth,
-    //                             elevation,
-    //                         };
-
-    //                         // // verify buffer continuity
-    //                         // if !tracker.no_gaps(dominant_sampling_period) {
-    //                         //     // on any discontinuity we need to reset
-    //                         //     // that tracker. This will abort the ongoing track.
-    //                         //     tracker.reset();
-    //                         //     warn!("{:?} - discarding {} track due to data gaps", t, sv);
-
-    //                         //     // push new measurement
-    //                         //     tracker.latch_measurement(t, fitdata);
-    //                         //     continue; // abort for this SV
-    //                         // }
-
-    //                         if next_tracking_start_time.is_some() {
-    //                             let next_tracking_start_time = next_tracking_start_time.unwrap();
-    //                             let trk_midpoint = trk_midpoint.unwrap();
-
-    //                             if should_release {
-    //                                 /* time to release a track */
-    //                                 let ioe = 0; //TODO
-    //                                              // latch last measurement
-    //                                 tracker.latch_measurement(t, fitdata);
-
-    //                                 match tracker.fit(
-    //                                     ioe,
-    //                                     trk_duration,
-    //                                     dominant_sampling_period,
-    //                                     trk_midpoint,
-    //                                 ) {
-    //                                     Ok(((trk_elev, trk_azi), trk_data, _iono_data)) => {
-    //                                         info!(
-    //                                         "{:?} : new {} cggtts solution (elev={:.2}°, azi={:.2}°, refsv={:.3E}, refsys={:.3E})",
-    //                                         t,
-    //                                         sv,
-    //                                         trk_elev,
-    //                                         trk_azi,
-    //                                         trk_data.refsv,
-    //                                         trk_data.refsys
-    //                                     );
 
     //                                         let track = match sv.constellation {
     //                                             Constellation::Glonass => {
@@ -446,10 +425,6 @@ pub fn resolve<'a, 'b, CK: ClockStateProvider, O: OrbitSource>(
     //                                             },
     //                                         }; // match constellation
     //                                         tracks.push(track);
-    //                                     },
-    //                                     Err(e) => {
-    //                                         warn!("{} - track fitting error: \"{}\"", t, e);
-    //                                         // TODO: most likely we should reset the SV signal tracker here
     //                                     },
     //                                 } //.fit()
     //                             }

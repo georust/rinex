@@ -359,7 +359,7 @@ If your dataset does not describe one, you can manually describe one, see --help
     #[cfg(feature = "cggtts")]
     if matches.get_flag("cggtts") {
         //* CGGTTS special opmode */
-        let tracks = cggtts::resolve(ctx, &eph, clocks, solver, matches)?;
+        let tracks = cggtts::resolve(ctx, &eph, clocks, solver, cfg.method, matches)?;
         if !tracks.is_empty() {
             cggtts_post_process(&ctx, &tracks, matches)?;
             let report = CggttsReport::new(&ctx, &tracks);
