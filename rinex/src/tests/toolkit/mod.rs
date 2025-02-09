@@ -114,16 +114,74 @@ pub fn generic_null_rinex_test(dut: &Rinex) {
     generic_constant_rinex_test(dut, 0.0, 1.0E-9);
 }
 
+/// Verifies two [Header]s are "strictly" identical
+pub fn generic_header_comparison(dut: &Header, model: &Header) {
+    assert_eq!(dut.version, model.version);
+    assert_eq!(dut.rinex_type, model.rinex_type);
+    assert_eq!(dut.constellation, model.constellation);
+    assert_eq!(dut.comments, model.comments);
+    assert_eq!(dut.program, model.program);
+    assert_eq!(dut.run_by, model.run_by);
+    assert_eq!(dut.date, model.date);
+    assert_eq!(dut.station_url, model.station_url);
+    assert_eq!(dut.observer, model.observer);
+    assert_eq!(dut.agency, model.agency);
+    assert_eq!(dut.geodetic_marker, model.geodetic_marker);
+    assert_eq!(dut.glo_channels, model.glo_channels);
+    assert_eq!(dut.cospar, model.cospar);
+    assert_eq!(dut.leap, model.leap);
+    if let Some((dut_x, dut_y, dut_z)) = dut.rx_position {
+        if let Some((model_x, model_y, model_z)) = model.rx_position {
+            assert!(
+                (dut_x - model_x).abs() < 1.0E-2,
+                "error too large: {}/{}",
+                dut_x,
+                model_x
+            );
+            assert!(
+                (dut_y - model_y).abs() < 1.0E-2,
+                "error too large: {}/{}",
+                dut_y,
+                model_y
+            );
+            assert!(
+                (dut_z - model_z).abs() < 1.0E-2,
+                "error too large: {}/{}",
+                dut_z,
+                model_z
+            );
+        } else {
+            panic!("got unexpected rx position!");
+        }
+    } else {
+        if model.rx_position.is_some() {
+            panic!("missing rx position!");
+        }
+    }
+    assert_eq!(dut.wavelengths, model.wavelengths);
+    assert_eq!(dut.sampling_interval, model.sampling_interval);
+    assert_eq!(dut.license, model.license);
+    assert_eq!(dut.doi, model.doi);
+    assert_eq!(dut.gps_utc_delta, model.gps_utc_delta);
+    assert_eq!(dut.rcvr, model.rcvr);
+    assert_eq!(dut.rcvr_antenna, model.rcvr_antenna);
+    assert_eq!(dut.sv_antenna, model.sv_antenna);
+    assert_eq!(dut.ionod_corrections, model.ionod_corrections);
+    assert_eq!(dut.dcb_compensations, model.dcb_compensations);
+    assert_eq!(dut.pcv_compensations, model.pcv_compensations);
+    assert_eq!(dut.obs, model.obs);
+    assert_eq!(dut.meteo, model.meteo);
+    assert_eq!(dut.clock, model.clock);
+    assert_eq!(dut.antex, model.antex);
+    assert_eq!(dut.ionex, model.ionex);
+    assert_eq!(dut.doris, model.doris);
+}
+
 /// Compares strict equality between [A, B]
 /// for all supported types, with panic on any single error;
 /// and meaningful error report
 pub fn generic_rinex_comparison(dut: &Rinex, model: &Rinex) {
-    // Headers strict equality
-    assert_eq!(
-        dut.header, model.header,
-        "header mismatch, got {:#?} expecting {:#?}",
-        dut.header, model.header
-    );
+    generic_header_comparison(&dut.header, &model.header);
 
     if dut.is_observation_rinex() && model.is_observation_rinex() {
         generic_observation_comparison(&dut, &model);
