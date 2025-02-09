@@ -119,6 +119,7 @@ pub fn generic_observation_rinex_test(
 
     // verifies header specs
     let specs = dut.header.obs.as_ref().unwrap();
+
     for (gnss, observable_csv) in gnss_observ_csv {
         let gnss = Constellation::from_str(gnss).unwrap();
 
@@ -134,7 +135,7 @@ pub fn generic_observation_rinex_test(
             .sorted()
             .collect::<Vec<_>>();
 
-        assert_eq!(found, expected);
+        assert_eq!(found, expected, "test failed for constellation {}", gnss);
     }
 
     let clocks = dut.clock_observations_iter().collect::<Vec<_>>();
