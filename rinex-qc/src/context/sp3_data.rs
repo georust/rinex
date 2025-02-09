@@ -13,7 +13,7 @@ impl QcContext {
     /// for this operation to be effective.
     pub fn load_sp3(&mut self, meta: &mut MetaData, sp3: SP3) -> Result<(), QcCtxError> {
         // SP3 classification is always feasible
-        meta.unique_id = Some(sp3.agency.to_string());
+        meta.unique_id = Some(sp3.header.agency.to_string());
 
         // store correctly
         if let Some(inner) = self.sp3_dataset.get_mut(&meta) {
