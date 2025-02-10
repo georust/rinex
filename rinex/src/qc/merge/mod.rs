@@ -2,6 +2,7 @@
 use crate::prelude::{
     qc::{Merge, MergeError},
     Epoch, Rinex,
+    Constellation, Observable,
 };
 
 mod antex;
@@ -66,6 +67,24 @@ pub(crate) fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
     if lhs.is_none() {
         if let Some(rhs) = rhs {
             *lhs = Some(rhs.clone());
+        }
+    }
+}
+
+/// Merges "Observables" from one to another
+pub(crate) fn merge_obsrinex_observables(
+    lhs: &mut HashMap<Constellation, Vec<Observable>>,
+    rhs: &HashMap<Constellation, Vec<Observable>>,
+) {
+    for (k, values) in rhs.iter() {
+        if let Some(lhs_values) = lhs.get_mut(&k) {
+            for val in values.iter() {
+                if !lhs_values.contains(&val) {
+                    lhs_values.push(val.clone());
+                }
+            }
+        } else {
+            lhs.insert(*k, values.clone());
         }
     }
 }

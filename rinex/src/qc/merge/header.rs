@@ -5,7 +5,7 @@ use crate::prelude::{
 
 use super::{
     merge_mut_option, merge_mut_unique_map2d, merge_mut_unique_vec, merge_mut_vec,
-    merge_time_of_first_obs, merge_time_of_last_obs,
+    merge_obsrinex_observables, merge_time_of_first_obs, merge_time_of_last_obs,
 };
 
 impl Merge for Header {
@@ -120,9 +120,10 @@ impl Merge for Header {
         if let Some(lhs) = &mut self.obs {
             if let Some(rhs) = &rhs.obs {
                 merge_mut_option(&mut lhs.crinex, &rhs.crinex);
-                merge_mut_unique_map2d(&mut lhs.codes, &rhs.codes);
+                merge_obsrinex_observables(&mut lhs.codes, &rhs.codes);
                 merge_time_of_first_obs(&mut lhs.timeof_first_obs, &rhs.timeof_first_obs);
                 merge_time_of_last_obs(&mut lhs.timeof_last_obs, &rhs.timeof_last_obs);
+
                 // TODO: lhs.clock_offset_applied |= rhs.clock_offset_applied;
             }
         }

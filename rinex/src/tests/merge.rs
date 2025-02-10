@@ -94,28 +94,22 @@ mod test {
         let test_resources = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
             .join("..")
-            .join("test_resources");
-
-        let path = test_resources
-            .clone()
+            .join("test_resources")
             .join("OBS")
-            .join("V2")
-            .join("AJAC3550.21O");
+            .join("V2");
+
+        let path = test_resources.clone().join("AJAC3550.21O");
 
         let path = path.to_string_lossy().to_string();
         let rnx_a = Rinex::from_file(&path).unwrap();
 
-        let path = test_resources
-            .clone()
-            .join("OBS")
-            .join("V2")
-            .join("npaz3550.21o");
+        let path = test_resources.clone().join("npaz3550.21o");
 
         let path = path.to_string_lossy().to_string();
         let rnx_b = Rinex::from_file(&path).unwrap();
 
-        let merged = rnx_a.merge(&rnx_b);
-        let merged = merged.unwrap();
+        let merged = rnx_a.merge(&rnx_b).unwrap();
+
         assert!(merged.is_merged());
 
         generic_observation_rinex_test(
@@ -145,10 +139,97 @@ mod test {
         // parse back
         let rnx = Rinex::from_file("ajac-merge.txt").unwrap();
 
-        assert!(
-            rnx.is_merged(),
-            "failed to identify a merged file correctly"
+        assert!(rnx.is_merged(), "merged file not declared as such!");
+
+        // remove file we just generated
+        // let _ = fs_remove_file("ajac-merged.txt");
+    }
+
+    #[test]
+    fn merge_obs_v3() {
+        let test_resources = PathBuf::new()
+            .join(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("OBS")
+            .join("V3");
+
+        let path = test_resources
+            .clone()
+            .join("ACOR00ESP_R_20213550000_01D_30S_MO.rnx");
+
+        let path = path.to_string_lossy().to_string();
+        let rnx_a = Rinex::from_file(&path).unwrap();
+
+        let path = test_resources
+            .clone()
+            .join("ALAC00ESP_R_20220090000_01D_30S_MO.rnx");
+
+        let path = path.to_string_lossy().to_string();
+        let rnx_b = Rinex::from_file(&path).unwrap();
+
+        let merged = rnx_a.merge(&rnx_b).unwrap();
+
+        assert!(merged.is_merged());
+
+        generic_observation_rinex_test(
+            &merged,
+            "3.04",
+            Some("MIXED"),
+            false,
+            "G07, G08, G10, G15, G16, G18, G21, G23, G26, G32, R04, R05, R06, R10, R12, R19, R20, R21, E04, E11, E12, E19, E24, E25, E31, E33, S23, S36", 
+            "GPS, GLO, GAL, EGNOS",
+            &[
+                ("GPS", "C1C, L1C, S1C, C2S, L2S, S2S, C2W, L2W, S2W, C5Q, L5Q, S5Q"),
+                ("GLO", "C1C, L1C, S1C, C2P, L2P, S2P, S2C, L2C, S2C, S3Q, L3Q, S3Q"),
+                ("GAL", "C1C, L1C, S1C, C5Q, L5Q, S5Q, C6C, L6C, S6C, C7Q, L7Q, S7Q, C8Q, L8Q, S8Q"),
+                ("BDS", "C2I, L2I, S2I, C6I, L6I, S6I, C7I, L7I, S7I"),
+            ],
+            Some("2021-12-21T00:00:00 GPST"),
+            Some("2022-01-09T23:59:30 GPST"),
+            None,
+            None,
+            None,
+            TimeFrame::from_erratic_csv(
+                "2021-12-21T00:00:00 GPST,
+                2021-12-21T00:00:30 GPST,
+                2021-12-21T00:01:00 GPST,
+                2021-12-21T00:01:30 GPST,
+                2021-12-21T00:02:00 GPST,
+                2021-12-21T00:02:30 GPST,
+                2021-12-21T00:03:00 GPST,
+                2021-12-21T00:03:30 GPST,
+                2021-12-21T00:04:00 GPST,
+                2021-12-21T00:04:30 GPST,
+                2021-12-21T00:05:00 GPST,
+                2021-12-21T00:05:30 GPST,
+                2021-12-21T00:06:00 GPST,
+                2021-12-21T00:06:30 GPST,
+                2021-12-21T00:07:00 GPST,
+                2021-12-21T00:07:30 GPST,
+                2021-12-21T00:08:00 GPST,
+                2021-12-21T00:08:30 GPST,
+                2021-12-21T00:09:00 GPST,
+                2021-12-21T00:09:30 GPST,
+                2021-12-21T00:10:00 GPST,
+                2021-12-21T00:10:30 GPST,
+                2021-12-21T00:11:00 GPST,
+                2021-12-21T00:11:30 GPST,
+                2021-12-21T00:12:00 GPST,
+                2022-01-09T00:00:00 GPST,
+                2022-01-09T00:00:30 GPST,
+                2022-01-09T00:13:30 GPST",
+            ),
+            vec![],
+            vec![],
         );
+
+        merged.to_file("alac-acor-merge.txt").unwrap();
+
+        // parse back
+        let rnx = Rinex::from_file("alac-acor-merge.txt").unwrap();
+
+        assert!(rnx.is_merged(), "merged file not declared as such!");
 
         // remove file we just generated
         // let _ = fs_remove_file("ajac-merged.txt");
