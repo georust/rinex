@@ -1,8 +1,7 @@
 //! RINEX File merging (combination)
 use crate::prelude::{
     qc::{Merge, MergeError},
-    Epoch, Rinex,
-    Constellation, Observable,
+    Constellation, Epoch, Observable, Rinex,
 };
 
 mod antex;
