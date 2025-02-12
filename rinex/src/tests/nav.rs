@@ -2,20 +2,12 @@ use crate::{
     navigation::{NavFrameType, NavMessageType},
     prelude::{Constellation, Epoch, Rinex, TimeScale, SV},
     tests::toolkit::{generic_navigation_test, TimeFrame},
+    Carrier,
 };
 
 use hifitime::Unit;
 
-use std::str::FromStr;
-
-// Computes TOE in said timescale
-fn toe_helper(week: f64, week_s: f64, ts: TimeScale) -> Epoch {
-    if ts == TimeScale::GST {
-        Epoch::from_duration((week - 1024.0) * Unit::Week + week_s * Unit::Second, ts)
-    } else {
-        Epoch::from_duration(week * Unit::Week + week_s * Unit::Second, ts)
-    }
-}
+use std::{path::PathBuf, str::FromStr};
 
 #[test]
 fn v2_amel0010_21g() {
@@ -40,124 +32,81 @@ fn v2_amel0010_21g() {
         6,
     );
 
-    for (k, v) in dut.nav_ephemeris_frames_iter() {
+    for (k, eph) in dut.nav_ephemeris_frames_iter() {
         assert_eq!(k.sv.constellation, Constellation::Glonass);
         assert_eq!(k.frmtype, NavFrameType::Ephemeris);
         assert_eq!(k.msgtype, NavMessageType::LNAV);
 
         match k.sv.prn {
             1 => {
-                assert_eq!(v.sv_clock(), (7.282570004460E-5, 0.0, 7.380000000000E+04));
+                assert_eq!(eph.sv_clock(), (7.282570004460E-5, 0.0, 7.380000000000E+04));
+                //TODO
                 //assert_eq!(v.sv_position((-1.488799804690E+03, 1.292880712890E+04, 2.193169775390E+04)))
 
-                assert!(v.get_orbit_f64("ageOp").is_none());
-                assert_eq!(v.glonass_freq_channel(), Some(1));
+                assert!(eph.get_orbit_f64("ageOp").is_none());
+                assert_eq!(eph.glonass_freq_channel(), Some(1));
             },
             2 => {
-                assert_eq!(v.clock_bias, 4.610531032090E-04);
-                assert_eq!(v.clock_drift, 1.818989403550E-12);
-                assert_eq!(v.clock_drift_rate, 4.245000000000E+04);
+                assert_eq!(eph.clock_bias, 4.610531032090E-04);
+                assert_eq!(eph.clock_drift, 1.818989403550E-12);
+                assert_eq!(eph.clock_drift_rate, 4.245000000000E+04);
+                //assert_eq!(eph.get_orbit_f64("ageOp"), Some(0.0));
+                assert_eq!(eph.get_orbit_f64("channel"), Some(-4.0));
+
+                //TODO
+                //assert_eq!(eph.sv_position((
+                //                 assert_eq!(posx.as_f64(), Some(-8.955041992190E+03));
+                //                 assert_eq!(posy.as_f64(), Some(-1.834875292970E+04));
+                //                 assert_eq!(posz.as_f64(), Some(1.536620703130E+04));
             },
             3 => {
-                assert_eq!(v.clock_bias, 2.838205546140E-05);
-                assert_eq!(v.clock_drift, 0.0);
-                assert_eq!(v.clock_drift_rate, 4.680000000000E+04);
+                assert_eq!(eph.clock_bias, 2.838205546140E-05);
+                assert_eq!(eph.clock_drift, 0.0);
+                assert_eq!(eph.clock_drift_rate, 4.680000000000E+04);
+                //assert_eq!(eph.get_orbit_f64("health"), Some(0.0));
+                assert_eq!(eph.get_orbit_f64("channel"), Some(5.0));
+                //assert_eq!(eph.get_orbit_f64("ageOp"), Some(0.0));
+                //                 assert_eq!(posx.as_f64(), Some(1.502522949220E+04));
+                //                 assert_eq!(posy.as_f64(), Some(-1.458877050780E+04));
+                //                 assert_eq!(posz.as_f64(), Some(1.455863281250E+04));
             },
             4 => {
-                assert_eq!(v.clock_bias, 6.817653775220E-05);
-                assert_eq!(v.clock_drift, 1.818989403550E-12);
-                assert_eq!(v.clock_drift_rate, 4.680000000000E+04);
+                assert_eq!(eph.clock_bias, 6.817653775220E-05);
+                assert_eq!(eph.clock_drift, 1.818989403550E-12);
+                assert_eq!(eph.clock_drift_rate, 4.680000000000E+04);
+                //assert_eq!(eph.get_orbit_f64("ageOp"), Some(0.0));
+                assert_eq!(eph.get_orbit_f64("channel"), Some(6.0));
+                //assert_eq!(eph.get_orbit_f64("health"), Some(0.0));
+                //                 assert_eq!(posx.as_f64(), Some(-1.688173828130E+03));
+                //                 assert_eq!(posy.as_f64(), Some(-1.107156738280E+04));
+                //                 assert_eq!(posz.as_f64(), Some(2.293745361330E+04));
             },
             5 => {
-                assert_eq!(v.clock_bias, 6.396882236000E-05);
-                assert_eq!(v.clock_drift, 9.094947017730E-13);
-                assert_eq!(v.clock_drift_rate, 8.007000000000E+04);
+                assert_eq!(eph.clock_bias, 6.396882236000E-05);
+                assert_eq!(eph.clock_drift, 9.094947017730E-13);
+                assert_eq!(eph.clock_drift_rate, 8.007000000000E+04);
+                //assert_eq!(eph.get_orbit_f64("ageOp"), Some(0.0));
+                assert_eq!(eph.get_orbit_f64("channel"), Some(1.0));
+                //assert_eq!(eph.get_orbit_f64("health"), Some(0.0));
+                //                 assert_eq!(posx.as_f64(), Some(-1.754308935550E+04));
+                //                 assert_eq!(posy.as_f64(), Some(-1.481773437500E+03));
+                //                 assert_eq!(posz.as_f64(), Some(1.847386083980E+04));
             },
             7 => {
-                assert_eq!(v.clock_bias, -4.201009869580E-05);
-                assert_eq!(v.clock_drift, 0.0);
-                assert_eq!(v.clock_drift_rate, 2.88E4);
+                assert_eq!(eph.clock_bias, -4.201009869580E-05);
+                assert_eq!(eph.clock_drift, 0.0);
+                assert_eq!(eph.clock_drift_rate, 2.88E4);
+                //assert_eq!(eph.get_orbit_f64("ageOp"), Some(0.0));
+                assert_eq!(eph.get_orbit_f64("channel"), Some(5.0));
+                //assert_eq!(eph.get_orbit_f64("health"), Some(0.0));
+                //                 assert_eq!(posx.as_f64(), Some(1.817068505860E+04));
+                //                 assert_eq!(posy.as_f64(), Some(1.594814404300E+04));
+                //                 assert_eq!(posz.as_f64(), Some(8.090271484380E+03));
             },
-            _ => {},
+            prn => panic!("invalid SV: R{}", prn),
         }
     }
 }
-
-//             } else if sv.prn == 2 {
-//                 let data = &ephemeris.orbits;
-//                 let posx = data.get("satPosX").unwrap();
-//                 assert_eq!(posx.as_f64(), Some(-8.955041992190E+03));
-//                 let posy = data.get("satPosY").unwrap();
-//                 assert_eq!(posy.as_f64(), Some(-1.834875292970E+04));
-//                 let posz = data.get("satPosZ").unwrap();
-//                 assert_eq!(posz.as_f64(), Some(1.536620703130E+04));
-//                 let freq = data.get("channel").unwrap();
-//                 assert_eq!(freq.as_i8(), Some(-4));
-//                 let ageop = data.get("ageOp").unwrap();
-//                 assert_eq!(ageop.as_f64(), Some(0.0));
-//             } else if sv.prn == 3 {
-//                 let data = &ephemeris.orbits;
-//                 let posx = data.get("satPosX").unwrap();
-//                 assert_eq!(posx.as_f64(), Some(1.502522949220E+04));
-//                 let posy = data.get("satPosY").unwrap();
-//                 assert_eq!(posy.as_f64(), Some(-1.458877050780E+04));
-//                 let posz = data.get("satPosZ").unwrap();
-//                 assert_eq!(posz.as_f64(), Some(1.455863281250E+04));
-//                 //TODO test health completly
-//                 //let health = data.get("health").unwrap();
-//                 //assert_eq!(health.as_f64(), Some(0.0));
-//                 let freq = data.get("channel").unwrap();
-//                 assert_eq!(freq.as_i8(), Some(5));
-//                 let ageop = data.get("ageOp").unwrap();
-//                 assert_eq!(ageop.as_f64(), Some(0.0));
-//             } else if sv.prn == 4 {
-//                 let data = &ephemeris.orbits;
-//                 let posx = data.get("satPosX").unwrap();
-//                 assert_eq!(posx.as_f64(), Some(-1.688173828130E+03));
-//                 let posy = data.get("satPosY").unwrap();
-//                 assert_eq!(posy.as_f64(), Some(-1.107156738280E+04));
-//                 let posz = data.get("satPosZ").unwrap();
-//                 assert_eq!(posz.as_f64(), Some(2.293745361330E+04));
-//                 //TODO
-//                 //let health = data.get("health").unwrap();
-//                 //assert_eq!(health.as_f64(), Some(0.0));
-//                 let freq = data.get("channel").unwrap();
-//                 assert_eq!(freq.as_i8(), Some(6));
-//                 let ageop = data.get("ageOp").unwrap();
-//                 assert_eq!(ageop.as_f64(), Some(0.0));
-//             } else if sv.prn == 5 {
-//                 let data = &ephemeris.orbits;
-//                 let posx = data.get("satPosX").unwrap();
-//                 assert_eq!(posx.as_f64(), Some(-1.754308935550E+04));
-//                 let posy = data.get("satPosY").unwrap();
-//                 assert_eq!(posy.as_f64(), Some(-1.481773437500E+03));
-//                 let posz = data.get("satPosZ").unwrap();
-//                 assert_eq!(posz.as_f64(), Some(1.847386083980E+04));
-//                 //TODO
-//                 //let health = data.get("health").unwrap();
-//                 //assert_eq!(health.as_f64(), Some(0.0));
-//                 let freq = data.get("channel").unwrap();
-//                 assert_eq!(freq.as_i8(), Some(1));
-//                 let ageop = data.get("ageOp").unwrap();
-//                 assert_eq!(ageop.as_f64(), Some(0.0));
-//             } else if sv.prn == 7 {
-//                 let data = &ephemeris.orbits;
-//                 let posx = data.get("satPosX").unwrap();
-//                 assert_eq!(posx.as_f64(), Some(1.817068505860E+04));
-//                 let posy = data.get("satPosY").unwrap();
-//                 assert_eq!(posy.as_f64(), Some(1.594814404300E+04));
-//                 let posz = data.get("satPosZ").unwrap();
-//                 assert_eq!(posz.as_f64(), Some(8.090271484380E+03));
-//                 //TODO
-//                 //let health = data.get("health").unwrap();
-//                 //assert_eq!(health.as_f64(), Some(0.0));
-//                 let freq = data.get("channel").unwrap();
-//                 assert_eq!(freq.as_i8(), Some(5));
-//                 let ageop = data.get("ageOp").unwrap();
-//                 assert_eq!(ageop.as_f64(), Some(0.0));
-//             }
-//         }
-//     }
 
 #[test]
 #[cfg(feature = "flate2")]
@@ -175,309 +124,243 @@ fn v2_cbw10010_21n() {
         "G01, G07, G08, G04, G19, G10, G15, G20, G18, G31, G03, G06, G27, G09, G11, G13, G30, G12, G14, G17, G23, G24, G19, G21, G22, G28, G32, G25, G02, G03, G06, G12, G17, G22, G26, G05, G16, G29, G14",
         187,
     );
+
+    let t0 = Epoch::from_str("2020-12-31T23:59:44 GPST").unwrap();
+    let t1 = Epoch::from_str("2020-01-02T00:00:00 GPST").unwrap();
+
+    let mut tests_passed = 0;
+
+    for (k, eph) in dut.nav_ephemeris_frames_iter() {
+        assert_eq!(k.msgtype, NavMessageType::LNAV, "Legacy NAV file");
+        assert_eq!(k.sv.constellation, Constellation::GPS, "GPS NAV file");
+
+        if k.epoch == t0 {
+            if k.sv.prn == 7 {
+                assert_eq!(eph.clock_bias, 4.204921424390E-6);
+                assert_eq!(eph.clock_drift, 1.477928890380E-11);
+                assert_eq!(eph.clock_drift_rate, 0.0);
+
+                for (field, value) in [
+                    ("iode", Some(0.0_f64)),
+                    ("crs", Some(-1.509375000000E1)),
+                    ("deltaN", Some(5.043781392540E-9)),
+                    ("m0", Some(-1.673144695710)),
+                    ("cuc", Some(-8.475035429000E-7)),
+                    ("e", Some(1.431132073050E-2)),
+                    ("cus", Some(5.507841706280E-6)),
+                    ("sqrta", Some(5.153606595990E3)),
+                    ("toe", Some(4.319840000000E5)),
+                    ("cic", Some(2.216547727580E-7)),
+                    ("omega0", Some(2.333424778860)),
+                    ("cis", Some(-8.009374141690E-8)),
+                    ("i0", Some(9.519533967710E-1)),
+                    ("crc", Some(2.626562500000E2)),
+                    ("omega", Some(-2.356931900380)),
+                    ("omegaDot", Some(-8.034263032640E-9)),
+                    ("idot", Some(-1.592923432050E-10)),
+                    ("l2Codes", Some(1.000000000000)),
+                    ("l2pDataFlag", Some(0.000000000000)),
+                    ("svAccuracy", Some(0.000000000000)),
+                    ("tgd", Some(-1.117587089540E-8)),
+                    ("iodc", Some(0.000000000000)),
+                    ("t_tm", Some(4.283760000000E5)),
+                ] {
+                    let orbit_value = eph.get_orbit_f64(field);
+                    assert_eq!(
+                        orbit_value, value,
+                        "parsed wrong \"{}\" value for G07 T0",
+                        field
+                    );
+                }
+
+                assert_eq!(eph.get_week(), Some(2138));
+                assert!(
+                    eph.get_orbit_f64("fitInt").is_none(),
+                    "parsed fitInt unexpectedly"
+                );
+                tests_passed += 1;
+            }
+        } else if k.epoch == t1 {
+            if k.sv.prn == 30 {
+                assert_eq!(eph.clock_bias, 3.621461801230E-04);
+                assert_eq!(eph.clock_drift, -6.139089236970E-12);
+                assert_eq!(eph.clock_drift_rate, 0.000000000000);
+
+                for (field, value) in vec![
+                    ("iode", Some(8.500000000000E1)),
+                    ("crs", Some(-7.500000000000)),
+                    ("deltaN", Some(5.476656696160E-9)),
+                    ("m0", Some(-1.649762378650)),
+                    ("cuc", Some(-6.072223186490E-7)),
+                    ("e", Some(4.747916595080E-3)),
+                    ("cus", Some(5.392357707020E-6)),
+                    ("sqrta", Some(5.153756387710E+3)),
+                    ("toe", Some(5.184000000000E+5)),
+                    ("cic", Some(7.636845111850E-8)),
+                    ("omega0", Some(2.352085289360E+00)),
+                    ("cis", Some(-2.421438694000E-8)),
+                    ("i0", Some(9.371909002540E-1)),
+                    ("crc", Some(2.614687500000E+2)),
+                    ("omega", Some(-2.846234079630)),
+                    ("omegaDot", Some(-8.435351366240E-9)),
+                    ("idot", Some(-7.000291590240E-11)),
+                    ("l2Codes", Some(1.000000000000)),
+                    ("l2pDataFlag", Some(0.0)),
+                    ("svAccuracy", Some(0.0)),
+                    ("tgd", Some(3.725290298460E-9)),
+                    ("iodc", Some(8.500000000000E1)),
+                    ("t_tm", Some(5.146680000000E5)),
+                ] {
+                    let orbit = eph.get_orbit_f64(field);
+                    assert_eq!(orbit, value, "parsed wrong \"{}\" value for G30 T1", field);
+                }
+                assert_eq!(eph.get_week(), Some(2138));
+                assert!(
+                    eph.get_orbit_f64("fitInt").is_none(),
+                    "parsed fitInt unexpectedly"
+                );
+                tests_passed += 1;
+            }
+        }
+    }
+
+    assert_eq!(tests_passed, 2);
 }
-//     // test inner data
-//     for (e, frames) in rinex.navigation() {
-//         for fr in frames {
-//             // test : only Ephemeris frames in old rinex
-//             let fr = fr.as_eph();
-//             assert!(fr.is_some(), "parsed non ephemeris frame unexpectedly");
 
-//             // test : only Legacy frames in old rinex
-//             let (msg, sv, ephemeris) = fr.unwrap();
-//             assert!(
-//                 msg == NavMsgType::LNAV,
-//                 "only LNAV frames are expected here"
-//             );
+#[test]
+fn v3_amel00nld_r_2021() {
+    let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
+        + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
 
-//             if *e == Epoch::from_str("2020-12-31T23:59:44").unwrap() {
-//                 if sv.prn == 7 {
-//                     assert_eq!(
-//                         ephemeris.sv_clock(),
-//                         (4.204921424390E-6, 1.477928890380E-11, 0.0),
-//                         "parsed wrong clock data"
-//                     );
+    let rinex = Rinex::from_file(&test_resource).unwrap();
 
-//                     for (field, data) in vec![
-//                         ("iode", Some(0.0_f64)),
-//                         ("crs", Some(-1.509375000000E1)),
-//                         ("deltaN", Some(5.043781392540E-9)),
-//                         ("m0", Some(-1.673144695710)),
-//                         ("cuc", Some(-8.475035429000E-7)),
-//                         ("e", Some(1.431132073050E-2)),
-//                         ("cus", Some(5.507841706280E-6)),
-//                         ("sqrta", Some(5.153606595990E3)),
-//                         ("toe", Some(4.319840000000E5)),
-//                         ("cic", Some(2.216547727580E-7)),
-//                         ("omega0", Some(2.333424778860)),
-//                         ("cis", Some(-8.009374141690E-8)),
-//                         ("i0", Some(9.519533967710E-1)),
-//                         ("crc", Some(2.626562500000E2)),
-//                         ("omega", Some(-2.356931900380)),
-//                         ("omegaDot", Some(-8.034263032640E-9)),
-//                         ("idot", Some(-1.592923432050E-10)),
-//                         ("l2Codes", Some(1.000000000000)),
-//                         ("l2pDataFlag", Some(0.000000000000)),
-//                         ("svAccuracy", Some(0.000000000000)),
-//                         ("tgd", Some(-1.117587089540E-8)),
-//                         ("iodc", Some(0.000000000000)),
-//                         ("t_tm", Some(4.283760000000E5)),
-//                     ] {
-//                         let value = ephemeris.get_orbit_f64(field);
-//                         assert!(value.is_some(), "missing orbit filed \"{}\"", field);
-//                         assert_eq!(
-//                             value, data,
-//                             "parsed wrong \"{}\" value, expecting {:?} got {:?}",
-//                             field, data, value
-//                         );
-//                     }
-//                     assert!(
-//                         ephemeris.get_orbit_f64("fitInt").is_none(),
-//                         "parsed fitInt unexpectedly"
-//                     );
+    assert!(rinex.is_navigation_rinex());
+    assert!(rinex.header.obs.is_none());
+    assert!(rinex.header.meteo.is_none());
 
-//                     assert_eq!(ephemeris.get_week(), Some(2138));
-//                 }
-//             } else if *e == Epoch::from_str("2021-01-02T00:00:00").unwrap() && sv.prn == 30 {
-//                 assert_eq!(
-//                     ephemeris.sv_clock(),
-//                     (-3.621461801230E-04, -6.139089236970E-12, 0.000000000000),
-//                     "parsed wrong clock data"
-//                 );
+    let t0 = Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap();
+    let t1 = Epoch::from_str("2021-01-01T00:15:00 UTC").unwrap();
+    let t2 = Epoch::from_str("2021-01-01T05:00:00 BDT").unwrap();
+    let t3 = Epoch::from_str("2021-01-01T09:45:00 UTC").unwrap();
+    let t4 = Epoch::from_str("2021-01-01T10:10:00 GST").unwrap();
+    let t5 = Epoch::from_str("2021-01-01T15:40:00 GST").unwrap();
 
-//                 for (field, data) in vec![
-//                     ("iode", Some(8.500000000000E1)),
-//                     ("crs", Some(-7.500000000000)),
-//                     ("deltaN", Some(5.476656696160E-9)),
-//                     ("m0", Some(-1.649762378650)),
-//                     ("cuc", Some(-6.072223186490E-7)),
-//                     ("e", Some(4.747916595080E-3)),
-//                     ("cus", Some(5.392357707020E-6)),
-//                     ("sqrta", Some(5.153756387710E+3)),
-//                     ("toe", Some(5.184000000000E+5)),
-//                     ("cic", Some(7.636845111850E-8)),
-//                     ("omega0", Some(2.352085289360E+00)),
-//                     ("cis", Some(-2.421438694000E-8)),
-//                     ("i0", Some(9.371909002540E-1)),
-//                     ("crc", Some(2.614687500000E+2)),
-//                     ("omega", Some(-2.846234079630)),
-//                     ("omegaDot", Some(-8.435351366240E-9)),
-//                     ("idot", Some(-7.000291590240E-11)),
-//                     ("l2Codes", Some(1.000000000000)),
-//                     ("l2pDataFlag", Some(0.0)),
-//                     ("svAccuracy", Some(0.0)),
-//                     ("tgd", Some(3.725290298460E-9)),
-//                     ("iodc", Some(8.500000000000E1)),
-//                     ("t_tm", Some(5.146680000000E5)),
-//                 ] {
-//                     let value = ephemeris.get_orbit_f64(field);
-//                     assert!(value.is_some(), "missing orbit filed \"{}\"", field);
-//                     assert_eq!(
-//                         value, data,
-//                         "parsed wrong \"{}\" value, expecting {:?} got {:?}",
-//                         field, data, value
-//                     );
-//                 }
-//                 assert!(
-//                     ephemeris.get_orbit_f64("fitInt").is_none(),
-//                     "parsed fitInt unexpectedly"
-//                 );
+    let c05 = SV::from_str("C05").unwrap();
+    let c21 = SV::from_str("C21").unwrap();
+    let e01 = SV::from_str("E01").unwrap();
+    let e03 = SV::from_str("E03").unwrap();
+    let r07 = SV::from_str("R07").unwrap();
+    let r19 = SV::from_str("R19").unwrap();
 
-//                 assert_eq!(ephemeris.get_week(), Some(2138));
-//             }
-//         }
-//     }
-// }
+    let mut num_tests = 0;
 
-// #[test]
-// fn v3_amel00nld_r_2021() {
-//     let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
-//         + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
-//     let rinex = Rinex::from_file(&test_resource);
-//     assert!(rinex.is_ok());
+    for (k, eph) in rinex.nav_ephemeris_frames_iter() {
+        assert_eq!(k.msgtype, NavMessageType::LNAV);
 
-//     let rinex = rinex.unwrap();
-//     assert!(rinex.is_navigation_rinex());
-//     assert!(rinex.header.obs.is_none());
-//     assert!(rinex.header.meteo.is_none());
+        let orbits = &eph.orbits;
 
-//     let record = rinex.record.as_nav();
-//     assert!(record.is_some());
+        if k.sv == c05 {
+            assert_eq!(eph.clock_bias, -0.426337239332e-03);
+            assert_eq!(eph.clock_drift, -0.752518047875e-10);
+            assert_eq!(eph.clock_drift_rate, 0.0);
 
-//     let record = record.unwrap();
-//     assert_eq!(record.len(), 6);
+            assert_eq!(eph.get_orbit_f64("aode"), Some(0.100000000000e+01));
+            assert_eq!(eph.get_orbit_f64("crs"), Some(0.118906250000e+02));
 
-//     // Test: only Ephemeris in this record
-//     let ephemeris: Vec<_> = rinex.ephemeris().collect();
-//     assert_eq!(ephemeris.len(), 6);
-
-//     let epochs = vec![
-//         Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap(),
-//         Epoch::from_str("2021-01-01T00:15:00 UTC").unwrap(),
-//         Epoch::from_str("2021-01-01T05:00:00 BDT").unwrap(),
-//         Epoch::from_str("2021-01-01T09:45:00 UTC").unwrap(),
-//         Epoch::from_str("2021-01-01T10:10:00 GST").unwrap(),
-//         Epoch::from_str("2021-01-01T15:40:00 GST").unwrap(),
-//     ];
-
-//     assert!(
-//         rinex.epoch_iter().eq(epochs.clone()),
-//         "Parsed wrong epoch content.\nExpecting {:?}\nGot {:?}",
-//         epochs.clone(),
-//         rinex.epoch_iter().collect::<Vec<Epoch>>(),
-//     );
-
-//     let mut vehicles = vec![
-//         sv!("c05"),
-//         sv!("c21"),
-//         sv!("e01"),
-//         sv!("e03"),
-//         sv!("r07"),
-//         sv!("r19"),
-//     ];
-//     vehicles.sort(); // for comparison
-//     assert!(
-//         rinex.sv_iter().sorted().eq(vehicles),
-//         "parsed wrong sv content"
-//     );
-
-//     for (_e, frames) in record.iter() {
-//         for fr in frames {
-//             // test: only Ephemeris frames in V3
-//             let fr = fr.as_eph();
-//             assert!(fr.is_some(), "expecting only ephemeris frames here");
-
-//             let (msg, sv, ephemeris) = fr.unwrap();
-
-//             // test: only Legacy frames in V3
-//             assert!(msg == NavMsgType::LNAV, "only legacy frames expected here");
-
-//             // test some data
-//             match sv.constellation {
-//                 Constellation::BeiDou => match sv.prn {
-//                     5 => {
-//                         assert_eq!(ephemeris.clock_bias, -0.426337239332e-03);
-//                         assert_eq!(ephemeris.clock_drift, -0.752518047875e-10);
-//                         assert_eq!(ephemeris.clock_drift_rate, 0.0);
-//                         let data = &ephemeris.orbits;
-//                         let aode = data.get("aode").unwrap();
-//                         assert_eq!(aode.as_f64(), Some(0.100000000000e+01));
-//                         let crs = data.get("crs").unwrap();
-//                         assert_eq!(crs.as_f64(), Some(0.118906250000e+02));
-//                         let m0 = data.get("m0").unwrap();
-//                         assert_eq!(m0.as_f64(), Some(-0.255139531119e+01));
-//                         let i0 = data.get("i0").unwrap();
-//                         assert_eq!(i0.as_f64(), Some(0.607169709798e-01));
-//                         let acc = data.get("svAccuracy").unwrap();
-//                         assert_eq!(acc.as_f64(), Some(0.200000000000e+01));
-//                         let sath1 = data.get("satH1").unwrap();
-//                         assert_eq!(sath1.as_f64(), Some(0.0));
-//                         let tgd1 = data.get("tgd1b1b3").unwrap();
-//                         assert_eq!(tgd1.as_f64(), Some(-0.599999994133e-09));
-//                     },
-//                     21 => {
-//                         assert_eq!(ephemeris.clock_bias, -0.775156309828e-03);
-//                         assert_eq!(ephemeris.clock_drift, -0.144968481663e-10);
-//                         assert_eq!(ephemeris.clock_drift_rate, 0.000000000000e+0);
-//                         let data = &ephemeris.orbits;
-//                         let aode = data.get("aode").unwrap();
-//                         assert_eq!(aode.as_f64(), Some(0.100000000000e+01));
-//                         let crs = data.get("crs").unwrap();
-//                         assert_eq!(crs.as_f64(), Some(-0.793437500000e+02));
-//                         let m0 = data.get("m0").unwrap();
-//                         assert_eq!(m0.as_f64(), Some(0.206213212749e+01));
-//                         let i0 = data.get("i0").unwrap();
-//                         assert_eq!(i0.as_f64(), Some(0.964491154768e+00));
-//                         let acc = data.get("svAccuracy").unwrap();
-//                         assert_eq!(acc.as_f64(), Some(0.200000000000e+01));
-//                         let sath1 = data.get("satH1").unwrap();
-//                         assert_eq!(sath1.as_f64(), Some(0.0));
-//                         let tgd1 = data.get("tgd1b1b3").unwrap();
-//                         assert_eq!(tgd1.as_f64(), Some(0.143000002950e-07));
-//                     },
-//                     _ => panic!("identified unexpected BDS vehicle \"{}\"", sv.prn),
-//                 },
-//                 Constellation::Glonass => match sv.prn {
-//                     19 => {
-//                         assert_eq!(ephemeris.clock_bias, -0.126023776829e-03);
-//                         assert_eq!(ephemeris.clock_drift, -0.909494701773e-12);
-//                         assert_eq!(ephemeris.clock_drift_rate, 0.0);
-//                         let data = &ephemeris.orbits;
-//                         let pos = data.get("satPosX").unwrap();
-//                         assert_eq!(pos.as_f64(), Some(0.783916601562e+04));
-//                         let pos = data.get("satPosY").unwrap();
-//                         assert_eq!(pos.as_f64(), Some(-0.216949155273e+05));
-//                         let pos = data.get("satPosZ").unwrap();
-//                         assert_eq!(pos.as_f64(), Some(0.109021518555e+05));
-//                     },
-//                     7 => {
-//                         assert_eq!(ephemeris.clock_bias, -0.420100986958E-04);
-//                         assert_eq!(ephemeris.clock_drift, 0.0);
-//                         assert_eq!(ephemeris.clock_drift_rate, 0.342000000000e+05);
-//                         let data = &ephemeris.orbits;
-//                         let pos = data.get("satPosX").unwrap();
-//                         assert_eq!(pos.as_f64(), Some(0.124900639648e+05));
-//                         let pos = data.get("satPosY").unwrap();
-//                         assert_eq!(pos.as_f64(), Some(0.595546582031e+04));
-//                         let pos = data.get("satPosZ").unwrap();
-//                         assert_eq!(pos.as_f64(), Some(0.214479208984e+05));
-//                     },
-//                     _ => panic!("identified unexpected GLO vehicle \"{}\"", sv.prn),
-//                 },
-//                 Constellation::Galileo => match sv.prn {
-//                     1 => {
-//                         assert_eq!(ephemeris.clock_bias, -0.101553811692e-02);
-//                         assert_eq!(ephemeris.clock_drift, -0.804334376880e-11);
-//                         assert_eq!(ephemeris.clock_drift_rate, 0.0);
-//                         let data = &ephemeris.orbits;
-//                         let iodnav = data.get("iodnav").unwrap();
-//                         assert_eq!(iodnav.as_f64(), Some(0.130000000000e+02));
-//                         let crs = data.get("crs").unwrap();
-//                         assert_eq!(crs.as_f64(), Some(0.435937500000e+02));
-//                         let cis = data.get("cis").unwrap();
-//                         assert_eq!(cis.as_f64(), Some(0.409781932831e-07));
-//                         let omega_dot = data.get("omegaDot").unwrap();
-//                         assert_eq!(omega_dot.as_f64(), Some(-0.518200156545e-08));
-//                         let idot = data.get("idot").unwrap();
-//                         assert_eq!(idot.as_f64(), Some(-0.595381942905e-09));
-//                         let sisa = data.get("sisa").unwrap();
-//                         assert_eq!(sisa.as_f64(), Some(0.312000000000e+01));
-//                         let bgd = data.get("bgdE5aE1").unwrap();
-//                         assert_eq!(bgd.as_f64(), Some(0.232830643654e-09));
-//                     },
-//                     3 => {
-//                         assert_eq!(ephemeris.clock_bias, -0.382520200219e-03);
-//                         assert_eq!(ephemeris.clock_drift, -0.422062385041e-11);
-//                         assert_eq!(ephemeris.clock_drift_rate, 0.0);
-//                         let data = &ephemeris.orbits;
-//                         let iodnav = data.get("iodnav").unwrap();
-//                         assert_eq!(iodnav.as_f64(), Some(0.460000000000e+02));
-//                         let crs = data.get("crs").unwrap();
-//                         assert_eq!(crs.as_f64(), Some(-0.103750000000e+02));
-//                         let cis = data.get("cis").unwrap();
-//                         assert_eq!(cis.as_f64(), Some(0.745058059692e-08));
-//                         let omega_dot = data.get("omegaDot").unwrap();
-//                         assert_eq!(omega_dot.as_f64(), Some(-0.539986778331e-08));
-//                         let idot = data.get("idot").unwrap();
-//                         assert_eq!(idot.as_f64(), Some(0.701814947695e-09));
-//                         let sisa = data.get("sisa").unwrap();
-//                         assert_eq!(sisa.as_f64(), Some(0.312000000000e+01));
-//                         let bgd = data.get("bgdE5aE1").unwrap();
-//                         assert_eq!(bgd.as_f64(), Some(0.302679836750e-08));
-//                     },
-//                     _ => panic!("identified unexpected GAL vehicle \"{}\"", sv.prn),
-//                 },
-//                 _ => panic!("falsely identified \"{}\"", sv),
-//             }
-//         } //match sv.constellation
-//     }
-// }
+        //                         let m0 = data.get("m0").unwrap();
+        //                         assert_eq!(m0.as_f64(), Some(-0.255139531119e+01));
+        //                         let i0 = data.get("i0").unwrap();
+        //                         assert_eq!(i0.as_f64(), Some(0.607169709798e-01));
+        //                         let acc = data.get("svAccuracy").unwrap();
+        //                         assert_eq!(acc.as_f64(), Some(0.200000000000e+01));
+        //                         let sath1 = data.get("satH1").unwrap();
+        //                         assert_eq!(sath1.as_f64(), Some(0.0));
+        //                         let tgd1 = data.get("tgd1b1b3").unwrap();
+        //                         assert_eq!(tgd1.as_f64(), Some(-0.599999994133e-09));
+        } else if k.sv == c21 {
+            assert_eq!(eph.clock_bias, -0.775156309828e-03);
+            assert_eq!(eph.clock_drift, -0.144968481663e-10);
+            assert_eq!(eph.clock_drift_rate, 0.000000000000e+0);
+        //                         let aode = data.get("aode").unwrap();
+        //                         assert_eq!(aode.as_f64(), Some(0.100000000000e+01));
+        //                         let crs = data.get("crs").unwrap();
+        //                         assert_eq!(crs.as_f64(), Some(-0.793437500000e+02));
+        //                         let m0 = data.get("m0").unwrap();
+        //                         assert_eq!(m0.as_f64(), Some(0.206213212749e+01));
+        //                         let i0 = data.get("i0").unwrap();
+        //                         assert_eq!(i0.as_f64(), Some(0.964491154768e+00));
+        //                         let acc = data.get("svAccuracy").unwrap();
+        //                         assert_eq!(acc.as_f64(), Some(0.200000000000e+01));
+        //                         let sath1 = data.get("satH1").unwrap();
+        //                         assert_eq!(sath1.as_f64(), Some(0.0));
+        //                         let tgd1 = data.get("tgd1b1b3").unwrap();
+        //                         assert_eq!(tgd1.as_f64(), Some(0.143000002950e-07));
+        } else if k.sv == r19 {
+            assert_eq!(eph.clock_bias, -0.126023776829e-03);
+            assert_eq!(eph.clock_drift, -0.909494701773e-12);
+            assert_eq!(eph.clock_drift_rate, 0.0);
+        //                         let pos = data.get("satPosX").unwrap();
+        //                         assert_eq!(pos.as_f64(), Some(0.783916601562e+04));
+        //                         let pos = data.get("satPosY").unwrap();
+        //                         assert_eq!(pos.as_f64(), Some(-0.216949155273e+05));
+        //                         let pos = data.get("satPosZ").unwrap();
+        //                         assert_eq!(pos.as_f64(), Some(0.109021518555e+05));
+        } else if k.sv == r07 {
+            assert_eq!(eph.clock_bias, -0.420100986958E-04);
+            assert_eq!(eph.clock_drift, 0.0);
+            assert_eq!(eph.clock_drift_rate, 0.342000000000e+05);
+        //                         let pos = data.get("satPosX").unwrap();
+        //                         assert_eq!(pos.as_f64(), Some(0.124900639648e+05));
+        //                         let pos = data.get("satPosY").unwrap();
+        //                         assert_eq!(pos.as_f64(), Some(0.595546582031e+04));
+        //                         let pos = data.get("satPosZ").unwrap();
+        //                         assert_eq!(pos.as_f64(), Some(0.214479208984e+05));
+        } else if k.sv == e01 {
+            assert_eq!(eph.clock_bias, -0.101553811692e-02);
+            assert_eq!(eph.clock_drift, -0.804334376880e-11);
+            assert_eq!(eph.clock_drift_rate, 0.0);
+        //                         let iodnav = data.get("iodnav").unwrap();
+        //                         assert_eq!(iodnav.as_f64(), Some(0.130000000000e+02));
+        //                         let crs = data.get("crs").unwrap();
+        //                         assert_eq!(crs.as_f64(), Some(0.435937500000e+02));
+        //                         let cis = data.get("cis").unwrap();
+        //                         assert_eq!(cis.as_f64(), Some(0.409781932831e-07));
+        //                         let omega_dot = data.get("omegaDot").unwrap();
+        //                         assert_eq!(omega_dot.as_f64(), Some(-0.518200156545e-08));
+        //                         let idot = data.get("idot").unwrap();
+        //                         assert_eq!(idot.as_f64(), Some(-0.595381942905e-09));
+        //                         let sisa = data.get("sisa").unwrap();
+        //                         assert_eq!(sisa.as_f64(), Some(0.312000000000e+01));
+        //                         let bgd = data.get("bgdE5aE1").unwrap();
+        //                         assert_eq!(bgd.as_f64(), Some(0.232830643654e-09));
+        } else if k.sv == e01 {
+            assert_eq!(eph.clock_bias, -0.382520200219e-03);
+            assert_eq!(eph.clock_drift, -0.422062385041e-11);
+            assert_eq!(eph.clock_drift_rate, 0.0);
+            //                         let iodnav = data.get("iodnav").unwrap();
+            //                         assert_eq!(iodnav.as_f64(), Some(0.460000000000e+02));
+            //                         let crs = data.get("crs").unwrap();
+            //                         assert_eq!(crs.as_f64(), Some(-0.103750000000e+02));
+            //                         let cis = data.get("cis").unwrap();
+            //                         assert_eq!(cis.as_f64(), Some(0.745058059692e-08));
+            //                         let omega_dot = data.get("omegaDot").unwrap();
+            //                         assert_eq!(omega_dot.as_f64(), Some(-0.539986778331e-08));
+            //                         let idot = data.get("idot").unwrap();
+            //                         assert_eq!(idot.as_f64(), Some(0.701814947695e-09));
+            //                         let sisa = data.get("sisa").unwrap();
+            //                         assert_eq!(sisa.as_f64(), Some(0.312000000000e+01));
+            //                         let bgd = data.get("bgdE5aE1").unwrap();
+            //                         assert_eq!(bgd.as_f64(), Some(0.302679836750e-08));
+        }
+        num_tests += 1;
+    }
+    assert_eq!(num_tests, 6);
+}
 
 // #[test]
 // #[cfg(feature = "flate2")]
 // fn v4_kms300dnk_r_202215910() {
 
-//                                 // we do not have EOP frame examples at the moment
 //             } else if let Some(fr) = fr.as_ion() {
 //                 ion_count += 1; // ION test
 //                 let (_msg, _sv, model) = fr;
@@ -690,7 +573,7 @@ fn v3_esbc00dnk_r2020() {
 //             let fr = fr.as_eph();
 //             assert!(fr.is_some(), "only ephemeris frames expected here");
 //             let (msg, _sv, _data) = fr.unwrap();
-//             assert!(msg == NavMsgType::LNAV, "only lnav frame expected here");
+//             assert!(msg == NavMessageType::LNAV, "only lnav frame expected here");
 //         }
 //     }
 // }
@@ -806,108 +689,159 @@ fn nav_v4_kms300dnk_r2022() {
     }
 
     assert_eq!(tests_passed, 2);
+
+    // NO EOP frames
+    let mut tests = 0;
+
+    for (k, v) in dut.nav_earth_orientation_frames_iter() {
+        tests += 1;
+    }
+
+    assert_eq!(tests, 0);
 }
 
-// #[test]
-// #[cfg(feature = "nav")]
-// #[cfg(feature = "flate2")]
-// fn v4_brd400dlr_s2023() {
-//     let path = PathBuf::new()
-//         .join(env!("CARGO_MANIFEST_DIR"))
-//         .join("..")
-//         .join("test_resources")
-//         .join("NAV")
-//         .join("V4")
-//         .join("BRD400DLR_S_20230710000_01D_MN.rnx.gz");
+#[test]
+#[cfg(feature = "nav")]
+#[cfg(feature = "flate2")]
+fn v4_brd400dlr_s2023() {
+    let path = PathBuf::new()
+        .join(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("NAV")
+        .join("V4")
+        .join("BRD400DLR_S_20230710000_01D_MN.rnx.gz");
 
-//     let path = path.to_string_lossy().to_string();
-//     let rinex = Rinex::from_gzip_file(&path).unwrap();
+    let path = path.to_string_lossy().to_string();
+    let rinex = Rinex::from_gzip_file(&path).unwrap();
+
+    let t0 = Epoch::from_str("2023-03-12T12:00:00 UTC").unwrap();
+
+    let t_03_12_01_30_00_utc = Epoch::from_str("2023-03-12T01:30:00 UTC").unwrap();
+    let t_03_12_12_23_00_utc = Epoch::from_str("2023-03-12T12:23:00 UTC").unwrap();
+    let t_03_12_12_03_00_utc = Epoch::from_str("2023-03-12T12:03:00 UTC").unwrap();
+
+    let g01 = SV::from_str("G01").unwrap();
+    let c19 = SV::from_str("C19").unwrap();
+    let j04 = SV::from_str("J04").unwrap();
+    let i09 = SV::from_str("I09").unwrap();
+
+    let mut tests_passed = 0;
+
+    for (k, eph) in rinex.nav_ephemeris_frames_iter() {
+        if k.sv == g01 {
+            assert!(
+                (k.msgtype == NavMessageType::LNAV) || (k.msgtype == NavMessageType::CNAV),
+                "bad ephemeris message {} for G01 {}",
+                k.msgtype,
+                k.epoch
+            );
+
+            if k.epoch == t_03_12_01_30_00_utc {
+                assert_eq!(k.msgtype, NavMessageType::LNAV);
+
+                assert_eq!(eph.clock_bias, 2.035847865045e-04,);
+
+                assert_eq!(eph.clock_drift, -3.865352482535e-12,);
+
+                assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
+
+                tests_passed += 1;
+            } else if k.epoch == t_03_12_12_23_00_utc {
+                assert_eq!(k.msgtype, NavMessageType::CNAV);
+
+                assert_eq!(eph.clock_bias, 2.037292579189e-04,);
+
+                assert_eq!(eph.clock_drift, -3.829825345747e-12);
+
+                assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
+
+                tests_passed += 1;
+            } else if k.epoch == t_03_12_12_03_00_utc {
+                assert_eq!(k.msgtype, NavMessageType::CNAV);
+
+                assert_eq!(eph.clock_bias, 2.034264325630e-04,);
+
+                assert_eq!(eph.clock_drift, -3.819167204711e-12);
+
+                assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
+
+                tests_passed += 1;
+            }
+        } else if k.sv == c19 {
+            assert!(
+                (k.msgtype == NavMessageType::D1)
+                    || (k.msgtype == NavMessageType::CNV1)
+                    || (k.msgtype == NavMessageType::CNV1),
+                "bad ephemeris message {} for C19 {}",
+                k.msgtype,
+                k.epoch
+            );
+
+            if k.epoch == t_03_12_12_03_00_utc {
+                if k.msgtype == NavMessageType::CNV1 {
+                    assert_eq!(eph.clock_bias, 8.956581004895e-04,);
+
+                    assert_eq!(eph.clock_drift, -1.113775738304e-12);
+
+                    assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
+
+                    tests_passed += 1;
+                } else if k.msgtype == NavMessageType::CNV2 {
+                    assert_eq!(eph.clock_bias, 8.956581004895e-04);
+
+                    assert_eq!(eph.clock_drift, -1.113775738304e-12);
+                    assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
+
+                    tests_passed += 1;
+                } else if k.msgtype == NavMessageType::D1 {
+                    assert_eq!(eph.clock_bias, 8.956581586972e-04);
+                    assert_eq!(eph.clock_drift, -1.113775738304e-12);
+                    assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
+                    tests_passed += 1;
+                }
+            }
+        } else if k.sv == j04 {
+            assert!(
+                (k.msgtype == NavMessageType::LNAV)
+                    || (k.msgtype == NavMessageType::CNAV)
+                    || (k.msgtype == NavMessageType::CNV2),
+                "bad ephemeris message {} for J04 {}",
+                k.msgtype,
+                k.epoch
+            );
+
+            if k.epoch == t_03_12_12_03_00_utc {
+                if k.msgtype == NavMessageType::LNAV {
+                    assert_eq!(eph.clock_bias, 9.417533874512e-05,);
+
+                    assert_eq!(eph.clock_drift, 0.000000000000e+00);
+
+                    assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
+                } else if k.msgtype == NavMessageType::CNAV {
+
+                    //                     assert_eq!(
+                    //                         data.sv_clock(),
+                    //                         (9.417530964129e-05, -3.552713678801e-14, 0.000000000000e+00)
+                    //                     );
+                }
+            }
+        } else if k.sv == i09 {
+            assert_eq!(
+                k.msgtype,
+                NavMessageType::LNAV,
+                "bad ephemeris message {} for I09 {}",
+                k.msgtype,
+                k.epoch
+            );
+        }
+    }
+
+    assert_eq!(tests_passed, 5);
+}
 
 //     for (epoch, (msg, sv, data)) in rinex.ephemeris() {
-//         if sv == sv!("G01") {
-//             assert!(
-//                 (msg == NavMsgType::LNAV) || (msg == NavMsgType::CNAV),
-//                 "parsed bad ephemeris message {} for G01 {}",
-//                 msg,
-//                 epoch
-//             );
-
-//             if *epoch == Epoch::from_str("2023-03-12T12:00:00 UTC").unwrap() {
-//                 assert_eq!(msg, NavMsgType::LNAV);
-//                 assert_eq!(
-//                     data.sv_clock(),
-//                     (2.035847865045e-04, -3.865352482535e-12, 0.000000000000e+00)
-//                 );
-//             } else if *epoch == Epoch::from_str("2023-03-12T01:30:00 UTC").unwrap() {
-//                 assert_eq!(msg, NavMsgType::CNAV);
-//                 assert_eq!(
-//                     data.sv_clock(),
-//                     (2.037292579189e-04, -3.829825345747e-12, 0.000000000000e+00)
-//                 );
-//             } else if *epoch == Epoch::from_str("2023-03-12T12:23:00 UTC").unwrap() {
-//                 assert_eq!(msg, NavMsgType::CNAV);
-//                 assert_eq!(
-//                     data.sv_clock(),
-//                     (2.034264325630e-04, -3.819167204711e-12, 0.000000000000e+00)
-//                 );
-//             }
-//         } else if sv == sv!("C19") {
-//             assert!(
-//                 (msg == NavMsgType::D1)
-//                     || (msg == NavMsgType::CNV1)
-//                     || (msg == NavMsgType::CNV2),
-//                 "parsed bad ephemeris message {} for C19 {}",
-//                 msg,
-//                 epoch
-//             );
-
-//             if *epoch == Epoch::from_str("2023-03-12T12:00:00 UTC").unwrap() {
-//                 if msg == NavMsgType::CNV1 {
-//                     assert_eq!(
-//                         data.sv_clock(),
-//                         (-8.956581004895e-04, -1.113775738304e-12, 0.000000000000e+00)
-//                     );
-//                 } else if msg == NavMsgType::CNV2 {
-//                     assert_eq!(
-//                         data.sv_clock(),
-//                         (-8.956581004895e-04, -1.113775738304e-12, 0.000000000000e+00)
-//                     );
-//                 } else if msg == NavMsgType::D1 {
-//                     assert_eq!(
-//                         data.sv_clock(),
-//                         (-8.956581586972e-04, -1.113775738304e-12, 0.000000000000e+00)
-//                     );
-//                 }
-//             }
-//         } else if sv == sv!("J04") {
-//             assert!(
-//                 (msg == NavMsgType::LNAV)
-//                     || (msg == NavMsgType::CNAV)
-//                     || (msg == NavMsgType::CNV2),
-//                 "parsed bad ephemeris message {} for J04 {}",
-//                 msg,
-//                 epoch
-//             );
-//             if *epoch == Epoch::from_str("2023-03-12T12:03:00 UTC").unwrap() {
-//                 if msg == NavMsgType::LNAV {
-//                     assert_eq!(
-//                         data.sv_clock(),
-//                         (9.417533874512e-05, 0.000000000000e+00, 0.000000000000e+00)
-//                     );
-//                 } else if msg == NavMsgType::CNAV {
-//                     assert_eq!(
-//                         data.sv_clock(),
-//                         (9.417530964129e-05, -3.552713678801e-14, 0.000000000000e+00)
-//                     );
-//                 }
-//             }
 //         } else if sv == sv!("I09") {
-//             assert!(
-//                 msg == NavMsgType::LNAV,
-//                 "parsed bad ephemeris message {} for I09 {}",
-//                 msg,
-//                 epoch
-//             );
 //             if *epoch == Epoch::from_str("2023-03-12T20:05:36 UTC").unwrap() {
 //                 assert_eq!(
 //                     data.sv_clock(),
@@ -916,7 +850,7 @@ fn nav_v4_kms300dnk_r2022() {
 //             }
 //         } else if sv == sv!("R10") {
 //             assert!(
-//                 msg == NavMsgType::FDMA,
+//                 msg == NavMessageType::FDMA,
 //                 "parsed bad ephemeris message {} for I09 {}",
 //                 msg,
 //                 epoch
@@ -929,9 +863,10 @@ fn nav_v4_kms300dnk_r2022() {
 //             }
 //         }
 //     }
+//
 //     for (epoch, (msg, sv, iondata)) in rinex.ionod_correction_models() {
 //         if sv == sv!("G21") {
-//             assert_eq!(msg, NavMsgType::LNAV);
+//             assert_eq!(msg, NavMessageType::LNAV);
 //             if epoch == Epoch::from_str("2023-03-12T00:08:54 UTC").unwrap() {
 //                 let kb = iondata.as_klobuchar();
 //                 assert!(kb.is_some());
@@ -980,7 +915,7 @@ fn nav_v4_kms300dnk_r2022() {
 //                 assert_eq!(kb.region, KbRegionCode::WideArea);
 //             }
 //         } else if sv == sv!("G21") {
-//             assert_eq!(msg, NavMsgType::CNVX);
+//             assert_eq!(msg, NavMessageType::CNVX);
 //         } else if sv == sv!("J04")
 //             && epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap()
 //         {
@@ -1008,9 +943,10 @@ fn nav_v4_kms300dnk_r2022() {
 //             assert_eq!(kb.region, KbRegionCode::WideArea);
 //         }
 //     }
+//
 //     for (epoch, (msg, sv, eop)) in rinex.earth_orientation() {
 //         if sv == sv!("J04") {
-//             assert_eq!(msg, NavMsgType::CNVX);
+//             assert_eq!(msg, NavMessageType::CNVX);
 //             if *epoch == Epoch::from_str("2023-03-12T06:00:00 UTC").unwrap() {
 //                 assert_eq!(
 //                     eop.x,
@@ -1027,7 +963,7 @@ fn nav_v4_kms300dnk_r2022() {
 //                 );
 //             }
 //         } else if sv == sv!("C30") {
-//             assert_eq!(msg, NavMsgType::CNVX);
+//             assert_eq!(msg, NavMessageType::CNVX);
 //             if *epoch == Epoch::from_str("2023-03-12T11:00:00 UTC").unwrap() {
 //                 assert_eq!(
 //                     eop.x,
@@ -1073,6 +1009,15 @@ fn nav_v4_kms300dnk_r2022() {
 //     }
 // }
 
+// Computes TOE in said timescale
+fn toe_helper(week: f64, week_s: f64, ts: TimeScale) -> Epoch {
+    if ts == TimeScale::GST {
+        Epoch::from_duration((week - 1024.0) * Unit::Week + week_s * Unit::Second, ts)
+    } else {
+        Epoch::from_duration(week * Unit::Week + week_s * Unit::Second, ts)
+    }
+}
+
 #[test]
 fn nav_toe_gal_bds() {
     let mut tests_passed = 0;
@@ -1111,261 +1056,284 @@ fn nav_toe_gal_bds() {
     assert_eq!(tests_passed, 4);
 }
 
-// #[test]
-// #[cfg(feature = "nav")]
-// fn v3_ionospheric_corr() {
-//     let path = PathBuf::new()
-//         .join(env!("CARGO_MANIFEST_DIR"))
-//         .join("..")
-//         .join("test_resources")
-//         .join("NAV")
-//         .join("V3")
-//         .join("CBW100NLD_R_20210010000_01D_MN.rnx");
+#[test]
+#[cfg(feature = "nav")]
+fn nav_v3_ionospheric_corr() {
+    let path = PathBuf::new()
+        .join(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("NAV")
+        .join("V3")
+        .join("CBW100NLD_R_20210010000_01D_MN.rnx");
 
-//     let path = path.to_string_lossy().to_string();
-//     let rinex = Rinex::from_file(&path).unwrap();
+    let path = path.to_string_lossy().to_string();
+    let rinex = Rinex::from_file(&path).unwrap();
 
-//     for (t0, should_work) in [
-//         // VALID : publication datetime
-//         (Epoch::from_str("2021-01-01T00:00:00 UTC").unwrap(), true),
-//         // VALID day course : random into that dat
-//         (Epoch::from_str("2021-01-01T05:33:24 UTC").unwrap(), true),
-//         // VALID day course : 30 sec prior next day
-//         (Epoch::from_str("2021-01-01T23:59:30 UTC").unwrap(), true),
-//         // VALID day course : 1 sec prior next publication
-//         (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
-//         // TOO LATE : MIDNIGHT DAY +1
-//         (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
-//         // TOO LATE : MIDNIGHT DAY +1
-//         (Epoch::from_gregorian_utc_at_midnight(2021, 02, 01), false),
-//         // TOO EARLY
-//         (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
-//     ] {
-//         let ionod_corr = rinex.ionod_correction(
-//             t0,
-//             30.0,               // fake elev: DONT CARE
-//             30.0,               // fake azim: DONT CARE
-//             10.0,               // fake latitude: DONT CARE
-//             20.0,               // fake longitude: DONT CARE
-//             Carrier::default(), // fake signal: DONT CARE
-//         );
-//         if should_work {
-//             assert!(
-//                 ionod_corr.is_some(),
-//                 "v3 ionod corr: should have returned a correction model for datetime {:?}",
-//                 t0
-//             );
-//         } else {
-//             assert!(
-//                 ionod_corr.is_none(),
-//                 "v3 ionod corr: should not have returned a correction model for datetime {:?}",
-//                 t0
-//             );
-//         }
-//     }
-// }
+    for (t0, should_work) in [
+        // VALID : publication datetime
+        (Epoch::from_str("2021-01-01T00:00:00 UTC").unwrap(), true),
+        // VALID day course : random into that dat
+        (Epoch::from_str("2021-01-01T05:33:24 UTC").unwrap(), true),
+        // VALID day course : 30 sec prior next day
+        (Epoch::from_str("2021-01-01T23:59:30 UTC").unwrap(), true),
+        // VALID day course : 1 sec prior next publication
+        (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
+        // TOO LATE : MIDNIGHT DAY +1
+        (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
+        // TOO LATE : MIDNIGHT DAY +1
+        (Epoch::from_gregorian_utc_at_midnight(2021, 02, 01), false),
+        // TOO EARLY
+        (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
+    ] {
+        // TODO
+        // let ionod_corr = rinex.ionod_correction(
+        //     t0,
+        //     30.0,               // fake elev: DONT CARE
+        //     30.0,               // fake azim: DONT CARE
+        //     10.0,               // fake latitude: DONT CARE
+        //     20.0,               // fake longitude: DONT CARE
+        //     Carrier::default(), // fake signal: DONT CARE
+        // );
+        // if should_work {
+        //     assert!(
+        //         ionod_corr.is_some(),
+        //         "v3 ionod corr: should have returned a correction model for datetime {:?}",
+        //         t0
+        //     );
+        // } else {
+        //     assert!(
+        //         ionod_corr.is_none(),
+        //         "v3 ionod corr: should not have returned a correction model for datetime {:?}",
+        //         t0
+        //     );
+        // }
+    }
+}
 
-// #[test]
-// #[cfg(feature = "nav")]
-// #[cfg(feature = "flate2")]
-// fn v2_iono_alphabeta_and_toe() {
-//     let path = PathBuf::new()
-//         .join(env!("CARGO_MANIFEST_DIR"))
-//         .join("..")
-//         .join("test_resources")
-//         .join("NAV")
-//         .join("V2")
-//         .join("cbw10010.21n.gz");
+#[test]
+#[cfg(feature = "flate2")]
+fn nav_v4_messages() {
+    for fp in [
+        "KMS300DNK_R_20221591000_01H_MN.rnx.gz",
+        "BRD400DLR_S_20230710000_01D_MN.rnx.gz",
+    ] {
+        let fullpath = format!(
+            "{}/../test_resources/NAV/V4/{}",
+            env!("CARGO_MANIFEST_DIR"),
+            fp
+        );
 
-//     let path = path.to_string_lossy().to_string();
-//     let rinex = Rinex::from_gzip_file(&path).unwrap();
+        let rinex = Rinex::from_gzip_file(&fullpath).unwrap();
 
-//     // Earliest epoch record is 2020-12-31 23:59:44
+        // ION(V4) logical correctness
+        for (k, model) in rinex.nav_ionosphere_models_iter() {
+            match k.sv.constellation {
+                Constellation::GPS => {
+                    assert!(
+                        model.as_klobuchar().is_some(),
+                        "GPS vehicles only publish Kb model",
+                    );
+                },
+                Constellation::QZSS => {
+                    assert!(
+                        model.as_klobuchar().is_some(),
+                        "QZSS vehicles only publish Kb model",
+                    );
+                },
+                Constellation::BeiDou => match k.msgtype {
+                    NavMessageType::D1D2 => {
+                        assert!(
+                            model.as_klobuchar().is_some(),
+                            "BeiDou (D1D2) should be be a Kb model",
+                        );
+                    },
+                    NavMessageType::CNVX => {
+                        assert!(
+                            model.as_bdgim().is_some(),
+                            "BeiDou (CNVX) should be a Bd model"
+                        );
+                    },
+                    _ => {
+                        panic!(
+                            "invalid message type \"{}\" for BeiDou ION frame",
+                            k.msgtype
+                        );
+                    },
+                },
+                Constellation::IRNSS => {
+                    assert!(
+                        model.as_klobuchar().is_some(),
+                        "NavIC/IRNSS vehicles only publish Kb model",
+                    );
+                },
+                Constellation::Galileo => {
+                    assert!(
+                        model.as_nequick_g().is_some(),
+                        "GAL vehicles only publish Ng model",
+                    );
+                },
+                _ => {
+                    panic!("finvalid constellation: {}", k.sv.constellation,);
+                },
+            }
+        }
 
-//     for (toc, (_, sv, ephemeris)) in rinex.ephemeris() {
-//         let sv_ts = sv.timescale().unwrap();
-//         let toe_gpst = ephemeris.toe(sv_ts).unwrap().to_time_scale(TimeScale::GPST);
-//         match toc.to_string().as_str() {
-//             "2021-01-01T02:00:00 GPST" => {
-//                 assert_eq!(sv.prn, 1, "found invalid vehicle");
-//                 let toe = toe_helper(2.138000000000E3, 4.392000000000E5, TimeScale::GPST);
-//                 assert_eq!(toe_gpst, toe);
-//             },
-//             "2021-12-31T23:59:44 GPST" => {
-//                 if sv.prn == 7 {
-//                     let toe = toe_helper(2.138000000000E3, 4.319840000000E5, TimeScale::GPST);
-//                     assert_eq!(toe_gpst, toe);
-//                 } else if sv.prn == 8 {
-//                     let toe = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
-//                     assert_eq!(toe_gpst, toe);
-//                 } else {
-//                     panic!("found invalid vehicle");
-//                 }
-//             },
-//             "2021-01-01T00:00:00 GPST" => {
-//                 assert_eq!(sv.prn, 8, "found invalid vehicle");
-//                 let toe = toe_helper(2.138000000000E3, 4.320000000000E5, TimeScale::GPST);
-//                 assert_eq!(toe_gpst, toe);
-//             },
-//             "2021-01-01T01:59:44 GPST" => {
-//                 if sv.prn == 7 {
-//                     let toe = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
-//                     assert_eq!(toe_gpst, toe);
-//                 } else if sv.prn == 8 {
-//                     let toe = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
-//                     assert_eq!(toe_gpst, toe);
-//                 } else {
-//                     panic!("found invalid vehicle");
-//                 }
-//             },
-//             "2021-01-02T00:00:00 GPST" => {
-//                 if sv.prn == 30 {
-//                     let toe = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
-//                     assert_eq!(toe_gpst, toe);
-//                 } else if sv.prn == 5 {
-//                     let toe = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
-//                     assert_eq!(toe_gpst, toe);
-//                 }
-//             },
-//             _ => {},
-//         }
-//     }
+        // EOP(V4) logical correctness
+        for (k, eop) in rinex.nav_earth_orientation_frames_iter() {
+            match k.sv.constellation {
+                Constellation::GPS
+                | Constellation::QZSS
+                | Constellation::IRNSS
+                | Constellation::BeiDou => {},
+                _ => panic!("found invalid constellation: {}", k.sv.constellation),
+            }
+            match k.msgtype {
+                NavMessageType::CNVX | NavMessageType::LNAV => {},
+                _ => panic!("bad msg identified for GPS vehicle: {}", k.msgtype),
+            }
+        }
 
-//     for (t0, should_work) in [
-//         // MIDNIGHT T0 exact match
-//         (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 00, 0), true),
-//         // VALID day course : 1sec into that day
-//         (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 01, 0), true),
-//         // VALID day course : random into that day
-//         (Epoch::from_gregorian_utc(2021, 1, 1, 05, 33, 24, 0), true),
-//         // VALID day course : 1 sec prior next day
-//         (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
-//         // TOO LATE : MIDNIGHT DAY +1
-//         (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
-//         // TOO LATE : MIDNIGHT DAY +1
-//         (Epoch::from_gregorian_utc_at_midnight(2021, 01, 02), false),
-//         // TOO EARLY
-//         (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
-//     ] {
-//         let ionod_corr = rinex.ionod_correction(
-//             t0,
-//             30.0,               // fake elev: DONT CARE
-//             30.0,               // fake azim: DONT CARE
-//             10.0,               // fake latitude: DONT CARE
-//             20.0,               // fake longitude: DONT CARE
-//             Carrier::default(), // fake signal: DONT CARE
-//         );
-//         if should_work {
-//             assert!(
-//                 ionod_corr.is_some(),
-//                 "v2 ionod corr: should have returned a correction model for datetime {:?}",
-//                 t0
-//             );
-//         } else {
-//             assert!(
-//                 ionod_corr.is_none(),
-//                 "v2 ionod corr: should not have returned a correction model for datetime {:?}",
-//                 t0
-//             );
-//         }
-//     }
-// }
+        // STO(V4) logical correctness
+        for (k, sto) in rinex.nav_system_time_frames_iter() {
+            match k.msgtype {
+                NavMessageType::LNAV
+                | NavMessageType::FDMA
+                | NavMessageType::IFNV
+                | NavMessageType::D1D2
+                | NavMessageType::SBAS
+                | NavMessageType::CNVX => {},
+                _ => panic!("bad \"{}\" message for STO frame", k.msgtype),
+            }
+        }
+    }
+}
 
-// #[test]
-// #[cfg(feature = "flate2")]
-// fn nav_v4_messages() {
-//     for fp in [
-//         "KMS300DNK_R_20221591000_01H_MN.rnx.gz",
-//         "BRD400DLR_S_20230710000_01D_MN.rnx.gz",
-//     ] {
-//         let fullpath = format!(
-//             "{}/../test_resources/NAV/V4/{}",
-//             env!("CARGO_MANIFEST_DIR"),
-//             fp
-//         );
-//         let rinex = Rinex::from_gzip_file(&fullpath);
-//         let rinex = rinex.unwrap();
-//         /*
-//             * Verify ION logical correctness
-//             */
-//         for (_, (msg, sv, ion_msg)) in rinex.ionod_correction_models() {
-//             match sv.constellation {
-//                 Constellation::GPS => {
-//                     assert!(
-//                         ion_msg.as_klobuchar().is_some(),
-//                         "only Kb models provided by GPS vehicles"
-//                     );
-//                 },
-//                 Constellation::QZSS => {
-//                     assert!(
-//                         ion_msg.as_klobuchar().is_some(),
-//                         "only Kb models provided by QZSS vehicles"
-//                     );
-//                 },
-//                 Constellation::BeiDou => match msg {
-//                     NavMsgType::D1D2 => {
-//                         assert!(
-//                             ion_msg.as_klobuchar().is_some(),
-//                             "BeiDou ({}) should be interpreted as Kb model",
-//                             msg
-//                         );
-//                     },
-//                     NavMsgType::CNVX => {
-//                         assert!(
-//                             ion_msg.as_bdgim().is_some(),
-//                             "BeiDou (CNVX) should be interpreted as Bd model"
-//                         );
-//                     },
-//                     _ => {
-//                         panic!("invalid message type \"{}\" for BeiDou ION frame", msg);
-//                     },
-//                 },
-//                 Constellation::IRNSS => {
-//                     assert!(
-//                         ion_msg.as_klobuchar().is_some(),
-//                         "only Kb models provided by NavIC/IRNSS vehicles"
-//                     );
-//                 },
-//                 Constellation::Galileo => {
-//                     assert!(
-//                         ion_msg.as_nequick_g().is_some(),
-//                         "only Ng models provided by GAL vehicles"
-//                     );
-//                 },
-//                 _ => {
-//                     panic!(
-//                         "incorrect constellation provider of an ION model: {}",
-//                         sv.constellation
-//                     );
-//                 },
-//             }
-//         }
-//         /*
-//             * Verify EOP logical correctness
-//             */
-//         for (_, (msg, sv, _)) in rinex.earth_orientation() {
-//             match sv.constellation {
-//                 Constellation::GPS | Constellation::QZSS | Constellation::IRNSS | Constellation::BeiDou => {},
-//                 _ => panic!("constellation \"{}\" not declared as eop frame provider, according to V4 specs", sv.constellation),
-//             }
-//             match msg {
-//                 NavMsgType::CNVX | NavMsgType::LNAV => {},
-//                 _ => panic!("bad msg identified for GPS vehicle: {}", msg),
-//             }
-//         }
-//         /*
-//             * Verify STO logical correctness
-//             */
-//         for (_, (msg, _sv, _)) in rinex.system_time_offset() {
-//             match msg {
-//                 NavMsgType::LNAV
-//                 | NavMsgType::FDMA
-//                 | NavMsgType::IFNV
-//                 | NavMsgType::D1D2
-//                 | NavMsgType::SBAS
-//                 | NavMsgType::CNVX => {},
-//                 _ => panic!("bad \"{}\" message for STO frame", msg),
-//             }
-//         }
-//     }
-// }
+#[test]
+#[cfg(feature = "flate2")]
+fn nav_v2_iono_alphabeta_and_toe() {
+    let path = PathBuf::new()
+        .join(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("test_resources")
+        .join("NAV")
+        .join("V2")
+        .join("cbw10010.21n.gz");
+
+    let path = path.to_string_lossy().to_string();
+    let rinex = Rinex::from_gzip_file(&path).unwrap();
+
+    let mut num_tests = 0;
+
+    // Earliest epoch is 2020-12-31 23:59:44
+
+    for (k, eph) in rinex.nav_ephemeris_frames_iter() {
+        let sv_ts = k.sv.timescale().expect("unknown timescale");
+
+        let toe = eph
+            .toe(sv_ts)
+            .expect(&format!(".toe() failed for {}@{}", k.sv, k.epoch));
+
+        assert_eq!(sv_ts, toe.time_scale);
+
+        match k.epoch.to_string().as_str() {
+            "2021-01-01T02:00:00 GPST" => {
+                assert_eq!(k.sv.prn, 1, "invalid vehicle");
+                let expected = toe_helper(2.138000000000E3, 4.392000000000E5, TimeScale::GPST);
+
+                assert_eq!(toe, expected);
+                num_tests += 1;
+            },
+            "2021-12-31T23:59:44 GPST" => {
+                if k.sv.prn == 7 {
+                    let expected = toe_helper(2.138000000000E3, 4.319840000000E5, TimeScale::GPST);
+
+                    assert_eq!(toe, expected);
+                    num_tests += 1;
+                } else if k.sv.prn == 8 {
+                    let expected = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+
+                    assert_eq!(toe, expected);
+                    num_tests += 1;
+                } else {
+                    panic!("invalid vehicle {}", k.sv);
+                }
+            },
+            "2021-01-01T00:00:00 GPST" => {
+                assert_eq!(k.sv.prn, 8, "invalid vehicle");
+                let expected = toe_helper(2.138000000000E3, 4.320000000000E5, TimeScale::GPST);
+                assert_eq!(toe, expected);
+                num_tests += 1;
+            },
+            "2021-01-01T01:59:44 GPST" => {
+                if k.sv.prn == 7 {
+                    let expected = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+
+                    assert_eq!(toe, expected);
+                    num_tests += 1;
+                } else if k.sv.prn == 8 {
+                    let expected = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+
+                    assert_eq!(toe, expected);
+                    num_tests += 1;
+                } else {
+                    panic!("invalid vehicle: {}", k.sv);
+                }
+            },
+            "2021-01-02T00:00:00 GPST" => {
+                if k.sv.prn == 30 {
+                    let expected = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
+                    assert_eq!(expected, toe);
+                    num_tests += 1;
+                } else if k.sv.prn == 5 {
+                    let expected = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
+                    assert_eq!(expected, toe);
+                    num_tests += 1;
+                }
+            },
+            _ => {},
+        }
+    }
+
+    assert_eq!(num_tests, 8);
+
+    for (t0, should_work) in [
+        // MIDNIGHT T0 exact match
+        (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 00, 0), true),
+        // VALID day course : 1sec into that day
+        (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 01, 0), true),
+        // VALID day course : random into that day
+        (Epoch::from_gregorian_utc(2021, 1, 1, 05, 33, 24, 0), true),
+        // VALID day course : 1 sec prior next day
+        (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
+        // TOO LATE : MIDNIGHT DAY +1
+        (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
+        // TOO LATE : MIDNIGHT DAY +1
+        (Epoch::from_gregorian_utc_at_midnight(2021, 01, 02), false),
+        // TOO EARLY
+        (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
+    ] {
+        // TODO
+        // let ionod_corr = rinex.ionod_correction(
+        //     t0,
+        //     30.0,               // fake elev: DONT CARE
+        //     30.0,               // fake azim: DONT CARE
+        //     10.0,               // fake latitude: DONT CARE
+        //     20.0,               // fake longitude: DONT CARE
+        //     Carrier::default(), // fake signal: DONT CARE
+        // );
+        // if should_work {
+        //     assert!(
+        //         ionod_corr.is_some(),
+        //         "v2 ionod corr: should have returned a correction model @{}",
+        //         t0
+        //     );
+        // } else {
+        //     assert!(
+        //         ionod_corr.is_none(),
+        //         "v2 ionod corr: should not have returned a correction model @{}",
+        //         t0
+        //     );
+        // }
+    }
+}
