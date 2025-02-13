@@ -70,29 +70,61 @@ impl Render for QcSummary {
                             }
                         }
                         tr {
-                            @if let Some(position) = self.cfg.manual_rx_orbit {
-                                th {
-                                    button aria-label="Ground based reference position" data-balloon-pos="up" {
-                                        "(Manual) Reference position"
-                                    }
+                            @if let Some(orbit) = self.cfg.manual_rx_orbit {
+                                @match orbit.latlongalt() {
+                                    Ok((lat_ddeg, long_ddeg, alt_km)) => {
+                                        th {
+                                            button aria-label="RX reference position" data-balloon-pos="up" {
+                                                "(Manual) Reference position"
+                                            }
+                                        }
+                                        td {
+                                            button aria-label="Manually defined" data-balloon-pos="up" {
+                                                "TODO"
+                                            }
+                                        }
+                                    },
+                                    Err(e) => {
+                                        th {
+                                            button aria-label="RX reference position" data-balloon-pos="up" {
+                                                "(Manual) Reference position"
+                                            }
+                                        }
+                                        td {
+                                            button aria-label="Manually defined" data-balloon-pos="up" {
+                                                "Invalid"
+                                            }
+                                        }
+
+                                    },
                                 }
-                                td {
-                                    button aria-label="Provided by custom command line" data-balloon-pos="up" {
-                                        //(position.render())
-                                        "TODO"
-                                    }
-                                }
-                            } @else if let Some(position) = self.reference_position {
-                                th {
-                                    button aria-label="Ground based (RX) position" data-balloon-pos="up" {
-                                        "Reference position"
-                                    }
-                                }
-                                td {
-                                    button aria-label="Parsed from RINEX header" data-balloon-pos="up" {
-                                        // (position.render())
-                                        "TODO"
-                                    }
+                            } @else if let Some(orbit) = self.reference_position {
+                                @match orbit.latlongalt() {
+                                    Ok(latlongalt) => {
+                                        th {
+                                            button aria-label="RX reference position" data-balloon-pos="up" {
+                                                "Reference position"
+                                            }
+                                        }
+                                        td {
+                                            button aria-label="Parsed from RINEX" data-balloon-pos="up" {
+                                                "TODO"
+                                            }
+                                        }
+                                    },
+                                    Err(e) => {
+
+                                        th {
+                                            button aria-label="RX reference position" data-balloon-pos="up" {
+                                                "Reference position"
+                                            }
+                                        }
+                                        td {
+                                            button aria-label="Parsed from RINEX" data-balloon-pos="up" {
+                                                "TODO"
+                                            }
+                                        }
+                                    },
                                 }
                             } @else {
                                 th {
