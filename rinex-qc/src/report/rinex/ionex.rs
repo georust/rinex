@@ -3,9 +3,12 @@ use maud::{html, Markup, Render};
 use rinex::ionex::{MappingFunction, RefSystem as Reference};
 use rinex::prelude::{Duration, Epoch, Rinex};
 
-use crate::plot::{MapboxStyle, Plot};
+use crate::plot::{MapboxStyle, Plot, Visible};
 
-// use plotly::layout::update_menu::Button;
+use plotly::{
+    layout::update_menu::{Button, ButtonBuilder},
+    DensityMapbox,
+};
 
 pub struct IonexReport {
     nb_of_maps: usize,
@@ -33,7 +36,7 @@ impl IonexReport {
             description: header.description.clone(),
             sampling_interval: rnx.sampling_interval(),
             world_map: {
-                let plot = Plot::world_map(
+                let mut plot = Plot::world_map(
                     "ionex_tec",
                     "Ionosphere TEC maps",
                     MapboxStyle::OpenStreetMap,
@@ -41,77 +44,84 @@ impl IonexReport {
                     0,
                     true,
                 );
-                // let mut buttons = Vec::<Button>::new();
-                // one trace(=map) per Epoch
-                // for (epoch_index, epoch) in rnx.epoch_iter().enumerate() {
-                // let label = epoch.to_string();
-                // let lat = rnx
-                //     .ionex_tec_maps_iter()
-                //     .filter_map(
-                //         |(t, lat, _, _, _)| {
-                //             if t == epoch {
-                //                 Some(lat)
-                //             } else {
-                //                 None
-                //             }
-                //         },
-                //     )
-                //     .collect::<Vec<_>>();
-                // let long = rnx
-                //     .tec()
-                //     .filter_map(
-                //         |(t, _, long, _, _)| {
-                //             if t == epoch {
-                //                 Some(long)
-                //             } else {
-                //                 None
-                //             }
-                //         },
-                //     )
-                //     .collect::<Vec<_>>();
-                // let tec = rnx
-                //     .tec()
-                //     .filter_map(
-                //         |(t, _, _, _, tec)| {
-                //             if t == epoch {
-                //                 Some(tec)
-                //             } else {
-                //                 None
-                //             }
-                //         },
-                //     )
-                //     .collect::<Vec<_>>();
 
-                // let trace = Plot::density_mapbox(
-                //     lat.clone(),
-                //     long.clone(),
-                //     tec,
-                //     &label,
-                //     0.6,
-                //     3,
-                //     epoch_index == 0,
-                // );
-                // plot.add_trace(trace);
+                // Build one trace (1 map) per Epoch
+                let mut buttons = Vec::<Button>::new();
 
-                // buttons.push(
-                //     ButtonBuilder::new()
-                //         .name("Epoch")
-                //         .label(&label)
-                //         .push_restyle(DensityMapbox::<f64, f64, f64>::modify_visible(
-                //             (0..nb_of_maps)
-                //                 .map(|i| {
-                //                     if epoch_index == i {
-                //                         Visible::True
-                //                     } else {
-                //                         Visible::False
-                //                     }
-                //                 })
-                //                 .collect(),
-                //         ))
-                //         .build(),
-                // );
-                // }
-                // plot.add_custom_controls(buttons);
+                for (epoch_index, epoch) in rnx.epoch_iter().enumerate() {
+                    let label = epoch.to_string();
+
+                    let lat = rnx
+                        .ionex_tecu_latlong_ddeg_alt_km_iter()
+                        .filter_map(
+                            |(t, _, lat, _, _)| {
+                                if t == epoch {
+                                    Some(lat)
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                        .collect::<Vec<_>>();
+
+                    let long = rnx
+                        .ionex_tecu_latlong_ddeg_alt_km_iter()
+                        .filter_map(
+                            |(t, _, long, _, _)| {
+                                if t == epoch {
+                                    Some(long)
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                        .collect::<Vec<_>>();
+
+                    let tecu = rnx
+                        .ionex_tecu_latlong_ddeg_alt_km_iter()
+                        .filter_map(
+                            |(t, tecu, _, _, _)| {
+                                if t == epoch {
+                                    Some(tecu)
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                        .collect::<Vec<_>>();
+
+                    let trace = Plot::density_mapbox(
+                        lat.clone(),
+                        long.clone(),
+                        tecu,
+                        &label,
+                        0.6,
+                        3,
+                        epoch_index == 0,
+                    );
+
+                    plot.add_trace(trace);
+
+                    buttons.push(
+                        ButtonBuilder::new()
+                            .name("Epoch")
+                            .label(&label)
+                            .push_restyle(DensityMapbox::<f64, f64, f64>::modify_visible(
+                                (0..nb_of_maps)
+                                    .map(|i| {
+                                        if epoch_index == i {
+                                            Visible::True
+                                        } else {
+                                            Visible::False
+                                        }
+                                    })
+                                    .collect(),
+                            ))
+                            .build(),
+                    );
+                }
+
+                plot.add_custom_controls(buttons);
                 plot
             },
         })
