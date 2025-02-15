@@ -809,22 +809,28 @@ fn v4_brd400dlr_s2023() {
                     assert_eq!(eph.clock_drift, -4.263256414561e-14);
                     assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
                     tests_passed += 1;
+                } else if k.msgtype == NavMessageType::CNV2 {
+                    assert_eq!(eph.clock_bias, 9.417530964129e-05);
+                    assert_eq!(eph.clock_drift, -4.263256414561e-14);
+                    assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
+                    tests_passed += 1;
                 }
             }
-        } else if k.sv == i09 {
-            assert_eq!(
-                k.msgtype,
-                NavMessageType::LNAV,
-                "bad ephemeris message for I09",
-            );
 
-            assert_eq!(k.epoch.to_string(), "2023-03-12T00:00:00 GPST");
+            // TODO missing data base for IRNSS/LNAV
+            // } else if k.sv == i09 {
+            //     assert_eq!(
+            //         k.msgtype,
+            //         NavMessageType::LNAV,
+            //         "bad ephemeris message for I09",
+            //     );
 
-            assert_eq!(eph.clock_bias, 7.243417203426e-04);
-            assert_eq!(eph.clock_drift, 1.728039933369e-11);
-            assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
-            tests_passed += 1;
-            panic!("OK");
+            //     if k.epoch == t_03_12_00_00_00_gpst {
+            //         assert_eq!(eph.clock_bias, 7.243417203426e-04);
+            //         assert_eq!(eph.clock_drift, 1.728039933369e-11);
+            //         assert_eq!(eph.clock_drift_rate, 0.000000000000e+00);
+            //         tests_passed += 1;
+            //     }
         }
     }
 
@@ -1216,217 +1222,181 @@ fn nav_v2_iono_alphabeta_and_toe() {
 
     let mut num_tests = 0;
 
-    // Earliest epoch is 2020-12-31 23:59:44
+    let t_01_01_000000 = Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap();
+    let t_01_01_015944 = Epoch::from_str("2021-01-01T01:59:44 GPST").unwrap();
+    let t_01_01_010200 = Epoch::from_str("2021-01-01T01:02:00 GPST").unwrap();
+    let t_01_01_020000 = Epoch::from_str("2021-01-01T02:00:00 GPST").unwrap();
+    let t_01_01_080000 = Epoch::from_str("2021-01-01T08:00:00 GPST").unwrap();
+    let t_01_02_000000 = Epoch::from_str("2021-01-02T00:00:00 GPST").unwrap();
 
     for (k, eph) in rinex.nav_ephemeris_frames_iter() {
         let sv_ts = k.sv.timescale().expect("unknown timescale");
 
+        assert_eq!(sv_ts, TimeScale::GPST, "GPS NAV");
+
         let toe = eph
             .toe(sv_ts)
-            .expect(&format!(".toe() failed for {}@{}", k.sv, k.epoch));
+            .expect(&format!("toe() failed for {} ({})", k.epoch, k.sv));
 
-        assert_eq!(sv_ts, toe.time_scale);
+        assert_eq!(
+            toe.time_scale,
+            TimeScale::GPST,
+            "TOE returned wrong timescale for GPS NAV"
+        );
 
-        match k.epoch.to_string().as_str() {
-            "2021-01-01T02:00:00 GPST" => {
-                if k.sv.prn == 1 {
-                    let expected = toe_helper(2.138000000000E3, 4.392000000000E5, TimeScale::GPST);
+        let prn = k.sv.prn;
 
-                    assert_eq!(toe, expected);
-                    num_tests += 1;
-                } else {
-                    panic!("invalid SV: {}", k.sv);
-                }
-            },
-            "2021-01-02T00:00:00 GPST" => {
-                if k.sv.prn == 5 {
-                    num_tests += 1;
-                } else if k.sv.prn == 7 {
-                    num_tests += 1;
-                } else if k.sv.prn == 10 {
-                    num_tests += 1;
-                } else if k.sv.prn == 11 {
-                    num_tests += 1;
-                } else if k.sv.prn == 13 {
-                    num_tests += 1;
-                } else if k.sv.prn == 15 {
-                    num_tests += 1;
-                } else if k.sv.prn == 16 {
-                    num_tests += 1;
-                } else if k.sv.prn == 18 {
-                    num_tests += 1;
-                } else if k.sv.prn == 20 {
-                    num_tests += 1;
-                } else if k.sv.prn == 21 {
-                    num_tests += 1;
-                } else if k.sv.prn == 23 {
-                    num_tests += 1;
-                } else if k.sv.prn == 26 {
-                    num_tests += 1;
-                } else if k.sv.prn == 27 {
-                    num_tests += 1;
-                } else if k.sv.prn == 29 {
-                    num_tests += 1;
-                } else if k.sv.prn == 30 {
-                    num_tests += 1;
-                } else if k.sv.prn == 8 {
-                    let expected = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+        if k.epoch == t_01_01_000000 {
+            assert_eq!(prn, 8, "invalid SV");
+            let expected = toe_helper(2.138E3, 4.32E5, TimeScale::GPST);
+            assert_eq!(toe, expected);
+            num_tests += 1;
+        } else if k.epoch == t_01_01_020000 {
+            assert_eq!(prn, 1, "invalid SV");
+            let expected = toe_helper(2.138E3, 4.392E5, TimeScale::GPST);
 
-                    assert_eq!(toe, expected);
-                    num_tests += 1;
-                } else {
-                    panic!("invalid vehicle {}", k.sv);
-                }
-            },
-            "2021-01-01T08:00:00 GPST" => {
-                if k.sv.prn == 1 {
-                    num_tests += 1;
-                } else if k.sv.prn == 2 {
-                    num_tests += 1;
-                } else if k.sv.prn == 3 {
-                    num_tests += 1;
-                } else if k.sv.prn == 4 {
-                    num_tests += 1;
-                } else if k.sv.prn == 5 {
-                    num_tests += 1;
-                } else if k.sv.prn == 6 {
-                    num_tests += 1;
-                } else if k.sv.prn == 7 {
-                    let expected = toe_helper(2.138000000000E3, 4.319840000000E5, TimeScale::GPST);
-
-                    assert_eq!(toe, expected);
-                    num_tests += 1;
-                } else if k.sv.prn == 9 {
-                    num_tests += 1;
-                } else if k.sv.prn == 12 {
-                    num_tests += 1;
-                } else if k.sv.prn == 17 {
-                    num_tests += 1;
-                } else if k.sv.prn == 19 {
-                    num_tests += 1;
-                } else if k.sv.prn == 21 {
-                    num_tests += 1;
-                } else if k.sv.prn == 22 {
-                    num_tests += 1;
-                } else if k.sv.prn == 25 {
-                    num_tests += 1;
-                } else if k.sv.prn == 26 {
-                    num_tests += 1;
-                } else if k.sv.prn == 29 {
-                    num_tests += 1;
-                } else if k.sv.prn == 30 {
-                    num_tests += 1;
-                } else if k.sv.prn == 31 {
-                    num_tests += 1;
-                }
-            },
-            "2021-01-01T00:00:00 GPST" => {
-                assert_eq!(k.sv.prn, 8, "invalid vehicle");
-                let expected = toe_helper(2.138000000000E3, 4.320000000000E5, TimeScale::GPST);
+            assert_eq!(toe, expected);
+            num_tests += 1;
+        } else if k.epoch == t_01_01_080000 {
+            if prn == 1 {
+                num_tests += 1;
+            } else if prn == 2 {
+                num_tests += 1;
+            } else if prn == 3 {
+                num_tests += 1;
+            } else if prn == 4 {
+                num_tests += 1;
+            } else if prn == 5 {
+                num_tests += 1;
+            } else if prn == 6 {
+                num_tests += 1;
+            } else if prn == 7 {
+                let expected = toe_helper(2.138E3, 4.608E5, TimeScale::GPST);
                 assert_eq!(toe, expected);
                 num_tests += 1;
-            },
-            "2021-01-01T01:02:00 GPST" => {
-                if k.sv.prn == 11 {
-                    num_tests += 1;
-                } else if k.sv.prn == 5 {
-                    num_tests += 1;
-                } else if k.sv.prn == 8 {
-                    num_tests += 1;
-                } else if k.sv.prn == 10 {
-                    num_tests += 1;
-                } else if k.sv.prn == 11 {
-                    num_tests += 1;
-                } else if k.sv.prn == 13 {
-                    num_tests += 1;
-                } else if k.sv.prn == 15 {
-                    num_tests += 1;
-                } else if k.sv.prn == 16 {
-                    num_tests += 1;
-                } else if k.sv.prn == 18 {
-                    num_tests += 1;
-                } else if k.sv.prn == 20 {
-                    num_tests += 1;
-                } else if k.sv.prn == 21 {
-                    num_tests += 1;
-                } else if k.sv.prn == 23 {
-                    num_tests += 1;
-                } else if k.sv.prn == 26 {
-                    num_tests += 1;
-                } else if k.sv.prn == 27 {
-                    num_tests += 1;
-                } else if k.sv.prn == 29 {
-                    num_tests += 1;
-                } else if k.sv.prn == 30 {
-                    num_tests += 1;
-                } else if k.sv.prn == 7 {
-                    let expected = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+            } else if prn == 9 {
+                num_tests += 1;
+            } else if prn == 12 {
+                num_tests += 1;
+            } else if prn == 17 {
+                num_tests += 1;
+            } else if prn == 19 {
+                num_tests += 1;
+            } else if prn == 21 {
+                num_tests += 1;
+            } else if prn == 22 {
+                num_tests += 1;
+            } else if prn == 25 {
+                num_tests += 1;
+            } else if prn == 26 {
+                num_tests += 1;
+            } else if k.sv.prn == 29 {
+                num_tests += 1;
+            } else if k.sv.prn == 30 {
+                num_tests += 1;
+            } else if k.sv.prn == 31 {
+                num_tests += 1;
+            } else {
+                panic!("invalid SV=G{:02} @ {}", prn, k.epoch);
+            }
+        } else if k.epoch == t_01_02_000000 {
+            if prn == 5 {
+                let expected = toe_helper(2.138E3, 5.184E5, TimeScale::GPST);
+                assert_eq!(expected, toe);
+                num_tests += 1;
+            } else if prn == 7 {
+                num_tests += 1;
+            } else if prn == 8 {
+                let expected = toe_helper(2.138E3, 5.184E5, TimeScale::GPST);
+                assert_eq!(toe, expected);
+                num_tests += 1;
+            } else if k.sv.prn == 10 {
+                num_tests += 1;
+            } else if k.sv.prn == 11 {
+                num_tests += 1;
+            } else if k.sv.prn == 13 {
+                num_tests += 1;
+            } else if k.sv.prn == 15 {
+                num_tests += 1;
+            } else if k.sv.prn == 16 {
+                num_tests += 1;
+            } else if k.sv.prn == 18 {
+                num_tests += 1;
+            } else if k.sv.prn == 20 {
+                num_tests += 1;
+            } else if k.sv.prn == 21 {
+                num_tests += 1;
+            } else if k.sv.prn == 23 {
+                num_tests += 1;
+            } else if k.sv.prn == 26 {
+                num_tests += 1;
+            } else if k.sv.prn == 27 {
+                num_tests += 1;
+            } else if k.sv.prn == 29 {
+                num_tests += 1;
+            } else if k.sv.prn == 30 {
+                let expected = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
+                assert_eq!(expected, toe);
+                num_tests += 1;
+            } else {
+                panic!("invalid SV=G{:02} @ {}", prn, k.epoch);
+            }
+        } else if k.epoch == t_01_01_015944 {
+            if prn == 7 {
+                let expected = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
 
-                    assert_eq!(toe, expected);
-                    num_tests += 1;
-                } else if k.sv.prn == 8 {
-                    let expected = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
+                assert_eq!(toe, expected);
+                num_tests += 1;
+            } else if prn == 8 {
+                let expected = toe_helper(2.138000000000E3, 4.391840000000E5, TimeScale::GPST);
 
-                    assert_eq!(toe, expected);
-                    num_tests += 1;
-                } else {
-                    panic!("invalid vehicle: {}", k.sv);
-                }
-            },
-            "2021-01-02T00:00:00 GPST" => {
-                if k.sv.prn == 30 {
-                    let expected = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
-                    assert_eq!(expected, toe);
-                    num_tests += 1;
-                } else if k.sv.prn == 5 {
-                    let expected = toe_helper(2.138000000000E3, 5.184000000000E5, TimeScale::GPST);
-                    assert_eq!(expected, toe);
-                    num_tests += 1;
-                }
-            },
-            _ => {},
+                assert_eq!(toe, expected);
+                num_tests += 1;
+            } else {
+                panic!("invalid SV=G{:02} @ {}", prn, k.epoch);
+            }
         }
     }
 
-    assert_eq!(num_tests, 8);
+    assert_eq!(num_tests, 38);
 
-    for (t0, should_work) in [
-        // MIDNIGHT T0 exact match
-        (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 00, 0), true),
-        // VALID day course : 1sec into that day
-        (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 01, 0), true),
-        // VALID day course : random into that day
-        (Epoch::from_gregorian_utc(2021, 1, 1, 05, 33, 24, 0), true),
-        // VALID day course : 1 sec prior next day
-        (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
-        // TOO LATE : MIDNIGHT DAY +1
-        (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
-        // TOO LATE : MIDNIGHT DAY +1
-        (Epoch::from_gregorian_utc_at_midnight(2021, 01, 02), false),
-        // TOO EARLY
-        (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
-    ] {
-        // TODO
-        // let ionod_corr = rinex.ionod_correction(
-        //     t0,
-        //     30.0,               // fake elev: DONT CARE
-        //     30.0,               // fake azim: DONT CARE
-        //     10.0,               // fake latitude: DONT CARE
-        //     20.0,               // fake longitude: DONT CARE
-        //     Carrier::default(), // fake signal: DONT CARE
-        // );
-        // if should_work {
-        //     assert!(
-        //         ionod_corr.is_some(),
-        //         "v2 ionod corr: should have returned a correction model @{}",
-        //         t0
-        //     );
-        // } else {
-        //     assert!(
-        //         ionod_corr.is_none(),
-        //         "v2 ionod corr: should not have returned a correction model @{}",
-        //         t0
-        //     );
-        // }
-    }
+    // for (t0, should_work) in [
+    //     // MIDNIGHT T0 exact match
+    //     (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 00, 0), true),
+    //     // VALID day course : 1sec into that day
+    //     (Epoch::from_gregorian_utc(2021, 1, 1, 00, 00, 01, 0), true),
+    //     // VALID day course : random into that day
+    //     (Epoch::from_gregorian_utc(2021, 1, 1, 05, 33, 24, 0), true),
+    //     // VALID day course : 1 sec prior next day
+    //     (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
+    //     // TOO LATE : MIDNIGHT DAY +1
+    //     (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
+    //     // TOO LATE : MIDNIGHT DAY +1
+    //     (Epoch::from_gregorian_utc_at_midnight(2021, 01, 02), false),
+    //     // TOO EARLY
+    //     (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
+    // ] {
+    //     // TODO
+    //     // let ionod_corr = rinex.ionod_correction(
+    //     //     t0,
+    //     //     30.0,               // fake elev: DONT CARE
+    //     //     30.0,               // fake azim: DONT CARE
+    //     //     10.0,               // fake latitude: DONT CARE
+    //     //     20.0,               // fake longitude: DONT CARE
+    //     //     Carrier::default(), // fake signal: DONT CARE
+    //     // );
+    //     // if should_work {
+    //     //     assert!(
+    //     //         ionod_corr.is_some(),
+    //     //         "v2 ionod corr: should have returned a correction model @{}",
+    //     //         t0
+    //     //     );
+    //     // } else {
+    //     //     assert!(
+    //     //         ionod_corr.is_none(),
+    //     //         "v2 ionod corr: should not have returned a correction model @{}",
+    //     //         t0
+    //     //     );
+    //     // }
+    // }
 }
