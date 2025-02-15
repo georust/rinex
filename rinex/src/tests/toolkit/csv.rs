@@ -32,7 +32,11 @@ pub fn gnss_csv(gnss_csv: &str) -> Vec<Constellation> {
 pub fn sv_csv(gnss_csv: &str) -> Vec<SV> {
     gnss_csv
         .split(',')
-        .map(|c| SV::from_str(c.trim()).unwrap())
+        .map(|c| {
+            let trimmed = c.trim();
+            SV::from_str(trimmed)
+                .unwrap_or_else(|e| panic!("invalid test SV specs: \"{}\"", trimmed))
+        })
         .collect::<Vec<SV>>()
         .into_iter()
         .unique()
