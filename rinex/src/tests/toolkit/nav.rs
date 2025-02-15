@@ -57,7 +57,7 @@ pub fn generic_test(
     assert_eq!(dut.nav_ephemeris_frames_iter().count(), nb_ephemeris);
 
     // EPH frames logic
-    for (k, v) in dut.nav_ephemeris_frames_iter() {
+    for (k, _) in dut.nav_ephemeris_frames_iter() {
         if k.sv.constellation.is_sbas() {
             let expected = [NavMessageType::LNAV, NavMessageType::SBAS];
             assert!(

@@ -43,23 +43,23 @@ pub(crate) fn merge_mut_unique_vec<T: Clone + PartialEq>(lhs: &mut Vec<T>, rhs: 
     }
 }
 
-/// Merges given map into self but ensures both keys and values are unique.
-pub(crate) fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + PartialEq>(
-    lhs: &mut HashMap<K, Vec<V>>,
-    rhs: &HashMap<K, Vec<V>>,
-) {
-    for (k, values) in rhs.iter() {
-        if let Some(vvalues) = lhs.get_mut(k) {
-            for value in values {
-                if !vvalues.contains(value) {
-                    vvalues.push(value.clone());
-                }
-            }
-        } else {
-            lhs.insert(k.clone(), values.clone());
-        }
-    }
-}
+// /// Merges given map into self but ensures both keys and values are unique.
+// pub(crate) fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + PartialEq>(
+//     lhs: &mut HashMap<K, Vec<V>>,
+//     rhs: &HashMap<K, Vec<V>>,
+// ) {
+//     for (k, values) in rhs.iter() {
+//         if let Some(vvalues) = lhs.get_mut(k) {
+//             for value in values {
+//                 if !vvalues.contains(value) {
+//                     vvalues.push(value.clone());
+//                 }
+//             }
+//         } else {
+//             lhs.insert(k.clone(), values.clone());
+//         }
+//     }
+// }
 
 /// Merges optionnal data fields, rhs overwrites lhs, only if lhs is not previously defined.
 pub(crate) fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {

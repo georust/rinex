@@ -495,7 +495,6 @@ fn parse_signals_v3(
         let observables = observables.unwrap();
 
         let num_obs = line.len() / OBSERVABLE_WIDTH;
-        let mut obs_ptr = 0;
         let mut offset = SVNN_SIZE + 1;
 
         for i in 0..num_obs {
@@ -546,7 +545,6 @@ fn parse_signals_v3(
                 });
             }
 
-            obs_ptr += 1;
             offset += OBSERVABLE_F14_WIDTH + 2;
         }
     } //browse all lines

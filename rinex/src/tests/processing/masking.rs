@@ -280,7 +280,9 @@ mod test {
         }
 
         let bds_geo_bot = Filter::lower_than("C06").unwrap();
-        let bds_geo_top = Filter::greater_than("C58").unwrap();
+
+        // TODO
+        let _bds_geo_top = Filter::greater_than("C58").unwrap();
 
         // BeiDou MEO masking
         let dut = rinex.filter(&bds_eq).filter(&bds_geo_bot);

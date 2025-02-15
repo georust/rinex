@@ -206,7 +206,7 @@ pub mod prod {
 }
 
 #[cfg(feature = "processing")]
-use qc_traits::{DecimationFilter, MaskFilter, Masking, Preprocessing};
+use qc_traits::{MaskFilter, Masking};
 
 #[cfg(feature = "processing")]
 use crate::{

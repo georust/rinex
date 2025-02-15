@@ -1,11 +1,8 @@
 use crate::{
-    clock::record::clock_decim_mut,
-    doris::decim::decim_mut as doris_decim_mut,
-    ionex::decim_mut as ionex_decim_mut,
-    meteo::decim::decim_mut as meteo_decim_mut,
+    clock::record::clock_decim_mut, doris::decim::decim_mut as doris_decim_mut,
+    ionex::decim_mut as ionex_decim_mut, meteo::decim::decim_mut as meteo_decim_mut,
     navigation::decim::decim_mut as navigation_decim_mut,
-    observation::decim::decim_mut as observation_decim_mut,
-    prelude::{Epoch, Rinex, TimeScale},
+    observation::decim::decim_mut as observation_decim_mut, prelude::Rinex,
 };
 
 use qc_traits::{Decimate, DecimationFilter};

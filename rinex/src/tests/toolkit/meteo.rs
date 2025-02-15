@@ -55,7 +55,7 @@ fn basic_header_tests(dut: &Header) {
 }
 
 /// Generic test that we can use for Observation [Rinex]
-pub fn generic_meteo_rinex_test(dut: &Rinex, version: &str, obs_csv: &str, time_frame: TimeFrame) {
+pub fn generic_meteo_rinex_test(dut: &Rinex, version: &str, obs_csv: &str, _time_frame: TimeFrame) {
     assert!(dut.is_meteo_rinex());
 
     let mut observables = observables_csv(obs_csv);

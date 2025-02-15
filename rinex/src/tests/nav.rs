@@ -2,7 +2,6 @@ use crate::{
     navigation::{NavFrameType, NavMessageType},
     prelude::{Constellation, Epoch, Rinex, TimeScale, SV},
     tests::toolkit::{generic_navigation_test, TimeFrame},
-    Carrier,
 };
 
 use hifitime::Unit;
@@ -243,17 +242,9 @@ fn v3_amel00nld_r_2021() {
     assert!(rinex.header.obs.is_none());
     assert!(rinex.header.meteo.is_none());
 
-    let t0 = Epoch::from_str("2021-01-01T00:00:00 BDT").unwrap();
-    let t1 = Epoch::from_str("2021-01-01T00:15:00 UTC").unwrap();
-    let t2 = Epoch::from_str("2021-01-01T05:00:00 BDT").unwrap();
-    let t3 = Epoch::from_str("2021-01-01T09:45:00 UTC").unwrap();
-    let t4 = Epoch::from_str("2021-01-01T10:10:00 GST").unwrap();
-    let t5 = Epoch::from_str("2021-01-01T15:40:00 GST").unwrap();
-
     let c05 = SV::from_str("C05").unwrap();
     let c21 = SV::from_str("C21").unwrap();
     let e01 = SV::from_str("E01").unwrap();
-    let e03 = SV::from_str("E03").unwrap();
     let r07 = SV::from_str("R07").unwrap();
     let r19 = SV::from_str("R19").unwrap();
 
@@ -261,8 +252,6 @@ fn v3_amel00nld_r_2021() {
 
     for (k, eph) in rinex.nav_ephemeris_frames_iter() {
         assert_eq!(k.msgtype, NavMessageType::LNAV);
-
-        let orbits = &eph.orbits;
 
         if k.sv == c05 {
             assert_eq!(eph.clock_bias, -0.426337239332e-03);
@@ -658,8 +647,7 @@ fn nav_v4_kms300dnk_r2022() {
 
     assert_eq!(tests_passed, 3);
 
-    // test ION frames
-    let mut tests_passed = 0;
+    // TODO test ION frames
 
     // test STO frames
     let mut tests_passed = 0;
@@ -698,7 +686,7 @@ fn nav_v4_kms300dnk_r2022() {
     // NO EOP frames
     let mut tests = 0;
 
-    for (k, v) in dut.nav_earth_orientation_frames_iter() {
+    for (_, _) in dut.nav_earth_orientation_frames_iter() {
         tests += 1;
     }
 
@@ -720,20 +708,17 @@ fn v4_brd400dlr_s2023() {
     let path = path.to_string_lossy().to_string();
     let rinex = Rinex::from_gzip_file(&path).unwrap();
 
-    let t0 = Epoch::from_str("2023-03-12T12:00:00 UTC").unwrap();
-
     let t_03_12_00_00_00_gpst = Epoch::from_str("2023-03-12T00:00:00 GPST").unwrap();
     let t_03_12_00_00_00_bdt = Epoch::from_str("2023-03-12T00:00:00 BDT").unwrap();
 
     let t_03_12_01_30_00_gpst = Epoch::from_str("2023-03-12T01:30:00 GPST").unwrap();
 
     let t_03_12_02_00_00_gpst = Epoch::from_str("2023-03-12T02:00:00 GPST").unwrap();
-    let t_03_12_12_03_00_utc = Epoch::from_str("2023-03-12T12:03:00 UTC").unwrap();
 
     let g01 = SV::from_str("G01").unwrap();
     let c19 = SV::from_str("C19").unwrap();
     let j04 = SV::from_str("J04").unwrap();
-    let i09 = SV::from_str("I09").unwrap();
+    // TODO (IRNSS NAV) let i09 = SV::from_str("I09").unwrap();
 
     let mut tests_passed = 0;
 
@@ -1065,47 +1050,48 @@ fn nav_v3_ionospheric_corr() {
         .join("CBW100NLD_R_20210010000_01D_MN.rnx");
 
     let path = path.to_string_lossy().to_string();
-    let rinex = Rinex::from_file(&path).unwrap();
 
-    for (t0, should_work) in [
-        // VALID : publication datetime
-        (Epoch::from_str("2021-01-01T00:00:00 UTC").unwrap(), true),
-        // VALID day course : random into that dat
-        (Epoch::from_str("2021-01-01T05:33:24 UTC").unwrap(), true),
-        // VALID day course : 30 sec prior next day
-        (Epoch::from_str("2021-01-01T23:59:30 UTC").unwrap(), true),
-        // VALID day course : 1 sec prior next publication
-        (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
-        // TOO LATE : MIDNIGHT DAY +1
-        (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
-        // TOO LATE : MIDNIGHT DAY +1
-        (Epoch::from_gregorian_utc_at_midnight(2021, 02, 01), false),
-        // TOO EARLY
-        (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
-    ] {
-        // TODO
-        // let ionod_corr = rinex.ionod_correction(
-        //     t0,
-        //     30.0,               // fake elev: DONT CARE
-        //     30.0,               // fake azim: DONT CARE
-        //     10.0,               // fake latitude: DONT CARE
-        //     20.0,               // fake longitude: DONT CARE
-        //     Carrier::default(), // fake signal: DONT CARE
-        // );
-        // if should_work {
-        //     assert!(
-        //         ionod_corr.is_some(),
-        //         "v3 ionod corr: should have returned a correction model for datetime {:?}",
-        //         t0
-        //     );
-        // } else {
-        //     assert!(
-        //         ionod_corr.is_none(),
-        //         "v3 ionod corr: should not have returned a correction model for datetime {:?}",
-        //         t0
-        //     );
-        // }
-    }
+    let _rinex = Rinex::from_file(&path).unwrap();
+
+    // for (t0, should_work) in [
+    //     // VALID : publication datetime
+    //     (Epoch::from_str("2021-01-01T00:00:00 UTC").unwrap(), true),
+    //     // VALID day course : random into that dat
+    //     (Epoch::from_str("2021-01-01T05:33:24 UTC").unwrap(), true),
+    //     // VALID day course : 30 sec prior next day
+    //     (Epoch::from_str("2021-01-01T23:59:30 UTC").unwrap(), true),
+    //     // VALID day course : 1 sec prior next publication
+    //     (Epoch::from_str("2021-01-01T23:59:59 UTC").unwrap(), true),
+    //     // TOO LATE : MIDNIGHT DAY +1
+    //     (Epoch::from_str("2021-01-02T00:00:00 UTC").unwrap(), false),
+    //     // TOO LATE : MIDNIGHT DAY +1
+    //     (Epoch::from_gregorian_utc_at_midnight(2021, 02, 01), false),
+    //     // TOO EARLY
+    //     (Epoch::from_gregorian_utc_at_midnight(2020, 12, 31), false),
+    // ] {
+    //     // TODO
+    //     // let ionod_corr = rinex.ionod_correction(
+    //     //     t0,
+    //     //     30.0,               // fake elev: DONT CARE
+    //     //     30.0,               // fake azim: DONT CARE
+    //     //     10.0,               // fake latitude: DONT CARE
+    //     //     20.0,               // fake longitude: DONT CARE
+    //     //     Carrier::default(), // fake signal: DONT CARE
+    //     // );
+    //     // if should_work {
+    //     //     assert!(
+    //     //         ionod_corr.is_some(),
+    //     //         "v3 ionod corr: should have returned a correction model for datetime {:?}",
+    //     //         t0
+    //     //     );
+    //     // } else {
+    //     //     assert!(
+    //     //         ionod_corr.is_none(),
+    //     //         "v3 ionod corr: should not have returned a correction model for datetime {:?}",
+    //     //         t0
+    //     //     );
+    //     // }
+    // }
 }
 
 #[test]
@@ -1177,7 +1163,7 @@ fn nav_v4_messages() {
         }
 
         // EOP(V4) logical correctness
-        for (k, eop) in rinex.nav_earth_orientation_frames_iter() {
+        for (k, _) in rinex.nav_earth_orientation_frames_iter() {
             match k.sv.constellation {
                 Constellation::GPS
                 | Constellation::QZSS
@@ -1192,7 +1178,7 @@ fn nav_v4_messages() {
         }
 
         // STO(V4) logical correctness
-        for (k, sto) in rinex.nav_system_time_frames_iter() {
+        for (k, _) in rinex.nav_system_time_frames_iter() {
             match k.msgtype {
                 NavMessageType::LNAV
                 | NavMessageType::FDMA
@@ -1224,7 +1210,6 @@ fn nav_v2_iono_alphabeta_and_toe() {
 
     let t_01_01_000000 = Epoch::from_str("2021-01-01T00:00:00 GPST").unwrap();
     let t_01_01_015944 = Epoch::from_str("2021-01-01T01:59:44 GPST").unwrap();
-    let t_01_01_010200 = Epoch::from_str("2021-01-01T01:02:00 GPST").unwrap();
     let t_01_01_020000 = Epoch::from_str("2021-01-01T02:00:00 GPST").unwrap();
     let t_01_01_080000 = Epoch::from_str("2021-01-01T08:00:00 GPST").unwrap();
     let t_01_02_000000 = Epoch::from_str("2021-01-02T00:00:00 GPST").unwrap();

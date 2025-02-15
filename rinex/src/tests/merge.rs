@@ -4,7 +4,10 @@ mod test {
         prelude::{qc::Merge, Rinex},
         tests::toolkit::{generic_observation_rinex_test, TimeFrame},
     };
-    use std::{fs::remove_file as fs_remove_file, path::PathBuf};
+    use std::{
+        //fs::remove_file as fs_remove_file,
+        path::PathBuf,
+    };
 
     #[test]
     fn fail_on_type_mismatch() {

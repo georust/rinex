@@ -35,7 +35,7 @@ pub fn sv_csv(gnss_csv: &str) -> Vec<SV> {
         .map(|c| {
             let trimmed = c.trim();
             SV::from_str(trimmed)
-                .unwrap_or_else(|e| panic!("invalid test SV specs: \"{}\"", trimmed))
+                .unwrap_or_else(|_| panic!("invalid test SV specs: \"{}\"", trimmed))
         })
         .collect::<Vec<SV>>()
         .into_iter()

@@ -4,8 +4,8 @@ use crate::prelude::{
 };
 
 use super::{
-    merge_mut_option, merge_mut_unique_map2d, merge_mut_unique_vec, merge_mut_vec,
-    merge_obsrinex_observables, merge_time_of_first_obs, merge_time_of_last_obs,
+    merge_mut_option, merge_mut_unique_vec, merge_mut_vec, merge_obsrinex_observables,
+    merge_time_of_first_obs, merge_time_of_last_obs,
 };
 
 impl Merge for Header {

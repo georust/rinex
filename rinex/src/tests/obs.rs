@@ -85,8 +85,11 @@ fn v2_npaz3550_21o() {
 
     dut.to_file("v2_npaz3550_21o.txt").unwrap();
 
-    let parsed = Rinex::from_file("v2_npaz3550_21o.txt").unwrap();
+    // TODO
+    let _parsed = Rinex::from_file("v2_npaz3550_21o.txt").unwrap();
+
     //generic_rinex_comparison(&parsed, &dut);
+
     let _ = remove_file("v2_npaz3550_21o.txt");
 }
 
@@ -139,8 +142,11 @@ fn v2_rovn0010_21o() {
 
     dut.to_file("v2_rovn0010_21o.txt").unwrap();
 
-    let parsed = Rinex::from_file("v2_rovn0010_21o.txt").unwrap();
+    // TODO
+    let _parsed = Rinex::from_file("v2_rovn0010_21o.txt").unwrap();
+
     //generic_rinex_comparison(&parsed, &dut);
+
     let _ = remove_file("v2_rovn0010_21o.txt");
 }
 
@@ -195,8 +201,11 @@ fn v3_duth0630() {
 
     dut.to_file("v3_duth0630.txt").unwrap();
 
-    let parsed = Rinex::from_file("v3_duth0630.txt").unwrap();
+    // TODO
+    let _parsed = Rinex::from_file("v3_duth0630.txt").unwrap();
+
     //generic_rinex_comparison(&parsed, &dut);
+
     let _ = remove_file("v3_duth0630.txt");
 }
 
@@ -284,8 +293,11 @@ fn v2_kosg0010_95o() {
 
     dut.to_file("v2_kosg0010_95o.txt").unwrap();
 
-    let parsed = Rinex::from_file("v2_kosg0010_95o.txt").unwrap();
+    // TODO
+    let _parsed = Rinex::from_file("v2_kosg0010_95o.txt").unwrap();
+
     //generic_rinex_comparison(&parsed, &dut);
+
     let _ = remove_file("v2_kosg0010_95o.txt");
 }
 
@@ -576,7 +588,10 @@ fn v3_noa10630() {
 
     dut.to_file("v3_noa10630.txt").unwrap();
 
-    let parsed = Rinex::from_file("v3_noa10630.txt").unwrap();
+    // TODO
+    let _parsed = Rinex::from_file("v3_noa10630.txt").unwrap();
+
     //generic_rinex_comparison(&parsed, &dut);
+
     let _ = remove_file("v3_noa10630.txt");
 }
