@@ -45,9 +45,6 @@ pub fn parse_epoch(header: &Header, line: &str) -> Result<Vec<(MeteoKey, f64)>, 
         .ok_or(ParsingError::MissingObservableDefinition)?;
 
     let codes = &header.codes;
-    let nb_obs = codes.len();
-
-    let mut obs_ptr = 0;
 
     // parse all remaining fields
     for code in codes.iter() {

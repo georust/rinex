@@ -177,11 +177,11 @@ impl HeaderFields {
         self.scaling.insert((c, observable.clone()), scaling);
     }
 
-    /// Returns given scaling to apply for given GNSS system
-    /// and given observation. Returns 1.0 by default, so it always applies
-    pub(crate) fn scaling(&self, c: Constellation, observable: Observable) -> Option<&u16> {
-        self.scaling.get(&(c, observable))
-    }
+    // /// Returns given scaling to apply for given GNSS system
+    // /// and given observation. Returns 1.0 by default, so it always applies
+    // pub(crate) fn scaling(&self, c: Constellation, observable: Observable) -> Option<&u16> {
+    //     self.scaling.get(&(c, observable))
+    // }
 }
 
 impl HeaderFields {

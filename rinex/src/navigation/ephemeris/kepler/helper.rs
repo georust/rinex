@@ -256,7 +256,7 @@ impl Ephemeris {
 
         // Iterative calculation of e_k
         let mut e_k_lst: f64 = 0.0;
-        let mut e_k: f64 = 0.0;
+        let mut e_k;
         let mut i = 0;
 
         loop {
@@ -333,8 +333,8 @@ impl Ephemeris {
         let (x, y) = (r_k * u_k.cos(), r_k * u_k.sin());
 
         // rotated position
-        let (sin_omega_k, cos_omega_k) = omega_k.sin_cos();
-        let (sin_i_k, cos_i_k) = i_k.sin_cos();
+        // let (sin_omega_k, cos_omega_k) = omega_k.sin_cos();
+        // let (sin_i_k, cos_i_k) = i_k.sin_cos();
 
         // earth rotation
         let t_sv_gpst = t_sv.to_time_scale(TimeScale::GPST);
