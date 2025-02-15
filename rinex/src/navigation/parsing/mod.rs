@@ -182,7 +182,7 @@ mod test {
         assert_eq!(ephemeris.clock_drift_rate, 7.38E4);
 
         let orbits = &ephemeris.orbits;
-        assert_eq!(orbits.len(), 12);
+        assert_eq!(orbits.len(), 9);
 
         for (k, v) in orbits.iter() {
             if k.eq("satPosX") {

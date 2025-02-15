@@ -167,6 +167,9 @@ impl OrbitItem {
     pub fn as_f64(&self) -> Option<f64> {
         match self {
             OrbitItem::F64(f) => Some(*f),
+            OrbitItem::U8(val) => Some(*val as f64),
+            OrbitItem::I8(val) => Some(*val as f64),
+            OrbitItem::U32(val) => Some(*val as f64),
             _ => None,
         }
     }
@@ -174,6 +177,9 @@ impl OrbitItem {
     pub fn as_u32(&self) -> Option<u32> {
         match self {
             OrbitItem::U32(v) => Some(*v),
+            OrbitItem::U8(val) => Some(*val as u32),
+            OrbitItem::I8(val) => Some(*val as u32),
+            OrbitItem::F64(val) => Some(val.round() as u32),
             _ => None,
         }
     }
@@ -181,6 +187,9 @@ impl OrbitItem {
     pub fn as_u8(&self) -> Option<u8> {
         match self {
             OrbitItem::U8(u) => Some(*u),
+            OrbitItem::U32(val) => Some(*val as u8),
+            OrbitItem::I8(val) => Some(*val as u8),
+            OrbitItem::F64(val) => Some(val.round() as u8),
             _ => None,
         }
     }
@@ -508,5 +517,10 @@ mod test {
         assert!(e.as_f64().is_none());
         let u = e.as_u32().unwrap();
         assert_eq!(u, 1_u32);
+    }
+
+    #[test]
+    fn test_orbit_channel_5() {
+        let _ = OrbitItem::new("i8", "5.000000000000D+00", Constellation::Glonass).unwrap();
     }
 }

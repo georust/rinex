@@ -23,14 +23,14 @@ fn parse_orbits(
         true => Constellation::SBAS,
         false => constell,
     };
-    // Determine closest standards from DB
-    // <=> data fields to parse
+
+    // Determine data fields to parse, from database
     let nav_standards = match closest_nav_standards(constell, version, msgtype) {
         Some(v) => v,
         _ => return Err(ParsingError::NoNavigationDefinition),
     };
 
-    //println!("FIELD : {:?} \n", nav_standards.items); // DEBUG
+    // println!("FIELD : {:?} \n", nav_standards.items); // DEBUG
 
     let fields = &nav_standards.items;
 
@@ -46,7 +46,7 @@ fn parse_orbits(
         };
 
         let mut nb_missing = 4 - (line.len() / word_size);
-        //println!("LINE \"{}\" | NB MISSING {}", line, nb_missing); //DEBUG
+        // println!("LINE \"{}\" | NB MISSING {}", line, nb_missing); //DEBUG
 
         loop {
             if line.is_empty() {
@@ -56,7 +56,9 @@ fn parse_orbits(
 
             let (content, rem) = line.split_at(std::cmp::min(word_size, line.len()));
             let content = content.trim();
+            // println!("CONTENT \"{}\"", content); // DEBUG
 
+            // handle omitted fields
             if content.is_empty() {
                 // omitted field
                 key_index += 1;
@@ -64,23 +66,33 @@ fn parse_orbits(
                 line = rem;
                 continue;
             }
-            /*
-             * In NAV RINEX, unresolved data fields are either
-             * omitted (handled previously) or put a zeros
-             */
-            if !content.contains(".000000000000E+00") {
-                if let Some((key, token)) = fields.get(key_index) {
-                    //println!(
-                    //    "Key \"{}\"(index: {}) | Token \"{}\" | Content \"{}\"",
-                    //    key,
-                    //    key_index,
-                    //    token,
-                    //    content.trim()
-                    //); //DEBUG
-                    if !key.contains("spare") {
-                        if let Ok(item) = OrbitItem::new(token, content, constell) {
-                            map.insert(key.to_string(), item);
-                        }
+
+            // zeros mean unresolved/unknown fields
+            if content.starts_with("0.000000000000E+00") {
+                line = rem;
+                key_index += 1;
+                continue;
+            }
+
+            // zeros mean unresolved/unknown fields
+            if content.starts_with("0.000000000000D+00") {
+                line = rem;
+                key_index += 1;
+                continue;
+            }
+
+            if let Some((key, token)) = fields.get(key_index) {
+                //println!(
+                //    "Key \"{}\"(index: {}) | Token \"{}\" | Content \"{}\"",
+                //    key,
+                //    key_index,
+                //    token,
+                //    content.trim()
+                //); //DEBUG
+                if !key.contains("spare") {
+                    if let Ok(item) = OrbitItem::new(token, content, constell) {
+                        // println!("found key=\"{}\" (type={}) value=\"{}\"", key, token, content); // DEBUG
+                        map.insert(key.to_string(), item);
                     }
                 }
             }
@@ -424,6 +436,30 @@ mod test {
         assert_eq!(ephemeris.get_orbit_f64("satPosX"), Some(-1.488799804690E3));
         assert_eq!(ephemeris.get_orbit_f64("satPosY"), Some(1.292880712890E4));
         assert_eq!(ephemeris.get_orbit_f64("satPosZ"), Some(2.193169775390E4));
+
+        let content =
+            "    1.817068505860D+04 8.184757232670D-01 2.793967723850D-09 0.000000000000D+00
+    1.594814404300D+04 7.562503814700D-01 9.313225746150D-10 5.000000000000D+00
+    8.090271484380D+03-3.345663070680D+00-2.793967723850D-09 0.000000000000D+00";
+
+        let orbits = parse_orbits(
+            Version::new(2, 0),
+            NavMessageType::LNAV,
+            Constellation::Glonass,
+            content.lines(),
+        );
+
+        assert!(orbits.is_ok(), "failed to parse Glonass V2 orbits");
+        let orbits = orbits.unwrap();
+
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+
+        assert_eq!(ephemeris.get_orbit_f64("channel"), Some(5.0));
     }
 
     #[test]

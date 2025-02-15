@@ -286,6 +286,7 @@ impl Record {
                         Type::NavigationData => {
                             if let Ok((k, v)) = parse_nav_epoch(&header, &epoch_buf) {
                                 nav_rec.insert(k, v);
+                                // println!("nav_epoch={:?}", k); // DEBUG
                                 comment_ts = k.epoch; // for comments storage
                             }
                         },
