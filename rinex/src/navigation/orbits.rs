@@ -500,23 +500,16 @@ mod test {
     #[test]
     fn test_db_item() {
         let e = OrbitItem::U8(10);
-        assert!(e.as_u8().is_some());
-        assert!(e.as_u32().is_none());
-        let u = e.as_u8().unwrap();
-        assert_eq!(u, 10);
+        assert_eq!(e.as_u8(), Some(10));
 
         let e = OrbitItem::F64(10.0);
-        assert!(e.as_u8().is_none());
-        assert!(e.as_u32().is_none());
-        assert!(e.as_f64().is_some());
-        let u = e.as_f64().unwrap();
-        assert_eq!(u, 10.0_f64);
+        assert_eq!(e.as_u8(), Some(10));
+        assert_eq!(e.as_u32(), Some(10));
+        assert_eq!(e.as_f64(), Some(10.0));
 
         let e = OrbitItem::U32(1);
-        assert!(e.as_u32().is_some());
-        assert!(e.as_f64().is_none());
-        let u = e.as_u32().unwrap();
-        assert_eq!(u, 1_u32);
+        assert_eq!(e.as_u32(), Some(1));
+        assert_eq!(e.as_f64(), Some(1.0));
     }
 
     #[test]
