@@ -48,7 +48,7 @@ let cfg = QcConfig::default(); // basic
 let path = Path::new(
     "../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz"
 );
-let rinex = Rinex::from_path(&path)
+let rinex = Rinex::from_gzip_file(&path)
     .unwrap();
 ctx.load_rinex(&path, rinex);
 

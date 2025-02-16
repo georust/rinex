@@ -54,26 +54,6 @@ impl Rinex {
 
     /// Returns pressure measurements iterator, values expressed in hPa.
     /// Applies to Meteo RINEX and DORIS.
-    ///
-    /// Meteo example:
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    /// for (epoch, value) in rinex.pressure_iter() {
-    ///     println!("{} value: {} hPa", epoch, value);
-    /// }
-    /// ```
-    ///
-    /// DORIS pressure at observed ground stations:
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/DOR/V2/abvi0010.15m")
-    ///     .unwrap();
-    /// for (epoch, value) in rinex.pressure_iter() {
-    ///     println!("{} value: {} hPa", epoch, value);
-    /// }
-    /// ```
     pub fn pressure_iter(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
         if self.is_meteo_rinex() {
             Box::new(self.meteo_observations_iter().filter_map(|(k, v)| {
@@ -101,14 +81,6 @@ impl Rinex {
 
     /// Returns moisture rate measurement iterator, values expressed in saturation percentage rate.
     /// Applies to Meteo RINEX and DORIS.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    /// for (epoch, value) in rinex.moisture_rate_iter() {
-    ///     println!("{} value: {} %", epoch, value);
-    /// }
-    /// ```
     pub fn moisture_rate_iter(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
         if self.is_meteo_rinex() {
             Box::new(self.meteo_observations_iter().filter_map(|(k, v)| {

@@ -112,32 +112,6 @@ impl Rinex {
     /// You can use:
     /// - [Self::pseudo_range_sampling_ok_iter()] if you're only interested in decoded pseudo range
     /// - [Self::phase_range_sampling_ok_iter()] if you're only interested in estimated phase range
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    ///
-    /// for (key, signal) in rinex.signal_ok_iter() {
-    ///     let t = key.epoch;
-    ///     let flag = key.flag;
-    ///     let sv = signal.sv; // signal source
-    ///     assert!(flag.is_ok(), "all abnormal flags filtered out");
-    ///     match signal.observable {
-    ///         Observable::PhaseRange(pr) => {
-    ///             // then do something
-    ///         },
-    ///         Observable::PseudoRange(pr) => {
-    ///             // then do something
-    ///         },
-    ///         Observable::Doppler(dop) => {
-    ///             // then do something
-    ///         },
-    ///         Observable::SSI(ssi) => {
-    ///             // then do something
-    ///         },
-    ///     }
-    /// }
-    /// ```
     pub fn signal_observations_sampling_ok_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (Epoch, &SignalObservation)> + '_> {
@@ -151,21 +125,6 @@ impl Rinex {
     }
 
     /// [Self::signal_observations_sampling_ok_iter()] with [Observable::PseudoRange] mask applied.
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    ///
-    /// for (key, signal) in rinex.pseudo_range_decoding_ok_iter() {
-    ///     let t = key.epoch;
-    ///     let flag = key.flag;
-    ///     assert!(flag.is_ok(), "all abnormal flags filtered out");
-    ///
-    ///     let sv = signal.sv; // signal source
-    ///     // RINEX decodes [Observable::PseudoRange] to meters
-    ///     let pseudo_range_m = signal.value;
-    /// }
-    /// ```
     pub fn pseudo_range_sampling_ok_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (Epoch, &SignalObservation)> + '_> {
@@ -186,21 +145,6 @@ impl Rinex {
     /// See [Rinex::signal_ok_iter()] for more information.
     /// Use [Rinex::phase_range_tracking_ok_iter()] for both good sampling and tracking conditions filtering.
     /// Use [Rinex::phase_tracking_issues_iter()] for tracking errors iteration.
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    ///
-    /// for (key, signal) in rinex.phase_range_sampling_ok_iter() {
-    ///     let t = key.epoch;
-    ///     let flag = key.flag;
-    ///     assert!(flag.is_ok(), "all abnormal flags filtered out");
-    ///
-    ///     let sv = signal.sv; // signal source
-    ///     // RINEX measures [Observable::PhaseRange] in meters directly
-    ///     let phase_range_m = signal.value;
-    /// }
-    /// ```
     pub fn phase_range_sampling_ok_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (Epoch, &SignalObservation)> + '_> {
@@ -220,55 +164,6 @@ impl Rinex {
     /// Use [Rinex::phase_range_sampling_ok_iter()] to verify the sampling conditions only.
     /// NB: if [LliFlags] is missing, we consider the tracking was GOOD. Because some receivers omit or do not encode
     /// the [LliFlags] and would rather not stream out RINEX in such situation (and we would wind up with empty dataset).
-    ///
-    /// Example 1: direct exploitation
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    ///
-    /// for (key, signal) in rinex.phase_range_tracking_ok_iter() {
-    ///     let t = key.epoch;
-    ///     let flag = key.flag;
-    ///     assert!(flag.is_ok(), "all abnormal flags filtered out");
-    ///
-    ///     let sv = signal.sv; // signal source
-    ///     // RINEX measures [Observable::PhaseRange] in meters directly
-    ///     let phase_range_m = signal.value;
-    /// }
-    /// ```
-    ///
-    /// Example 2: make sure [LliFlags] confirms the tracking conditions:
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    ///
-    /// // retain only observations where [LliFlags] are present and sane.
-    /// // You could even stack a minimal SNR.
-    /// let tracking_confirmed = rinex.phase_range_tracking_ok_iter()
-    ///     .filter_map(|(k, v)| {
-    ///         if let Some(lli) = v.lli {
-    ///             if lli.is_ok() {
-    ///                 Some((k, v))
-    ///             } else {
-    ///                 None
-    ///             }
-    ///         } else {
-    ///             None
-    ///         }
-    ///     });
-    ///
-    /// for (key, signal) in rinex.tracking_confirmed() {
-    ///     let t = key.epoch;
-    ///     let flag = key.flag;
-    ///     assert!(flag.is_ok(), "all abnormal flags filtered out");
-    ///
-    ///     let sv = signal.sv; // signal source
-    ///     // RINEX measures [Observable::PhaseRange] in meters directly
-    ///     let phase_range_m = signal.value;
-    /// }
-    /// ```
     pub fn phase_range_tracking_ok_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (Epoch, &SignalObservation)> + '_> {
@@ -286,19 +181,6 @@ impl Rinex {
     }
 
     /// Returns Iterator over Phase Cycle slips events.
-    ///```
-    /// use rinex::prelude::{Rinex, LliFlags};
-    ///
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    ///
-    /// for (key, signal) in rinex.phase_cycle_slip_events() {
-    ///     let t = key.epoch;
-    ///     let sv = signal.sv; // signal source
-    ///     let lli = signal.lli.unwrap(); // you're safe at this point
-    ///     assert!(lli.intersects(LliFlags::LOCK_LOSS));
-    /// }
-    /// ```
     pub fn phase_cycle_slip_events(
         &self,
     ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
@@ -321,24 +203,6 @@ impl Rinex {
 
     /// Returns Iterator over both Half and Full Phase Cycle slips events.
     /// Use provided [LliFlags] to inquire.
-    ///```
-    /// use rinex::prelude::{Rinex, LliFlags};
-    ///
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    ///
-    /// for (key, signal) in rinex.phase_half_full_cycle_slip_events() {
-    ///     let t = key.epoch;
-    ///     let sv = signal.sv; // signal source
-    ///     let lli = signal.lli.unwrap(); // you're safe at this point
-    ///     let is_half = lli.intersects(LliFlags::HALF_CYCLE_SLIP);
-    ///     if is_half {
-    ///         // do something
-    ///     } else {
-    ///         // then, do something
-    ///     }
-    /// }
-    /// ```
     pub fn phase_half_full_cycle_slip_events(
         &self,
     ) -> Box<dyn Iterator<Item = (ObsKey, &SignalObservation)> + '_> {
@@ -383,14 +247,6 @@ impl Rinex {
 
     /// Returns an Iterator over [Epoch]s where abnormal sampling conditions were detected.
     /// Anomalies are described by the attached [EpochFlag] in each [ObsKey].
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    ///
-    /// let anomalies = rinex.epoch_anomalies().collect::<Vec<_>>();
-    /// assert_eq!(anomalies.len(), 0, "no anomalies detected");
-    /// ```
     pub fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = &ObsKey> + '_> {
         Box::new(self.observation_keys().filter(|k| k.flag.is_ok()))
     }

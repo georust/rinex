@@ -30,18 +30,6 @@ impl Rinex {
 
     /// Returns Meteo Observations Iterator.
     /// This only applies to Meteo RINEX and will panic otherwise (bad operation).
-    ///
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-    ///    .unwrap();
-    /// for (key, value) in rnx.meteo_observations_iter() {
-    ///     println!(" *** Epoch:  {} ****", epoch);
-    ///     for (observable, data) in observables {
-    ///         println!("{} : {}", observable, data);
-    ///     }
-    /// }
-    /// ```
     pub fn meteo_observations_iter(&self) -> Iter<'_, MeteoKey, f64> {
         if let Some(rec) = self.record.as_meteo() {
             rec.iter()

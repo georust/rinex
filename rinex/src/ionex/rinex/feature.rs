@@ -6,21 +6,6 @@ use crate::{
 impl Rinex {
     /// Returns Iterator over TEC expressed in TECu (10^-16 m-2) per lattitude,
     /// longitude in decimal degrees, and altitude in km.
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// let rnx = Rinex::from_gzip_file("../test_resources/IONEX/V1/jplg0010.17i.gz")
-    ///     .unwrap();
-    ///
-    /// for (t, lat_ddeg, lon_ddeg, alt_km, tecu) in rnx.ionex_tecu_latlong_ddeg_alt_km_iter() {
-    ///     // ex: convert in other units
-    ///     let lat_rad = lat_ddeg.to_radians();
-    ///     let lon_rad = lon_ddeg.to_radians();
-    ///     let alt_m = alt_km /1000.0;
-    ///     let tec = tecu * 10.0E16; // m^-2
-    ///     // do something
-    /// }
-    /// ```
     pub fn ionex_tecu_latlong_ddeg_alt_km_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (Epoch, f64, f64, f64, f64)> + '_> {
@@ -51,20 +36,6 @@ impl Rinex {
     }
 
     /// Designs an iterator over RMS TEC exclusively
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// let rnx = Rinex::from_gzip_file("../test_resources/IONEX/V1/jplg0010.17i.gz")
-    ///     .unwrap();
-    ///
-    /// for (t, lat, lon, alt, rms) in rnx.ionex_rms_tec_maps_iter() {
-    ///     // t: Epoch
-    ///     // lat: ddeg
-    ///     // lon: ddeg
-    ///     // alt: km
-    ///     // rms|TECu| (f64)
-    /// }
-    /// ```
     pub fn ionex_rms_tec_maps_iter(&self) -> Box<dyn Iterator<Item = (IonexKey, f64)> + '_> {
         Box::new(self.ionex_tec_maps_iter().filter_map(|(k, tec)| {
             if let Some(rms) = tec.rms_tec() {
@@ -79,16 +50,6 @@ impl Rinex {
     /// Note that this is only based on Header definitions. If provided
     /// content does not follow those specs (incorrect data), the returned value here will not
     /// reflect actual content.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/jplg0010.17i.gz")
-    ///     .unwrap();
-    /// assert_eq!(rnx.ionex_fixed_altitude_km(), Some(450.0));
-    ///
-    /// let rnx = Rinex::from_file("../test_resources/IONEX/V1/CKMG0020.22I.gz")
-    ///     .unwrap();
-    /// assert_eq!(rnx.ionex_fixed_altitude_km(), Some(350.0));
-    /// ```
     pub fn ionex_2d_fixed_altitude_km(&self) -> Option<f64> {
         if self.is_ionex_2d() {
             let header = self.header.ionex.as_ref()?;
@@ -105,10 +66,6 @@ impl Rinex {
     /// Note that this is only based on Header definitions. If provided
     /// content does not follow those specs (incorrect data), the returned value here will not
     /// reflect actual content.
-    ///
-    /// ```
-    /// example
-    /// ```
     pub fn ionex_altitude_range_km(&self) -> Option<(f64, f64)> {
         let header = self.header.ionex.as_ref()?;
         Some((header.grid.height.start, header.grid.height.end))

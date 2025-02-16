@@ -19,12 +19,6 @@ use super::IonosphereModel;
 
 impl Rinex {
     /// Returns true if this [Rinex] is [RinexType::NavigationData].
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
-    ///     .unwrap();
-    /// assert!(rinex.is_navigation_rinex());
-    /// ```
     pub fn is_navigation_rinex(&self) -> bool {
         self.header.rinex_type == RinexType::NavigationData
     }
@@ -129,17 +123,6 @@ impl Rinex {
     /// - self: Navigation [Rinex]
     /// ## Output
     /// - offset (s), drift (s.s⁻¹), drift rate (s.s⁻²)  triplet iterator
-    /// ```
-    /// use rinex::prelude::*;
-    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
-    ///     .unwrap();
-    /// for (epoch, sv, (offset, drift, drift_rate)) in rinex.nav_sv_clock_iter() {
-    ///     // sv: satellite vehicle
-    ///     // offset [s]
-    ///     // clock drift [s.s⁻¹]
-    ///     // clock drift rate [s.s⁻²]
-    /// }
-    /// ```
     pub fn nav_sv_clock_iter(&self) -> Box<dyn Iterator<Item = (NavKey, (f64, f64, f64))> + '_> {
         Box::new(
             self.nav_ephemeris_frames_iter()

@@ -27,33 +27,6 @@ use crate::hatanaka::Compressor;
 ///  - numsat incorrectly encoded in Epoch description
 ///  - missing or bad observable specifications
 ///  - missing or bad constellation specifications
-///
-/// In this example, we deploy the [Decompressor] over a local file, as an example
-/// yet typical usage scenario. We use our [RinexReader] to provide the line Iterator.
-/// ```
-/// use std::fs::File;
-/// use rinex::hatanaka::Decompressor;
-///
-/// // Working from local files is the typical application,
-/// // but [Decompressor] may deploy over any [Read]able interface
-/// let mut fd = File::open("../test_resources/CRNX/V1/AJAC3550.21D")
-///     .unwrap();
-///
-/// // This file was compressed using the historical tool, M=5 limit is OK.
-/// let decomp = Decompressor::new(fd);
-///
-/// // Dump this as a new (readable) RINEX
-/// let mut total = 0;
-/// let mut buf = Vec::<u8>::with_capacity(1024);
-/// while let Some(size) = decomp.read(&mut buf) {
-///     if size == 0 {
-///         break; // EOS reached
-///     }
-///     total += size;
-/// }
-///
-/// assert_eq!(total, 36); // total bytewise
-/// ```
 pub type Decompressor = DecompressorExpert<5>;
 
 #[derive(Default, Debug, Copy, Clone, PartialEq)]

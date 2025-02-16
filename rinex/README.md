@@ -137,8 +137,8 @@ Reading RINEX files is quick and easy. When the provided file follows standard n
 the structure definition will be complete: the production context is described by the file name itself.
 
 ```rust
-use rinex::prelude::RINEX;
-let rinex = RINEX::from_path("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
+use rinex::prelude::Rinex;
+let rinex = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
     .unwrap();
 ```
 
@@ -147,8 +147,8 @@ fully understand the little restrictions we have. For example, CRINEX (Compresse
 is builtin:
 
 ```rust
-use rinex::prelude::RINEX;
-let rinex = RINEX::from_path("../test_resources/CRNX/V1/AJAC3550.21D")
+use rinex::prelude::Rinex;
+let rinex = Rinex::from_file("../test_resources/CRNX/V1/AJAC3550.21D")
     .unwrap();
 ```
 
@@ -170,16 +170,8 @@ When working with files that do not follow standard naming conventions, or direc
 from Stream interface, we have no means to determine the [FileProductionAttributes].
 This will most likely impact data production scenarios.
 
-```rust
-```
-
 When working with files that follow the V2 standard naming conventions, some of the file production setup
 cannot be determined and remains unknown
-
-```rust
-
-# but you have means to change that
-```
 
 We developped a smart [FileProductionAttributes] guesser, that will guess those from the actual file content.
 This may apply to two scenarios:
@@ -188,15 +180,3 @@ This may apply to two scenarios:
 standard naming conventions but contain accurate data, and actually use this library to properly rename those
 * stay focused on data production (actual data symbols) in production context, and use the guesser to
 auto determine an accurate file name.
-
-Exemple:
-
-```rust
-// V2/short filenames are incomplete
-
-<<<<<<< HEAD
-// We can always determine a complete V2 filename from correct datasets
-
-// It is impossible for a V3 filename though
-```
-

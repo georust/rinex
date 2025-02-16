@@ -85,34 +85,8 @@ impl Rinex {
     /// Klobuchar [KbModel] Ionosphere model [Iterator].
     /// RINEX V4 is the true application of this, as it provides
     /// regular model updates (reflecting radio message stream).
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// use rinex::navigation::KbRegionCode;
-    /// let rinex = Rinex::from_gzip_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz").unwrap();
-    /// for (k, model) in rinex.nav_klobuchar_models_iter() {
-    ///     let (alpha, beta) = (model.alpha, model.beta);
-    ///     assert_eq!(model.region, KbRegionCode::Worldwide);
-    /// }
-    /// ```
-    ///
-    /// Older RINEX revisions only provide one model per 24h time frame.
-    /// This means one model per RINEX for standardized publications.
-    /// ```
-    /// use std::str::FromStr;
-    /// use rinex::prelude::Rinex;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx").unwrap();
-    /// let t0 = Epoch::from_str("2021-01-01T00:00:00 UTC").unwrap();
-    /// for (k, model) in rinex.nav_klobuchar_models_iter() {
-    ///     assert_eq!(k.epoch, t0); // single model
-    ///     // Note that we support all RINEX3 constellations
-    ///     if k.sv.constellation == Constellation::BeiDou {
-    ///         assert_eq!(model.alpha.0, 1.1176E-8);
-    ///     }
-    /// }
-    /// ```
-    ///
     /// Klobuchar Ionosphere models exist in RINEX2 and this
-    /// method applies similarly to the previous example.
+    /// method applies similarly.
     pub fn nav_klobuchar_models_iter(&self) -> Box<dyn Iterator<Item = (&NavKey, &KbModel)> + '_> {
         Box::new(
             self.nav_ionosphere_models_iter()

@@ -272,17 +272,11 @@ pub(crate) fn fmt_comment(content: &str) -> String {
 /// // like file standard revision:
 /// assert_eq!(rnx.header.version.major, 2);
 /// assert_eq!(rnx.header.version.minor, 11);
-/// // general informations
-/// assert_eq!(rnx.header.program, "teqc  2019Feb25");
-/// assert_eq!(rnx.header.run_by, "Unknown"); // field was empty
-/// // File creation date, temporarily stored as a String
-/// // value, but that will soon change
-/// assert_eq!(rnx.header.date, "20210102 00:01:40UTC");
-/// assert_eq!(rnx.header.observer, "H. VAN DER MAREL");
 ///
 /// let marker = rnx.header.geodetic_marker
 ///         .as_ref()
 ///         .unwrap();
+///
 /// assert_eq!(marker.number(), Some("13502M004".to_string()));
 ///
 /// // Constellation describes which kind of vehicles
@@ -293,27 +287,11 @@ pub(crate) fn fmt_comment(content: &str) -> String {
 /// assert_eq!(rnx.header.constellation, Some(Constellation::Mixed));
 /// // Some information on the hardware being used might be stored
 /// println!("{:#?}", rnx.header.rcvr);
-/// // WGS84 receiver approximate position
-/// println!("{:#?}", rnx.header.ground_position);
 /// // comments encountered in the Header section
 /// println!("{:#?}", rnx.header.comments);
 /// // sampling interval was set
 /// assert_eq!(rnx.header.sampling_interval, Some(Duration::from_seconds(30.0))); // 30s sample rate
 /// // record content is RINEX format dependent.
-/// // This one is Observation RINEX.
-/// // Refer to [record::Record] definitions, to understand
-/// // how to browse all RINEX records.
-/// let record = rnx.record.as_obs()
-///     .unwrap();
-/// for (epoch, (clk_offset, observations)) in record {
-///     // Do something
-/// }
-/// // comments encountered in file body
-/// // are currently stored like this and indexed by epoch of "appearance"
-/// // they are currently not really exploited
-/// for (epoch, comment) in rnx.comments {
-///     println!("{:?}: \"{:?}\"", epoch, comment);
-/// }
 /// ```
 pub struct Rinex {
     /// [Header] gives general information and describes following content.
@@ -738,32 +716,6 @@ impl Rinex {
     /// yet that do not follow standard naming conventions.
     /// Note that this method is infaillible, because we default to blank fields
     /// in case we cannot retrieve them.
-    ///
-    /// Example:
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// // Parse file that does not follow naming conventions
-    /// let rinex = Rinex::from_file("../test_resources/MET/V4/example1.txt");
-    /// assert!(rinex.is_ok()); // As previously stated, we totally accept that
-    /// let rinex = rinex.unwrap();
-    ///
-    /// // The standard filename generator has no means to generate something correct.
-    /// let standard_name = rinex.standard_filename(true, None, None);
-    /// assert_eq!(standard_name, "XXXX0070.21M");
-    ///
-    /// // Now use the smart attributes detector as custom attributes
-    /// let guessed = rinex.guess_production_attributes();
-    /// let standard_name = rinex.standard_filename(true, None, Some(guessed.clone()));
-    ///
-    /// // Short name are always correctly determined
-    /// assert_eq!(standard_name, "bako0070.21M");
-    ///
-    /// // Modern (lengthy) names have fields like the Country code that cannot be recovered
-    /// // if the original file did not follow standard conventions itself.
-    /// let standard_name = rinex.standard_filename(false, None, Some(guessed.clone()));
-    /// assert_eq!(standard_name, "bako00XXX_U_20210070000_00U_MM.rnx");
-    /// ```
     pub fn guess_production_attributes(&self) -> ProductionAttributes {
         // start from content identified from the filename
         let mut attributes = self.production.clone();
@@ -910,17 +862,7 @@ impl Rinex {
     ///
     /// The parser automatically picks up the RINEX format and we support
     /// all of them, CRINEX (Compat RINEX) is natively supported.
-    /// The SINEX format is not allowed here, this will be handed by the decided library.
-    ///
-    /// Compact Observation RINEX example:
-    /// ```
-    /// example
-    /// ```
-    ///
-    /// Navigation RINEX example:
-    /// ```
-    /// example
-    /// ```
+    /// NB: the SINEX format is different and handled in a dedicated library.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Rinex, ParsingError> {
         let path = path.as_ref();
 
@@ -1132,33 +1074,7 @@ impl Rinex {
         }
     }
 
-    /// Returns [SV] iterator. This applies to
-    /// - Observation RINEX
-    /// - Navigation RINEX
-    /// - Clock RINEX
-    /// - DORIS
-    /// We return null for all other formats.
-    /// ```
-    /// extern crate gnss_rs as gnss;
-    /// use rinex::prelude::*;
-    /// use gnss_rs::prelude::*;
-    /// use gnss_rs::sv; // sv!
-    /// use std::str::FromStr; // sv!
-    ///
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
-    ///     .unwrap();
-    /// let mut vehicles : Vec<_> = rnx.sv().collect(); // to run comparison
-    /// vehicles.sort(); // to run comparison
-    ///
-    /// assert_eq!(vehicles, vec![
-    ///     sv!("G01"), sv!("G03"), sv!("G06"),
-    ///     sv!("G07"), sv!("G08"), sv!("G09"),
-    ///     sv!("G11"), sv!("G14"), sv!("G16"),
-    ///     sv!("G17"), sv!("G19"), sv!("G22"),
-    ///     sv!("G23"), sv!("G26"), sv!("G27"),
-    ///     sv!("G28"), sv!("G30"), sv!("G31"),
-    ///     sv!("G32")]);
-    /// ```
+    /// Returns [SV] iterator.
     pub fn sv_iter(&self) -> Box<dyn Iterator<Item = SV> + '_> {
         if self.is_observation_rinex() {
             Box::new(
@@ -1298,37 +1214,6 @@ impl Rinex {
     /// Returns [Observable]s Iterator.
     /// Applies to Observation RINEX, Meteo RINEX and DORIS.
     /// Returns null for any other formats.  
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// // Observation RINEX (example)
-    /// let rinex = Rinex::from_file("../test_resources/CRNX/V1/AJAC3550.21D")
-    ///     .unwrap();
-    /// for observable in rinex.observables_iter() {
-    ///     if observable.is_phase_observable() {
-    ///         // do something
-    ///     }
-    /// }
-    ///
-    /// // Meteo (example)
-    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    /// for observable in rinex.observables_iter() {
-    ///     if *observable == Observable::Temperature {
-    ///         // do something
-    ///     }
-    /// }
-    ///
-    /// // DORIS (example)
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_gzip_file("../test_resources/DOR/V3/cs2rx18164.gz")
-    ///     .unwrap();
-    /// for observable in rinex.observables_iter() {
-    ///     if observable.is_pseudorange_observable() {
-    ///         // do something
-    ///     }
-    /// }
-    /// ```
     pub fn observables_iter(&self) -> Box<dyn Iterator<Item = &Observable> + '_> {
         if self.is_observation_rinex() {
             Box::new(

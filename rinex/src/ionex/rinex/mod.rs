@@ -39,9 +39,6 @@ impl Rinex {
         }
     }
 
-    /// ```
-    /// example
-    /// ```
     pub fn ionex_tec_maps_keys(&self) -> Keys<'_, IonexKey, TEC> {
         if let Some(rec) = self.record.as_ionex() {
             rec.keys()
@@ -51,19 +48,6 @@ impl Rinex {
     }
 
     /// IONEX Total Electron Content Iterator.
-    ///
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rinex = Rinex::from_gzip_file("../test_resources/IONEX/V1/CKMG0020.22I.gz")
-    ///     .unwrap();
-    ///
-    /// for (key, tec) in rinex.ionex_tec_maps_iter() {
-    ///     let latitude_ddeg = key.latitude_ddeg();
-    ///     let longitude_ddeg = key.longitude_ddeg();
-    ///     let altitude_km = key.altitude_km();
-    ///     let tec = tec.tec(); // in TEC unit
-    /// }
-    /// ```
     pub fn ionex_tec_maps_iter(&self) -> Box<dyn Iterator<Item = (IonexKey, &TEC)> + '_> {
         if let Some(rec) = self.record.as_ionex() {
             Box::new(rec.iter().map(|(k, v)| (*k, v)))

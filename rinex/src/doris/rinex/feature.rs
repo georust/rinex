@@ -18,10 +18,6 @@ impl Rinex {
     /// one DORIS satellite per file. Use [DorisObservation.clock_extrapolated] to determine
     /// whether this is an extrapolation or actual measurement.
     /// Drift is expressed in TAI timescale in seconds per second.
-    ///
-    /// ```
-    /// example
-    /// ```
     pub fn doris_satellite_clock_drift_iter(
         &self,
     ) -> Box<dyn Iterator<Item = (DorisKey, f64)> + '_> {
