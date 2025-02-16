@@ -8,7 +8,7 @@ extern crate gnss_rs as gnss;
 use itertools::Itertools;
 
 #[cfg(feature = "qc")]
-extern crate rinex_qc_traits as qc_traits;
+extern crate gnss_qc_traits as qc_traits;
 
 use gnss::prelude::{Constellation, SV};
 use hifitime::{Epoch, ParsingError as EpochParsingError};
@@ -59,7 +59,7 @@ pub mod prelude {
     pub use hifitime::{Duration, Epoch, TimeScale};
 
     #[cfg(feature = "qc")]
-    pub use rinex_qc_traits::{Merge, Split};
+    pub use gnss_qc_traits::{Merge, Split};
 }
 
 /// [SP3Entry] indexer
