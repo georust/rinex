@@ -1,160 +1,66 @@
 //! SP3 precise orbit file parser.
+#![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
+#![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+
 extern crate gnss_rs as gnss;
 
 use itertools::Itertools;
 
 #[cfg(feature = "qc")]
-extern crate gnss_qc_traits as qc_traits;
+extern crate rinex_qc_traits as qc_traits;
 
 use gnss::prelude::{Constellation, SV};
-use hifitime::{Duration, Epoch, ParsingError as EpochParsingError, TimeScale};
-use map_3d::{ecef2aer, rad2deg, Ellipsoid};
-use std::collections::BTreeMap;
+use hifitime::{Epoch, ParsingError as EpochParsingError};
+
+use std::{collections::BTreeMap, io::Error as IoError};
 
 use gnss_rs::constellation::ParsingError as ConstellationParsingError;
-use std::str::FromStr;
 use thiserror::Error;
 
+#[cfg(feature = "qc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
+mod qc;
+
 #[cfg(feature = "processing")]
-use qc_traits::{
-    Decimate, DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand, Masking,
-    Preprocessing, Split,
+#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
+mod processing;
+
+#[cfg(feature = "anise")]
+use anise::{
+    astro::AzElRange,
+    math::Vector6,
+    prelude::{Almanac, Frame, Orbit},
 };
 
 #[cfg(test)]
 mod tests;
 
 mod header;
+mod parsing;
 mod position;
-mod reader;
 mod velocity;
-mod version;
-
-#[cfg(docsrs)]
-mod bibliography;
-
-use header::{
-    line1::{is_header_line1, Line1},
-    line2::{is_header_line2, Line2},
-};
-
-use position::{position_entry, PositionEntry};
-use velocity::{velocity_entry, VelocityEntry};
-
-use reader::BufferedReader;
-use std::io::BufRead;
-use version::Version;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use std::path::Path;
+use header::Header;
+use hifitime::Unit;
 
-/*
- * 3D position
- */
 type Vector3D = (f64, f64, f64);
 
 pub mod prelude {
-    pub use crate::{version::Version, DataType, Error, OrbitType, SP3};
+    pub use crate::{
+        header::{version::Version, DataType, Header, OrbitType},
+        Error, ParsingError, SP3Entry, SP3Key, SP3,
+    };
     // Pub re-export
     pub use gnss::prelude::{Constellation, SV};
     pub use hifitime::{Duration, Epoch, TimeScale};
-}
 
-fn file_descriptor(content: &str) -> bool {
-    content.starts_with("%c")
+    #[cfg(feature = "qc")]
+    pub use rinex_qc_traits::{Merge, Split};
 }
-
-fn sp3_comment(content: &str) -> bool {
-    content.starts_with("/*")
-}
-
-fn end_of_file(content: &str) -> bool {
-    content.eq("EOF")
-}
-
-fn new_epoch(content: &str) -> bool {
-    content.starts_with("*  ")
-}
-
-#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum DataType {
-    #[default]
-    Position,
-    Velocity,
-}
-
-impl std::fmt::Display for DataType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Position => f.write_str("P"),
-            Self::Velocity => f.write_str("V"),
-        }
-    }
-}
-
-impl std::str::FromStr for DataType {
-    type Err = ParsingError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.eq("P") {
-            Ok(Self::Position)
-        } else if s.eq("V") {
-            Ok(Self::Velocity)
-        } else {
-            Err(ParsingError::UnknownDataType(s.to_string()))
-        }
-    }
-}
-
-#[derive(Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum OrbitType {
-    #[default]
-    FIT,
-    EXT,
-    BCT,
-    BHN,
-    HLM,
-}
-
-impl std::fmt::Display for OrbitType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::FIT => f.write_str("FIT"),
-            Self::EXT => f.write_str("EXT"),
-            Self::BCT => f.write_str("BCT"),
-            Self::BHN => f.write_str("BHN"),
-            Self::HLM => f.write_str("HLM"),
-        }
-    }
-}
-
-impl std::str::FromStr for OrbitType {
-    type Err = ParsingError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.eq("FIT") {
-            Ok(Self::FIT)
-        } else if s.eq("EXT") {
-            Ok(Self::EXT)
-        } else if s.eq("BCT") {
-            Ok(Self::BCT)
-        } else if s.eq("BHN") {
-            Ok(Self::BHN)
-        } else if s.eq("HLM") {
-            Ok(Self::HLM)
-        } else {
-            Err(ParsingError::UnknownOrbitType(s.to_string()))
-        }
-    }
-}
-
-/*
- * Comments contained in file
- */
-type Comments = Vec<String>;
 
 /// [SP3Entry] indexer
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
@@ -170,63 +76,164 @@ pub struct SP3Key {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SP3Entry {
-    /// Possible clock correction in microsecond with 1E-12 precision.
-    /// Often omitted, files that only have orbital states are most common.
-    pub clock: Option<f64>,
-    /// Clock offset variation, with 0.1ns/s scaling with 1E-16 theoretical precision.
-    /// Rarely present.
-    pub clock_rate: Option<f64>,
-    /// Position vector expressed in the coordinates system, scaling is km and precision
-    /// down to 1mm, depending on fit technique.
-    pub position: Vector3D,
-    /// Possible velocity vector (rarely present) expressed in [km/s] in the same
-    /// reference frame.
-    pub velocity: Option<Vector3D>,
+    /// ECEF position in kilometers with 10⁻³ precision.
+    pub position_km: Vector3D,
+    /// ECEF velocity vectori in km.s⁻¹.
+    pub velocity_km_s: Option<Vector3D>,
+    /// True if the state vector is predicted
+    pub orbit_prediction: bool,
+    /// True if vehicle being maneuvered (rocket truster)
+    /// since last state.
+    pub maneuver: bool,
+    /// Discontinuity in the satellite clock correction
+    /// (for example: internal clock swap)
+    pub clock_event: bool,
+    /// True when the clock state is actually predicted
+    pub clock_prediction: bool,
+    /// Clock offset correction, in microsecond with 10⁻¹² precision.
+    pub clock_us: Option<f64>,
+    /// Clock drift in nanoseconds with 10⁻¹⁶ precision.
+    pub clock_drift_ns: Option<f64>,
 }
 
 impl SP3Entry {
-    /// Builds new [SP3Entry] with given position and all other
+    /// Builds new [SP3Entry] with "true" position and all other
     /// fields are unknown.
-    pub fn from_position(position: Vector3D) -> Self {
+    pub fn from_position_km(position_km: Vector3D) -> Self {
         Self {
-            position,
-            clock: None,
-            velocity: None,
-            clock_rate: None,
+            position_km,
+            clock_us: None,
+            maneuver: false,
+            velocity_km_s: None,
+            clock_drift_ns: None,
+            clock_prediction: false,
+            orbit_prediction: false,
+            clock_event: false,
         }
     }
-    /// Builds new [SP3Entry] with given position and velocity vector,
-    /// any other fields are unknown
-    pub fn from_position_velocity(position: Vector3D, velocity: Vector3D) -> Self {
+
+    /// Builds new [SP3Entry] with position prediction, in kilometers.
+    pub fn from_predicted_position_km(position_km: Vector3D) -> Self {
         Self {
-            position,
-            clock: None,
-            clock_rate: None,
-            velocity: Some(velocity),
+            position_km,
+            clock_us: None,
+            maneuver: false,
+            velocity_km_s: None,
+            clock_drift_ns: None,
+            clock_prediction: false,
+            orbit_prediction: true,
+            clock_event: false,
         }
     }
-    /// Copies and returns [Self] with given position vector
-    pub fn with_position(&self, position: Vector3D) -> Self {
+
+    /// Builds new [SP3Entry] with "true" position and velocity vector,
+    /// any other fields are unknown.
+    pub fn from_position_velocity_km_km_s(position_km: Vector3D, velocity_km_s: Vector3D) -> Self {
+        Self {
+            position_km,
+            velocity_km_s: Some(velocity_km_s),
+            clock_us: None,
+            maneuver: false,
+            clock_drift_ns: None,
+            clock_prediction: false,
+            orbit_prediction: false,
+            clock_event: false,
+        }
+    }
+
+    /// Builds new [SP3Entry] with predicted position and velocity vectors,
+    /// all other fields are unknown.
+    pub fn from_predicted_position_velocity_km_km_s(
+        position_km: Vector3D,
+        velocity_km_s: Vector3D,
+    ) -> Self {
+        Self {
+            position_km,
+            clock_us: None,
+            maneuver: false,
+            clock_drift_ns: None,
+            velocity_km_s: Some(velocity_km_s),
+            clock_prediction: false,
+            orbit_prediction: true,
+            clock_event: false,
+        }
+    }
+
+    /// Copies and returns [SP3Entry] with "true" position vector.
+    pub fn with_position_km(&self, position_km: Vector3D) -> Self {
         let mut s = self.clone();
-        s.position = position;
+        s.position_km = position_km;
+        s.orbit_prediction = false;
         s
     }
-    /// Copies and returns [Self] with given velocity vector
-    pub fn with_velocity(&self, velocity: Vector3D) -> Self {
+
+    /// Copies and returns [SP3Entry] with predicted position vector.
+    pub fn with_predicted_position_km(&self, position_km: Vector3D) -> Self {
         let mut s = self.clone();
-        s.velocity = Some(velocity);
+        s.position_km = position_km;
+        s.orbit_prediction = true;
         s
     }
-    /// Copies and returns [Self] with given clock offset
-    pub fn with_clock_offset(&self, offset: f64) -> Self {
+
+    /// Copies and returns [SP3Entry] with "true" velocity vector
+    pub fn with_velocity_km_s(&self, velocity_km_s: Vector3D) -> Self {
         let mut s = self.clone();
-        s.clock = Some(offset);
+        s.velocity_km_s = Some(velocity_km_s);
+        s.orbit_prediction = false;
         s
     }
-    /// Copies and returns [Self] with given clock rate
-    pub fn with_clock_rate(&self, rate: f64) -> Self {
+
+    /// Copies and returns [SP3Entry] with predicted velocity vector
+    pub fn with_predicted_velocity_km_s(&self, velocity_km_s: Vector3D) -> Self {
         let mut s = self.clone();
-        s.clock_rate = Some(rate);
+        s.velocity_km_s = Some(velocity_km_s);
+        s.orbit_prediction = true;
+        s
+    }
+
+    /// Copies and returns [Self] with "true" clock offset in seconds
+    pub fn with_clock_offset_s(&self, offset_s: f64) -> Self {
+        let mut s = self.clone();
+        s.clock_us = Some(offset_s * 1.0E6);
+        s.clock_prediction = false;
+        s
+    }
+
+    /// Copies and returns [Self] with predicted clock offset in seconds
+    pub fn with_predicted_clock_offset_s(&self, offset_s: f64) -> Self {
+        let mut s = self.clone();
+        s.clock_us = Some(offset_s * 1.0E6);
+        s.clock_prediction = true;
+        s
+    }
+
+    /// Copies and returns [Self] with "true" clock offset in microseconds
+    pub fn with_clock_offset_us(&self, offset_us: f64) -> Self {
+        let mut s = self.clone();
+        s.clock_us = Some(offset_us);
+        s.clock_prediction = false;
+        s
+    }
+
+    /// Copies and returns [Self] with predicted clock offset in microseconds
+    pub fn with_predicted_clock_offset_us(&self, offset_us: f64) -> Self {
+        let mut s = self.clone();
+        s.clock_us = Some(offset_us);
+        s.clock_prediction = true;
+        s
+    }
+
+    /// Copies and returns [Self] with clock drift in seconds
+    pub fn with_clock_drift_s(&self, drift_s: f64) -> Self {
+        let mut s = self.clone();
+        s.clock_drift_ns = Some(drift_s * 1.0E9);
+        s
+    }
+
+    /// Copies and returns [Self] with clock drift in nanoseconds
+    pub fn with_clock_drift_ns(&self, drift_ns: f64) -> Self {
+        let mut s = self.clone();
+        s.clock_drift_ns = Some(drift_ns);
         s
     }
 }
@@ -234,66 +241,34 @@ impl SP3Entry {
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SP3 {
-    /// File revision
-    pub version: Version,
-    /// Data Type used in this file.
-    /// If DataType == Velocity, you know
-    /// that velocities record will be provided.
-    /// Otherwise, that is not garanteed and kind of rare.
-    pub data_type: DataType,
-    /// Coordinates system used in this file.
-    pub coord_system: String,
-    /// Type of Orbit contained in this file.
-    pub orbit_type: OrbitType,
-    /// Agency providing this data
-    pub agency: String,
-    /// Type of constellations encountered in this file.
-    /// For example "GPS" means only GPS vehicles are present.
-    pub constellation: Constellation,
-    /// [TimeScale] that applies to all following [Epoch]
-    pub time_scale: TimeScale,
-    /// Initial week counter in [TimeScale]
-    pub week_counter: (u32, f64),
-    /// Initial MJD, in time_system
-    pub mjd_start: (u32, f64),
-    /// [`Epoch`]s where at least one position or clock offset is provided
-    pub epoch: Vec<Epoch>,
-    /// Returns sampling interval, ie., time between successive [`Epoch`]s.
-    pub epoch_interval: Duration,
-    /// Satellite Vehicles
-    pub sv: Vec<SV>,
+    /// File [Header]
+    pub header: Header,
+    /// File header comments, stored as is.
+    pub comments: Vec<String>,
     /// File content are [SP3Entry]s sorted per [SP3Key]
     pub data: BTreeMap<SP3Key, SP3Entry>,
-    /// File header comments, stored as is.
-    pub comments: Comments,
 }
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("parsing error")]
+    #[error("Parsing error: {0}")]
     ParsingError(#[from] ParsingError),
-    #[error("hifitime parsing error")]
+    #[error("Epoch parsing error: {0}")]
     HifitimeParsingError(#[from] EpochParsingError),
-    #[error("constellation parsing error")]
+    #[error("Constellation parsing error: {0}")]
     ConstellationParsing(#[from] ConstellationParsingError),
-    #[error("unknown or non supported revision \"{0}\"")]
-    UnknownVersion(String),
-    #[error("unknown data type \"{0}\"")]
-    UnknownDataType(String),
-    #[error("unknown orbit type \"{0}\"")]
-    UnknownOrbitType(String),
-    #[error("file i/o error")]
-    DataParsingError(#[from] std::io::Error),
+    #[error("File i/o error: {0}")]
+    FileIo(#[from] IoError),
 }
 
 #[derive(Debug, Error)]
 pub enum ParsingError {
-    #[error("unknown or non supported revision \"{0}\"")]
-    UnknownVersion(String),
-    #[error("unknown data type \"{0}\"")]
-    UnknownDataType(String),
-    #[error("unknown orbit type \"{0}\"")]
-    UnknownOrbitType(String),
+    #[error("Non supported SP3 revision")]
+    NonSupportedRevision,
+    #[error("Unknown SP3 orbit type")]
+    UnknownOrbitType,
+    #[error("Unknown SP3 data type")]
+    UnknownDataType,
     #[error("malformed header line #1")]
     MalformedH1,
     #[error("malformed header line #2")]
@@ -332,629 +307,450 @@ pub enum ParsingError {
     Clock(String),
 }
 
-/*
- * Parses hifitime::Epoch from standard format
- */
-fn parse_epoch(content: &str, time_scale: TimeScale) -> Result<Epoch, ParsingError> {
-    let y = u32::from_str(content[0..4].trim())
-        .or(Err(ParsingError::EpochYear(content[0..4].to_string())))?;
+use crate::prelude::DataType;
 
-    let m = u32::from_str(content[4..7].trim())
-        .or(Err(ParsingError::EpochMonth(content[4..7].to_string())))?;
+// Lagrangian interpolator
+pub(crate) fn lagrange_interpolation(
+    order: usize,
+    t: Epoch,
+    x: Vec<(Epoch, Vector3D)>,
+) -> Option<Vector3D> {
+    let x_len = x.len();
+    let mut polynomials = Vector3D::default();
 
-    let d = u32::from_str(content[7..10].trim())
-        .or(Err(ParsingError::EpochDay(content[7..10].to_string())))?;
-
-    let hh = u32::from_str(content[10..13].trim())
-        .or(Err(ParsingError::EpochHours(content[10..13].to_string())))?;
-
-    let mm = u32::from_str(content[13..16].trim())
-        .or(Err(ParsingError::EpochMinutes(content[13..16].to_string())))?;
-
-    let ss = u32::from_str(content[16..19].trim())
-        .or(Err(ParsingError::EpochSeconds(content[16..19].to_string())))?;
-
-    let _ss_fract = f64::from_str(content[20..27].trim()).or(Err(
-        ParsingError::EpochMilliSeconds(content[20..27].to_string()),
-    ))?;
-
-    Epoch::from_str(&format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02} {}",
-        y, m, d, hh, mm, ss, time_scale,
-    ))
-    .or(Err(ParsingError::Epoch))
-}
-
-impl SP3 {
-    /// Parses given SP3 file, with possible seamless
-    /// .gz decompression, if compiled with the "flate2" feature.
-    pub fn from_path(path: &Path) -> Result<Self, Error> {
-        let fullpath = path.to_string_lossy().to_string();
-        Self::from_file(&fullpath)
+    if x_len < order + 1 {
+        return None;
     }
-    /// See [Self::from_path]
-    pub fn from_file(path: &str) -> Result<Self, Error> {
-        let reader = BufferedReader::new(path)?;
 
-        let mut version = Version::default();
-        let mut data_type = DataType::default();
+    for i in 0..order + 1 {
+        let mut l_i = 1.0_f64;
+        let (t_i, (x_km_i, y_km_i, z_km_i)) = x[i];
 
-        let mut time_scale = TimeScale::default();
-        let mut constellation = Constellation::default();
-        let mut pc_count = 0_u8;
-
-        let mut coord_system = String::from("Unknown");
-        let mut orbit_type = OrbitType::default();
-        let mut agency = String::from("Unknown");
-        let mut week_counter = (0_u32, 0_f64);
-        let mut epoch_interval = Duration::default();
-        let mut mjd_start = (0_u32, 0_f64);
-
-        let mut vehicles: Vec<SV> = Vec::new();
-        let mut comments = Comments::new();
-        let mut data = BTreeMap::<SP3Key, SP3Entry>::new();
-
-        let mut epoch = Epoch::default();
-        let mut epochs: Vec<Epoch> = Vec::new();
-
-        for line in reader.lines() {
-            let line = line.unwrap();
-            let line = line.trim();
-            if sp3_comment(line) {
-                if line.len() > 4 {
-                    comments.push(line[3..].to_string());
-                }
-                continue;
-            }
-            if end_of_file(line) {
-                break;
-            }
-            if is_header_line1(line) && !is_header_line2(line) {
-                let l1 = Line1::from_str(line)?;
-                (version, data_type, coord_system, orbit_type, agency) = l1.to_parts();
-            }
-            if is_header_line2(line) {
-                let l2 = Line2::from_str(line)?;
-                (week_counter, epoch_interval, mjd_start) = l2.to_parts();
-            }
-            if file_descriptor(line) {
-                if line.len() < 60 {
-                    return Err(Error::ParsingError(ParsingError::MalformedDescriptor(
-                        line.to_string(),
-                    )));
-                }
-
-                if pc_count == 0 {
-                    constellation = Constellation::from_str(line[3..5].trim())?;
-                    time_scale = TimeScale::from_str(line[9..12].trim())?;
-                }
-
-                pc_count += 1;
-            }
-            if new_epoch(line) {
-                epoch = parse_epoch(&line[3..], time_scale)?;
-                epochs.push(epoch);
-            }
-            if position_entry(line) {
-                if line.len() < 60 {
-                    continue; // tolerates malformed positions
-                }
-                let entry = PositionEntry::from_str(line)?;
-                let (sv, (x_km, y_km, z_km), clk) = entry.to_parts();
-
-                //TODO : move this into %c config frame
-                if !vehicles.contains(&sv) {
-                    vehicles.push(sv);
-                }
-                // verify entry validity
-                if x_km != 0.0_f64 && y_km != 0.0_f64 && z_km != 0.0_f64 {
-                    let key = SP3Key { epoch, sv };
-                    if let Some(e) = data.get_mut(&key) {
-                        e.position = (x_km, y_km, z_km);
-                    } else {
-                        if let Some(clk) = clk {
-                            data.insert(
-                                key,
-                                SP3Entry::from_position((x_km, y_km, z_km)).with_clock_offset(clk),
-                            );
-                        } else {
-                            data.insert(key, SP3Entry::from_position((x_km, y_km, z_km)));
-                        }
-                    }
-                }
-            }
-            if velocity_entry(line) {
-                if line.len() < 60 {
-                    continue; // tolerates malformed velocities
-                }
-                let entry = VelocityEntry::from_str(line)?;
-                let (sv, (vel_x, vel_y, vel_z), clk) = entry.to_parts();
-
-                //TODO : move this into %c config frame
-                if !vehicles.contains(&sv) {
-                    vehicles.push(sv);
-                }
-                // verify entry validity
-                if vel_x != 0.0_f64 && vel_y != 0.0_f64 && vel_z != 0.0_f64 {
-                    let key = SP3Key { epoch, sv };
-                    if let Some(e) = data.get_mut(&key) {
-                        *e = e.with_velocity((vel_x, vel_y, vel_z));
-                        if let Some(clk) = clk {
-                            *e = e.with_clock_rate(clk);
-                        }
-                    } else {
-                        if let Some(clk) = clk {
-                            data.insert(
-                                key,
-                                SP3Entry::from_position((0.0, 0.0, 0.0)).with_clock_rate(clk),
-                            );
-                        } else {
-                            data.insert(key, SP3Entry::from_position((0.0, 0.0, 0.0)));
-                        }
-                    }
-                }
+        for j in 0..order + 1 {
+            let (t_j, _) = x[j];
+            if j != i {
+                l_i *= (t - t_j).to_seconds();
+                l_i /= (t_i - t_j).to_seconds();
             }
         }
-        Ok(Self {
-            version,
-            data_type,
-            epoch: epochs,
-            time_scale,
-            constellation,
-            coord_system,
-            orbit_type,
-            agency,
-            week_counter,
-            epoch_interval,
-            mjd_start,
-            sv: vehicles,
-            data,
-            comments,
-        })
+
+        polynomials.0 += x_km_i * l_i;
+        polynomials.1 += y_km_i * l_i;
+        polynomials.2 += z_km_i * l_i;
     }
-    /// Returns a unique Epoch iterator where either
-    /// Position or Clock data is provided.
-    pub fn epoch(&self) -> impl Iterator<Item = Epoch> + '_ {
-        self.epoch.iter().copied()
-    }
-    /// Returns total number of epoch
-    pub fn nb_epochs(&self) -> usize {
-        self.epoch.len()
-    }
-    /// Returns first epoch
-    pub fn first_epoch(&self) -> Option<Epoch> {
-        self.epoch.first().copied()
-    }
-    /// Returns last epoch
-    pub fn last_epoch(&self) -> Option<Epoch> {
-        self.epoch.last().copied()
-    }
-    /// Returns a unique [Constellation] iterator
-    pub fn constellation(&self) -> impl Iterator<Item = Constellation> + '_ {
-        self.sv().map(|sv| sv.constellation).unique()
-    }
-    /// Returns a unique [SV] iterator
-    pub fn sv(&self) -> impl Iterator<Item = SV> + '_ {
-        self.sv.iter().copied()
-    }
-    /// Returns an Iterator over SV position estimates, in km with 1mm precision
-    /// and expressed in [self.coord_system] (always fixed body frame).
-    pub fn sv_position(&self) -> impl Iterator<Item = (Epoch, SV, Vector3D)> + '_ {
-        self.data.iter().map(|(k, v)| (k.epoch, k.sv, v.position))
-    }
-    /// Returns an Iterator over SV elevation and azimuth angle, both in degrees.
-    /// ref_geo: referance position expressed in decimal degrees
-    pub fn sv_elevation_azimuth(
-        &self,
-        ref_geo: Vector3D,
-    ) -> impl Iterator<Item = (Epoch, SV, (f64, f64))> + '_ {
-        self.sv_position().map(move |(t, sv, (x_km, y_km, z_km))| {
-            let (azim, elev, _) = ecef2aer(
-                x_km * 1.0E3,
-                y_km * 1.0E3,
-                z_km * 1.0E3,
-                ref_geo.0,
-                ref_geo.1,
-                ref_geo.2,
-                Ellipsoid::WGS84,
+
+    Some(polynomials)
+}
+
+// // 2D Linear interpolation
+// pub(crate) fn linear_interpolation(
+//     order: usize,
+//     t: Epoch,
+//     x: Vec<(Epoch, f64)>,
+// ) -> Option<f64> {
+//
+//     let x_len = x.len();
+//     if x_len < 2 {
+//         return None;
+//     }
+//
+//     let (x_0, y_0) = x[0];
+//     let (x_1, y_1) = x[1];
+//     let dt = (x_1 - x_0).to_seconds();
+//     let mut dy = (x_1 - t).to_seconds() /dt * y_0;
+//     dy += (t - x_0).to_seconds() /dt * y_1;
+//     Some(dy)
+// }
+
+impl SP3 {
+    /// Returns [Epoch] of first entry
+    pub fn first_epoch(&self) -> Epoch {
+        let mut t0_utc = Epoch::from_mjd_utc(self.header.mjd);
+
+        if self.header.timescale.is_gnss() {
+            t0_utc = Epoch::from_duration(
+                t0_utc - self.header.timescale.reference_epoch(),
+                self.header.timescale,
             );
-            (t, sv, (rad2deg(elev), rad2deg(azim)))
-        })
+        }
+
+        t0_utc
     }
-    /// Returns an Iterator over SV velocities estimates,
-    /// in 10^-1 m/s with 0.1 um/s precision.
-    pub fn sv_velocities(&self) -> impl Iterator<Item = (Epoch, SV, Vector3D)> + '_ {
-        self.data.iter().filter_map(|(k, v)| {
-            let velocity = v.velocity?;
-            Some((k.epoch, k.sv, velocity))
-        })
+
+    /// Returns last [Epoch] to be found in this record.
+    pub fn last_epoch(&self) -> Option<Epoch> {
+        self.epochs_iter().last()
     }
-    /// Returns an Iterator over Clock offsets with theoretical 1E-12 precision.
-    pub fn sv_clock(&self) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
+
+    /// Returns true if this [SP3] has satellites velocity vector
+    pub fn has_satellite_velocity(&self) -> bool {
+        self.header.data_type == DataType::Velocity
+    }
+
+    /// Returns true if at least one state vector (whatever the constellation)
+    /// was predicted
+    pub fn has_satellite_positions_prediction(&self) -> bool {
+        self.data
+            .iter()
+            .filter_map(|(k, v)| {
+                if v.orbit_prediction {
+                    Some((k, v))
+                } else {
+                    None
+                }
+            })
+            .count()
+            > 0
+    }
+
+    /// Returns true if at least one clock event was reported for one [SV] (whatever the constellation)
+    pub fn has_satellite_clock_event(&self) -> bool {
+        self.satellites_epoch_clock_event_iter().count() > 0
+    }
+
+    /// Returns true if this [SP3] has satellites clock offset
+    pub fn has_satellite_clock_offset(&self) -> bool {
+        self.satellites_clock_offset_sec_iter().count() > 0
+    }
+
+    /// Returns true if this [SP3] has satellites clock drift
+    pub fn has_satellite_clock_drift(&self) -> bool {
+        self.satellites_clock_drift_sec_sec_iter().count() > 0
+    }
+
+    /// Returns true if at least 1 [SV] (whatever the constellation) is being maneuvered
+    /// during this entire time frame
+    pub fn has_satellite_maneuver(&self) -> bool {
+        self.satellites_epoch_maneuver_iter().count() > 0
+    }
+
+    /// Returns true if this [SP3] publication is correct, that is:
+    /// - all data points are correctly evenly spaced in time
+    /// according to the sampling interval.
+    /// You should use this verification method prior any interpolation (post processing).
+    pub fn has_steady_sampling(&self) -> bool {
+        let dt = self.header.epoch_interval;
+        let mut t = Epoch::default();
+        let mut past_t = Option::<Epoch>::None;
+
+        for now in self.epochs_iter() {
+            if now > t {
+                // new epoch
+                if let Some(past_t) = past_t {
+                    if now - past_t != dt {
+                        return false;
+                    }
+                }
+                t = now;
+            }
+            past_t = Some(now);
+        }
+        true
+    }
+
+    /// Returns total number of [Epoch] to be found
+    pub fn total_epochs(&self) -> usize {
+        self.epochs_iter().count()
+    }
+
+    /// Returns [Epoch] [Iterator]
+    pub fn epochs_iter(&self) -> impl Iterator<Item = Epoch> + '_ {
+        self.data.iter().map(|(k, _)| k.epoch).unique()
+    }
+
+    /// Returns a unique [Constellation] iterator
+    pub fn constellations_iter(&self) -> impl Iterator<Item = Constellation> + '_ {
+        self.satellites_iter().map(|sv| sv.constellation).unique()
+    }
+
+    /// File comments [Iterator].
+    pub fn comments_iter(&self) -> impl Iterator<Item = &String> + '_ {
+        self.comments.iter()
+    }
+
+    /// Returns a unique [SV] iterator
+    pub fn satellites_iter(&self) -> impl Iterator<Item = SV> + '_ {
+        self.header.satellites.iter().copied()
+    }
+
+    /// [SV] position attitude [Iterator], in kilometers ECEF, with theoretical 10⁻³m precision.  
+    /// All coordinates expressed in Coordinates system (always fixed body frame).  
+    /// NB: all satellites being maneuvered are sorted out, which makes this method
+    /// compatible with navigation.
+    pub fn satellites_position_km_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, Vector3D)> + '_> {
+        Box::new(self.data.iter().filter_map(|(k, v)| {
+            if !v.maneuver {
+                Some((k.epoch, k.sv, v.position_km))
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// [SV] [Orbit]al state [Iterator] with theoretical 10⁻³m precision.
+    /// For this to be correct:
+    /// - [Frame] must be ECEF
+    /// - [Frame] should match the coordinates system described in [Header]
+    /// NB: all satellites being maneuvered are sorted out, which makes this method
+    /// compatible with navigation.
+    #[cfg(feature = "anise")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "anise")))]
+    pub fn satellites_orbit_iter(
+        &self,
+        frame_cef: Frame,
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, Orbit)> + '_> {
+        Box::new(self.data.iter().filter_map(move |(k, v)| {
+            if !v.maneuver {
+                let (x_km, y_km, z_km) = v.position_km;
+                let (vx_km_s, vy_km_s, vz_km_s) = match v.velocity_km_s {
+                    Some((vx_km_s, vy_km_s, vz_km_s)) => (vx_km_s, vy_km_s, vz_km_s),
+                    None => (0.0, 0.0, 0.0),
+                };
+
+                let pos_vel = Vector6::new(x_km, y_km, z_km, vx_km_s, vy_km_s, vz_km_s);
+                let orbit = Orbit::from_cartesian_pos_vel(pos_vel, k.epoch, frame_cef);
+                Some((k.epoch, k.sv, orbit))
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// [SV] (elevation, azimuth, range) attitude vector [Iterator], as [AzElRange].
+    #[cfg(feature = "anise")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "anise")))]
+    pub fn satellites_elevation_azimuth_iter(
+        &self,
+        almanac: Almanac,
+        frame_cef: Frame,
+        rx_orbit: Orbit,
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, AzElRange)> + '_> {
+        Box::new(
+            self.satellites_orbit_iter(frame_cef)
+                .filter_map(move |(sv, t, tx_orbit)| {
+                    if let Ok(elazrng) =
+                        almanac.azimuth_elevation_range_sez(rx_orbit, tx_orbit, None, None)
+                    {
+                        Some((sv, t, elazrng))
+                    } else {
+                        None
+                    }
+                }),
+        )
+    }
+
+    /// Returns ([Epoch], [SV]) [Iterator] where satellite maneuver is being reported
+    pub fn satellites_epoch_maneuver_iter(&self) -> Box<dyn Iterator<Item = (Epoch, SV)> + '_> {
+        Box::new(self.data.iter().filter_map(|(k, v)| {
+            if v.maneuver {
+                Some((k.epoch, k.sv))
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// Returns ([Epoch], [SV]) [Iterator] where satellite clock
+    /// event flag was asserted.
+    pub fn satellites_epoch_clock_event_iter(&self) -> Box<dyn Iterator<Item = (Epoch, SV)> + '_> {
+        Box::new(self.data.iter().filter_map(|(k, v)| {
+            if v.clock_event {
+                Some((k.epoch, k.sv))
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// Returns an [Iterator] over [SV] velocity vector, in km.s⁻¹
+    /// and 0.1 10⁻⁷m precision, for all satellites in correct Orbit (not being maneuvered).
+    pub fn satellites_velocity_km_s_iter(
+        &self,
+    ) -> Box<dyn Iterator<Item = (Epoch, SV, Vector3D)> + '_> {
+        Box::new(self.data.iter().filter_map(|(k, v)| {
+            if !v.maneuver {
+                let (vx_dm_s, vy_dm_s, vz_dm_s) = v.velocity_km_s?;
+                Some((k.epoch, k.sv, (vx_dm_s, vy_dm_s, vz_dm_s)))
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// [SV] clock offset in seconds (with 10⁻¹² theoretical precision) [Iterator].
+    pub fn satellites_clock_offset_sec_iter(&self) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
         self.data.iter().filter_map(|(k, v)| {
-            let clock = v.clock?;
+            let clock = v.clock_us? * 1.0E-6;
             Some((k.epoch, k.sv, clock))
         })
     }
-    /// Returns an Iterator over Clock offset variations, scaling is 0.1 ns/s and theoretical
-    /// precision downto 0.1 fs/s precision.
-    pub fn sv_clock_rate(&self) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
+
+    /// [SV] clock offset in s.s⁻¹ (with 10⁻¹⁶ theoretical precision) [Iterator].
+    pub fn satellites_clock_drift_sec_sec_iter(
+        &self,
+    ) -> impl Iterator<Item = (Epoch, SV, f64)> + '_ {
         self.data.iter().filter_map(|(k, v)| {
-            let rate = v.clock_rate?;
+            let rate = v.clock_drift_ns? * 1.0E-9;
             Some((k.epoch, k.sv, rate))
         })
     }
-    /// Interpolate Clock (offset) at desired "t" expressed in the timescale you want.
-    /// SP3 files usually have a 15' sampling interval which makes this operation
-    /// most likely incorrect. You should either use higher sample rate to reduce
-    /// the error generated by interpolation, or use different products like
-    /// high precision Clock RINEX files.
-    pub fn sv_clock_interpolate(&self, t: Epoch, sv: SV) -> Option<f64> {
-        let before = self
-            .sv_clock()
-            .filter_map(|(clk_t, clk_sv, value)| {
-                if clk_t <= t && clk_sv == sv {
-                    Some((clk_t, value))
-                } else {
-                    None
-                }
-            })
-            .last()?;
-        let after = self
-            .sv_clock()
-            .filter_map(|(clk_t, clk_sv, value)| {
-                if clk_t > t && clk_sv == sv {
-                    Some((clk_t, value))
-                } else {
-                    None
-                }
-            })
-            .reduce(|k, _| k)?;
-        let (before_t, before_clk) = before;
-        let (after_t, after_clk) = after;
-        let dt = (after_t - before_t).to_seconds();
-        let mut bias = (after_t - t).to_seconds() / dt * before_clk;
-        bias += (t - before_t).to_seconds() / dt * after_clk;
-        Some(bias)
-    }
-    /// Returns an Iterator over [`Comments`] contained in this file
-    pub fn comments(&self) -> impl Iterator<Item = &String> + '_ {
-        self.comments.iter()
-    }
-    /// Interpolates SV position at single instant `t`, results expressed in kilometers
-    /// and same reference frame. Typical interpolations vary between 7 and 11,
-    /// to preserve the data precision.
-    /// For an evenly spaced SP3 file, operation is feasible on Epochs
-    /// contained in the interval ](N +1)/2 * τ;  T - (N +1)/2 * τ],
-    /// where N is the interpolation order, τ the epoch interval (15 ' is the standard
-    /// in SP3) and T the last Epoch in this file. See [Bibliography::Japhet2021].
-    pub fn sv_position_interpolate(&self, sv: SV, t: Epoch, order: usize) -> Option<Vector3D> {
+
+    /// Designs an evenly spaced (in time) grouping of (x_km, y_km, z_km) coordinates
+    /// for you to apply your own interpolation method (as a function pointer).
+    /// NB:
+    /// - This only works on correct SP3 publications with steady sample rate.
+    /// - There is no internal verification here, you should verify the correctness
+    ///  of the SP3 publication with [Self::has_steady_sampling] prior running this.
+    /// ## Input
+    /// - sv: selected [SV]
+    /// - t: Interpolation [Epoch]
+    /// - order: Interpolation order. Only odd interpolation order is supported.
+    /// This method will panic on even interpolation order.
+    /// - interp: function pointer for this order and epoch, and the time frame.
+    /// The time frame being [(N +1)/2 * τ;  (N +1)/2 * τ].
+    /// A 7th order will create an 8 data point window.
+    /// ## Output
+    /// - Your function pointer should return Option<(f64, f64, f64)>,
+    /// and is summoned with `order`, `t` and the time frame.
+    /// - This method will return None if `t` is either
+    /// to early or too late with respect to interpolation order.
+    /// That means, we only generate perfectly centered time frames,
+    /// to minimize interpolation error.
+    pub fn satellite_position_interpolate(
+        &self,
+        sv: SV,
+        t: Epoch,
+        order: usize,
+        interp: fn(usize, Epoch, Vec<(Epoch, Vector3D)>) -> Option<Vector3D>,
+    ) -> Option<Vector3D> {
         let odd_order = order % 2 > 0;
-        let sv_position: Vec<_> = self
-            .sv_position()
-            .filter_map(|(e, svnn, (x, y, z))| {
-                if sv == svnn {
-                    Some((e, (x, y, z)))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        /*
-         * Determine closest Epoch in time
-         */
-        let center = match sv_position
-            .iter()
-            .find(|(e, _)| (*e - t).abs() < self.epoch_interval)
+        if !odd_order {
+            panic!("even interpolation order is not supported");
+        }
+
+        // delta interval for which we consider Epoch equality
+        let smallest_dt = 2.0 * Unit::Nanosecond;
+
+        let target_len = order + 1;
+        let target_len_2 = target_len / 2;
+        let target_len_2_1 = target_len_2 - 1;
+
+        let mut past_t = Epoch::default();
+
+        let mut t_x = Option::<Epoch>::None;
+        let mut tx_perfect_match = false;
+        let (mut w0_len, mut w1_len) = (0, 0);
+
+        let mut window = Vec::<(Epoch, Vector3D)>::with_capacity(target_len);
+
+        for (index_i, (t_i, sv_i, (x_i, y_i, z_i))) in
+            self.satellites_position_km_iter().enumerate()
         {
-            Some(center) => center,
-            None => {
-                /*
-                 * Failed to determine central Epoch for this SV:
-                 * empty data set: should not happen
-                 */
-                return None;
-            },
-        };
-        // println!("CENTRAL EPOCH : {:?}", center); //DEBUG
-        let center_pos = match sv_position.iter().position(|(e, _)| *e == center.0) {
-            Some(center) => center,
-            None => {
-                /* will never happen at this point*/
-                return None;
-            },
-        };
+            if sv_i != sv {
+                past_t = t_i;
+                continue;
+            }
 
-        let (min_before, min_after): (usize, usize) = match odd_order {
-            true => ((order + 1) / 2, (order + 1) / 2),
-            false => (order / 2, order / 2 + 1),
-        };
+            // always push while maintaining correct size
+            window.push((t_i, (x_i, y_i, z_i)));
 
-        if center_pos < min_before || sv_position.len() - center_pos < min_after {
-            /* can't design time window */
+            let win_len = window.len();
+            if win_len > target_len {
+                window.remove(0);
+            }
+
+            if t_x.is_none() {
+                if past_t < t && t_i >= t {
+                    // found t_x
+                    w0_len = index_i;
+                    t_x = Some(t_i);
+
+                    if (t_i - t).abs() < smallest_dt {
+                        tx_perfect_match = true;
+                    }
+                }
+            } else {
+                // stop when window has been gathered
+                if index_i == w0_len + target_len_2 - 1 {
+                    w1_len = target_len_2;
+                    break;
+                }
+            }
+
+            past_t = t_i;
+        }
+
+        if t_x.is_none() {
             return None;
         }
 
-        let mut polynomials = Vector3D::default();
-        let offset = center_pos - min_before;
+        // central point must not be too early
+        if w0_len < target_len_2 {
+            return None;
+        }
 
-        for i in 0..order + 1 {
-            let mut li = 1.0_f64;
-            let (e_i, (x_i, y_i, z_i)) = sv_position[offset + i];
-            for j in 0..order + 1 {
-                let (e_j, _) = sv_position[offset + j];
-                if j != i {
-                    li *= (t - e_j).to_seconds();
-                    li /= (e_i - e_j).to_seconds();
-                }
+        // println!("t_x={} [{} ; {}]", t_x, w0_len, w1_len); // DEBUG
+
+        // window must be correctly centered on central point
+        if tx_perfect_match {
+            if w1_len < target_len_2_1 {
+                return None;
             }
-            polynomials.0 += x_i * li;
-            polynomials.1 += y_i * li;
-            polynomials.2 += z_i * li;
-        }
-
-        Some(polynomials)
-    }
-}
-
-#[cfg(feature = "qc")]
-use qc_traits::{Merge, MergeError};
-
-#[cfg(feature = "qc")]
-impl Merge for SP3 {
-    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
-        let mut s = self.clone();
-        s.merge_mut(rhs)?;
-        Ok(s)
-    }
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
-        if self.agency != rhs.agency {
-            return Err(MergeError::DataProviderMismatch);
-        }
-        if self.time_scale != rhs.time_scale {
-            return Err(MergeError::TimescaleMismatch);
-        }
-        if self.coord_system != rhs.coord_system {
-            return Err(MergeError::ReferenceFrameMismatch);
-        }
-        if self.constellation != rhs.constellation {
-            /*
-             * Convert self to Mixed constellation
-             */
-            self.constellation = Constellation::Mixed;
-        }
-        // adjust revision
-        if rhs.version > self.version {
-            self.version = rhs.version;
-        }
-        // Adjust MJD start
-        if rhs.mjd_start.0 < self.mjd_start.0 {
-            self.mjd_start.0 = rhs.mjd_start.0;
-        }
-        if rhs.mjd_start.1 < self.mjd_start.1 {
-            self.mjd_start.1 = rhs.mjd_start.1;
-        }
-        // Adjust week counter
-        if rhs.week_counter.0 < self.week_counter.0 {
-            self.week_counter.0 = rhs.week_counter.0;
-        }
-        if rhs.week_counter.1 < self.week_counter.1 {
-            self.week_counter.1 = rhs.week_counter.1;
-        }
-        // update SV table
-        for sv in &rhs.sv {
-            if !self.sv.contains(sv) {
-                self.sv.push(*sv);
+        } else {
+            if w1_len < target_len_2 {
+                return None;
             }
         }
-        // update sampling interval (pessimistic)
-        self.epoch_interval = std::cmp::max(self.epoch_interval, rhs.epoch_interval);
-        // Merge new entries
-        // and upgrade missing information (if possible)
-        for (key, entry) in &rhs.data {
-            if let Some(lhs_entry) = self.data.get_mut(key) {
-                if let Some(clock) = entry.clock {
-                    lhs_entry.clock = Some(clock);
-                }
-                if let Some(rate) = entry.clock_rate {
-                    lhs_entry.clock_rate = Some(rate);
-                }
-                if let Some(velocity) = entry.velocity {
-                    lhs_entry.velocity = Some(velocity);
-                }
-            } else {
-                if !self.epoch.contains(&key.epoch) {
-                    self.epoch.push(key.epoch); // new epoch
-                }
-                self.data.insert(key.clone(), entry.clone()); // new entry
-            }
-        }
-        self.epoch.sort(); // preserve chronological order
-        Ok(())
-    }
-}
 
-#[cfg(feature = "processing")]
-impl Preprocessing for SP3 {}
+        interp(order, t, window)
+    }
 
-#[cfg(feature = "processing")]
-impl Masking for SP3 {
-    fn mask(&self, f: &MaskFilter) -> Self {
-        let mut s = self.clone();
-        s.mask_mut(&f);
-        s
+    /// Applies the Lagrangian interpolation method
+    /// at desired [Epoch] `t` using desired interpoation order,
+    /// as per <https://www.math.univ-paris13.fr/~japhet/L2/2020-2021/Interpolation.pdf>
+    /// NB:
+    /// - this will panic on even interpolation orders
+    /// - this will not interpolate (returns None) if [Epoch]
+    /// is either too early or too late with respect to
+    /// interpolation order.
+    pub fn satellite_position_lagrangian_interpolation(
+        &self,
+        sv: SV,
+        t: Epoch,
+        order: usize,
+    ) -> Option<Vector3D> {
+        self.satellite_position_interpolate(sv, t, order, lagrange_interpolation)
     }
-    fn mask_mut(&mut self, f: &MaskFilter) {
-        match f.operand {
-            MaskOperand::Equals => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    self.data.retain(|k, _| k.epoch == *epoch);
-                },
-                FilterItem::SvItem(svs) => {
-                    self.data.retain(|k, _| svs.contains(&k.sv));
-                },
-                FilterItem::ConstellationItem(constells) => {
-                    let mut broad_sbas_filter = false;
-                    for c in constells {
-                        broad_sbas_filter |= *c == Constellation::SBAS;
-                    }
-                    self.data.retain(|k, _| {
-                        if broad_sbas_filter {
-                            k.sv.constellation.is_sbas() || constells.contains(&k.sv.constellation)
-                        } else {
-                            constells.contains(&k.sv.constellation)
-                        }
-                    });
-                },
-                _ => {}, // does not apply
-            },
-            MaskOperand::NotEquals => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    self.data.retain(|k, _| k.epoch != *epoch);
-                },
-                FilterItem::SvItem(svs) => {
-                    self.data.retain(|k, _| !svs.contains(&k.sv));
-                },
-                FilterItem::ConstellationItem(constells) => {
-                    self.data
-                        .retain(|k, _| !constells.contains(&k.sv.constellation));
-                },
-                _ => {}, // does not apply
-            },
-            MaskOperand::GreaterThan => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    self.data.retain(|k, _| k.epoch > *epoch);
-                },
-                FilterItem::SvItem(svs) => {
-                    self.data.retain(|k, _| {
-                        let mut retain = false;
-                        for sv in svs {
-                            if k.sv.constellation == sv.constellation {
-                                retain = k.sv.prn > sv.prn
-                            } else {
-                                retain = false
-                            }
-                        }
-                        retain
-                    });
-                },
-                _ => {}, // does not apply
-            },
-            MaskOperand::GreaterEquals => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    self.data.retain(|k, _| k.epoch >= *epoch);
-                },
-                FilterItem::SvItem(svs) => {
-                    self.data.retain(|k, _| {
-                        let mut retain = false;
-                        for sv in svs {
-                            if k.sv.constellation == sv.constellation {
-                                retain = k.sv.prn >= sv.prn
-                            } else {
-                                retain = false
-                            }
-                        }
-                        retain
-                    });
-                },
-                _ => {}, // does not apply
-            },
-            MaskOperand::LowerThan => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    self.data.retain(|k, _| k.epoch < *epoch);
-                },
-                FilterItem::SvItem(svs) => {
-                    self.data.retain(|k, _| {
-                        let mut retain = false;
-                        for sv in svs {
-                            if k.sv.constellation == sv.constellation {
-                                retain = k.sv.prn < sv.prn
-                            } else {
-                                retain = false
-                            }
-                        }
-                        retain
-                    });
-                },
-                _ => {}, // does not apply
-            },
-            MaskOperand::LowerEquals => match &f.item {
-                FilterItem::EpochItem(epoch) => {
-                    self.data.retain(|k, _| k.epoch <= *epoch);
-                },
-                FilterItem::SvItem(svs) => {
-                    self.data.retain(|k, _| {
-                        let mut retain = false;
-                        for sv in svs {
-                            if k.sv.constellation == sv.constellation {
-                                retain = k.sv.prn <= sv.prn
-                            } else {
-                                retain = false
-                            }
-                        }
-                        retain
-                    });
-                },
-                _ => {}, // does not apply
-            },
-        }
-    }
-}
 
-#[cfg(feature = "processing")]
-impl Split for SP3 {
-    fn split(&self, t: Epoch) -> (Self, Self) {
-        let mut s = self.clone();
-        let r = s.split_mut(t);
-        (s, r)
+    /// Applies 9th order Lagrangian interpolation method, which is compatible with high precision geodesy.
+    /// See [Self::satellite_position_lagrangian_interpolation].
+    pub fn satellite_position_lagrangian_9_interpolation(
+        &self,
+        sv: SV,
+        t: Epoch,
+    ) -> Option<Vector3D> {
+        self.satellite_position_lagrangian_interpolation(sv, t, 9)
     }
-    fn split_mut(&mut self, _t: Epoch) -> Self {
-        Default::default()
-    }
-    fn split_even_dt(&self, _dt: Duration) -> Vec<Self> {
-        Default::default()
-    }
-}
 
-#[cfg(feature = "processing")]
-impl Decimate for SP3 {
-    fn decimate(&self, f: &DecimationFilter) -> Self {
-        let mut s = self.clone();
-        s.decimate_mut(&f);
-        s
+    /// Applies 11th order Lagrangian interpolation method, which is compatible with high precision geodesy.
+    /// See [Self::satellite_position_lagrangian_interpolation].
+    pub fn satellite_position_lagrangian_11_interpolation(
+        &self,
+        sv: SV,
+        t: Epoch,
+    ) -> Option<Vector3D> {
+        self.satellite_position_lagrangian_interpolation(sv, t, 11)
     }
-    fn decimate_mut(&mut self, f: &DecimationFilter) {
-        if f.item.is_some() {
-            todo!("targetted decimation not supported yet");
-        }
-        match f.filter {
-            DecimationFilterType::Modulo(r) => {
-                self.epoch_interval = self.epoch_interval * r as f64;
-                let mut i = 0;
-                self.data.retain(|_, _| {
-                    let retained = (i % r) == 0;
-                    i += 1;
-                    retained
-                });
-            },
-            DecimationFilterType::Duration(interval) => {
-                self.epoch_interval = interval;
-                let mut last_retained = Option::<Epoch>::None;
-                self.data.retain(|k, _| {
-                    if let Some(last) = last_retained {
-                        let dt = k.epoch - last;
-                        if dt >= interval {
-                            last_retained = Some(k.epoch);
-                            true
-                        } else {
-                            false
-                        }
-                    } else {
-                        last_retained = Some(k.epoch);
-                        true
-                    }
-                });
-            },
-        }
+
+    /// Applies 17th order Lagrangian interpolation method, which is compatible with high precision geodesy.
+    /// See [Self::satellite_position_lagrangian_interpolation].
+    pub fn satellite_position_lagrangian_17_interpolation(
+        &self,
+        sv: SV,
+        t: Epoch,
+    ) -> Option<Vector3D> {
+        self.satellite_position_lagrangian_interpolation(sv, t, 17)
     }
 }

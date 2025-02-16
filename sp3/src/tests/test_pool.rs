@@ -2,8 +2,9 @@
 mod test {
     use crate::prelude::*;
     use std::path::PathBuf;
-    #[cfg(feature = "flate2")]
+
     #[test]
+    #[cfg(feature = "flate2")]
     fn gzip_data() {
         let prefix = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
@@ -19,7 +20,8 @@ mod test {
         ] {
             let file_path = prefix.clone().join(file);
             println!("Parsing file \"{}\"", file_path.to_string_lossy());
-            let sp3 = SP3::from_file(&file_path.to_string_lossy());
+
+            let sp3 = SP3::from_gzip_file(&file_path);
             assert!(
                 sp3.is_ok(),
                 "failed to parse data/{}, error: {:?}",
@@ -28,6 +30,7 @@ mod test {
             );
         }
     }
+
     #[test]
     fn data_folder() {
         let prefix = PathBuf::new()
@@ -45,7 +48,7 @@ mod test {
         ] {
             let file_path = prefix.clone().join(file);
             println!("Parsing file \"{}\"", file_path.to_string_lossy());
-            let sp3 = SP3::from_file(&file_path.to_string_lossy());
+            let sp3 = SP3::from_file(&file_path);
             assert!(
                 sp3.is_ok(),
                 "failed to parse data/{}, error: {:?}",

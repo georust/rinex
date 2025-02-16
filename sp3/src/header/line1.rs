@@ -1,7 +1,7 @@
 //! header line #1 parsing helper
 
+use crate::header::{DataType, OrbitType, Version};
 use crate::ParsingError;
-use crate::{DataType, OrbitType, Version};
 
 pub(crate) fn is_header_line1(content: &str) -> bool {
     content.starts_with('#')
@@ -40,5 +40,28 @@ impl Line1 {
             self.orbit_type,
             self.agency.clone(),
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Line1;
+    use crate::header::OrbitType;
+    use crate::header::Version;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_line1() {
+        for (line, version, coord_system, orbit_type) in [(
+            "#dP2020  6 24  0  0  0.00000000      97 __u+U IGS14 FIT  IAC",
+            Version::D,
+            "IGS14",
+            OrbitType::FIT,
+        )] {
+            let line1 = Line1::from_str(&line).unwrap();
+            assert_eq!(line1.version, version);
+            assert_eq!(line1.coord_system, coord_system);
+            assert_eq!(line1.orbit_type, orbit_type);
+        }
     }
 }

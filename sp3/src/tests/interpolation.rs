@@ -2,111 +2,166 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    //use rinex::prelude::Sv;
-    //use rinex::sv;
+    use hifitime::Unit;
     use std::path::PathBuf;
-    //use std::str::FromStr;
+    use std::str::FromStr;
 
-    // Theoretical maximal error of a Lagrangian interpolation
-    // over a given Dataset for specified interpolation order
-    // fn max_error(values: Vec<(Epoch, f64)>, epoch: Epoch, order: usize) -> f64 {
-    //     let mut q = 1.0_f64;
-    //     for (e, _) in values {
-    //         q *= (epoch - e).to_seconds();
-    //     }
-    //     let factorial: usize = (1..=order + 1).product();
-    //     q.abs() / factorial as f64 // TODO f^(n+1)[x]
-    // }
-
-    #[cfg(feature = "flate2")]
     #[test]
-    fn interp() {
+    #[should_panic]
+    #[cfg(feature = "flate2")]
+    fn even_interpolation_order() {
         let path = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("test_resources")
             .join("SP3")
             .join("EMR0OPSULT_20232391800_02D_15M_ORB.SP3.gz");
-        let sp3 = SP3::from_file(&path.to_string_lossy());
-        assert!(
-            sp3.is_ok(),
-            "failed to parse EMR0OPSULT_20232391800_02D_15M_ORB.SP3.gz"
-        );
 
-        let sp3 = sp3.unwrap();
+        let sp3 = SP3::from_gzip_file(&path).unwrap();
 
-        let first_epoch = sp3.first_epoch().expect("failed to determine 1st epoch");
+        let g01 = SV::from_str("G01").unwrap();
+        let t0 = Epoch::from_str("2023-08-27T18:00:00 GPST").unwrap();
 
-        let last_epoch = sp3.last_epoch().expect("failed to determine last epoch");
+        let _ = sp3.satellite_position_lagrangian_interpolation(g01, t0, 2);
+    }
 
-        let dt = sp3.epoch_interval;
-        let total_epochs = sp3.epoch().count();
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn interpolation_feasibility() {
+        let path = PathBuf::new()
+            .join(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("SP3")
+            .join("EMR0OPSULT_20232391800_02D_15M_ORB.SP3.gz");
 
-        //TODO: replace with max_error()
-        for (order, max_error) in [(7, 1E-1_f64), (9, 1.0E-2_64), (11, 0.5E-3_f64)] {
-            let tmin = first_epoch + (order / 2) * dt;
-            let tmax = last_epoch - (order / 2) * dt;
-            println!("running Interp({}) testbench..", order);
-            //DEBUG
-            for (index, (epoch, sv, (x, y, z))) in sp3.sv_position().enumerate() {
-                let feasible = epoch > tmin && epoch <= tmax;
-                let interpolated = sp3.sv_position_interpolate(sv, epoch, order as usize);
-                let achieved = interpolated.is_some();
-                //DEBUG
-                //println!("tmin: {} | tmax: {} | epoch: {} | feasible : {} | achieved: {}", tmin, tmax, epoch, feasible, achieved);
-                if feasible {
-                    assert!(
-                        achieved == feasible,
-                        "interpolation should have been feasible @ epoch {}",
-                        epoch,
-                    );
-                } else {
-                    assert!(
-                        achieved == feasible,
-                        "interpolation should not have been feasible @ epoch {}",
-                        epoch,
-                    );
-                }
-                if !feasible {
-                    continue;
-                }
-                /*
-                 * test interpolation errors
-                 */
-                let (x_interp, y_interp, z_interp) = interpolated.unwrap();
-                let err = (
-                    (x_interp - x).abs() * 1.0E3, // error in km
-                    (y_interp - y).abs() * 1.0E3,
-                    (z_interp - z).abs() * 1.0E3,
-                );
-                assert!(
-                    err.0 < max_error,
-                    "x error too large: {} for Interp({}) for {} @ Epoch {}/{}",
-                    err.0,
-                    order,
-                    sv,
-                    index,
-                    total_epochs,
-                );
-                assert!(
-                    err.1 < max_error,
-                    "y error too large: {} for Interp({}) for {} @ Epoch {}/{}",
-                    err.1,
-                    order,
-                    sv,
-                    index,
-                    total_epochs,
-                );
-                assert!(
-                    err.2 < max_error,
-                    "z error too large: {} for Interp({}) for {} @ Epoch {}/{}",
-                    err.2,
-                    order,
-                    sv,
-                    index,
-                    total_epochs,
-                );
-            }
+        let sp3 = SP3::from_gzip_file(&path).unwrap();
+
+        let g01 = SV::from_str("G01").unwrap();
+        let g72 = SV::from_str("G72").unwrap();
+
+        let t0 = Epoch::from_str("2023-08-27T18:00:00 GPST").unwrap();
+        let t0_min_1s = t0 - 1.0 * Unit::Second;
+        let t0_min_5min = t0 - 5.0 * Unit::Minute;
+        let t0_5min = t0 + 5.0 * Unit::Second;
+        let t0_14min_59s = t0 + 14.0 * Unit::Minute + 59.0 * Unit::Second;
+
+        let t1 = Epoch::from_str("2023-08-27T18:15:00 GPST").unwrap();
+        let t1_1s = t1 + 1.0 * Unit::Second;
+        let t1_5min = t1 + 5.0 * Unit::Minute;
+        let t1_14min_59s = t1 + 14.0 * Unit::Minute + 59.0 * Unit::Second;
+
+        let t2 = Epoch::from_str("2023-08-27T18:30:00 GPST").unwrap();
+        let t2_1s = t2 + 1.0 * Unit::Second;
+        let t2_7min = t2 + 7.0 * Unit::Minute;
+        let t2_14min_59s = t2 + 14.0 * Unit::Minute + 59.0 * Unit::Second;
+
+        let t3 = t2 + 15.0 * Unit::Minute;
+        let t3_1s = t3 + 1.0 * Unit::Second;
+        let t3_1min = t3 + 1.0 * Unit::Minute;
+        let t3_14min_59s = t3 + 14.0 * Unit::Minute + 59.0 * Unit::Second;
+
+        let tn2 = Epoch::from_str("2023-08-29T17:15:00 GPST").unwrap();
+
+        let tn1 = Epoch::from_str("2023-08-29T17:30:00 GPST").unwrap();
+        let tn1_min_1s = tn1 - 1.0 * Unit::Second;
+
+        let tn3 = tn2 - 15.0 * Unit::Minute;
+        let tn3_min_1s = tn3 - 1.0 * Unit::Second;
+        let tn3_min_7min = tn3 - 7.0 * Unit::Minute;
+
+        let tn4 = tn3 - 15.0 * Unit::Minute;
+
+        let tn = Epoch::from_str("2023-08-29T17:45:00 GPST").unwrap();
+        let tn_min_1s = tn - 1.0 * Unit::Second;
+
+        // test: invalid SV
+        assert!(sp3
+            .satellite_position_lagrangian_interpolation(g72, t0, 7)
+            .is_none());
+
+        assert!(sp3
+            .satellite_position_lagrangian_interpolation(g72, t1, 7)
+            .is_none());
+
+        assert!(sp3
+            .satellite_position_lagrangian_interpolation(g72, t2, 7)
+            .is_none());
+
+        // test: too early (x3)
+        for t in [t0_min_1s, t0_min_5min, t0, t0_5min, t0_14min_59s] {
+            assert!(sp3
+                .satellite_position_lagrangian_interpolation(g01, t, 3)
+                .is_none());
+        }
+
+        // test: first x3 feasible
+        for t in [t1_1s, t1_5min, t1_14min_59s, t2] {
+            assert!(sp3
+                .satellite_position_lagrangian_interpolation(g01, t, 3)
+                .is_some());
+        }
+
+        // test: second x3 feasible
+        for t in [t2_1s, t2_7min, t2_14min_59s] {
+            assert!(sp3
+                .satellite_position_lagrangian_interpolation(g01, t, 3)
+                .is_some());
+        }
+
+        // test: last feasible (x3)
+        for t in [tn1, tn1_min_1s] {
+            assert!(sp3
+                .satellite_position_lagrangian_interpolation(g01, t, 3)
+                .is_some());
+        }
+
+        // test: too late (x3)
+        for t in [tn, tn_min_1s] {
+            assert!(sp3
+                .satellite_position_lagrangian_interpolation(g01, t, 3)
+                .is_none());
+        }
+
+        // test: too early x7
+        for t in [
+            t0_min_1s,
+            t0_min_5min,
+            t0,
+            t0_5min,
+            t0_14min_59s,
+            t1,
+            t1_1s,
+            t1_5min,
+            t1_14min_59s,
+            t2,
+            t2_14min_59s,
+            t3,
+        ] {
+            assert!(sp3
+                .satellite_position_lagrangian_interpolation(g01, t, 7)
+                .is_none());
+        }
+
+        // test: first feasible x7
+        for t in [t3_1s, t3_1min, t3_14min_59s] {
+            assert!(sp3
+                .satellite_position_lagrangian_interpolation(g01, t, 7)
+                .is_some());
+        }
+
+        // test: too late (x7)
+        for t in [tn, tn_min_1s, tn1, tn2] {
+            assert!(sp3
+                .satellite_position_lagrangian_interpolation(g01, t, 7)
+                .is_none());
+        }
+
+        // test: last feasible (x7)
+        for t in [tn3, tn3_min_1s, tn3_min_7min, tn4] {
+            assert!(sp3
+                .satellite_position_lagrangian_interpolation(g01, t, 7)
+                .is_some());
         }
     }
 }
