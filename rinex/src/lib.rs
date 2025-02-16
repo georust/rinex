@@ -18,7 +18,7 @@ extern crate gnss_rs as gnss;
 extern crate num;
 
 #[cfg(feature = "qc")]
-extern crate rinex_qc_traits as qc_traits;
+extern crate gnss_qc_traits as qc_traits;
 
 #[cfg(feature = "flate2")]
 use flate2::{read::GzDecoder, write::GzEncoder, Compression as GzCompression};

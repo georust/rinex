@@ -15,8 +15,8 @@ use itertools::Itertools;
 
 use clap::{value_parser, Arg, ArgAction, ArgMatches, ColorChoice, Command};
 
+use gnss_qc::prelude::{QcConfig, QcContext, QcReportType};
 use rinex::prelude::Epoch;
-use rinex_qc::prelude::{QcConfig, QcContext, QcReportType};
 
 mod fops;
 mod positioning;

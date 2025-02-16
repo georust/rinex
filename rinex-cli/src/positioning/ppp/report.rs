@@ -6,7 +6,7 @@ use gnss_rtk::prelude::{
     TimeScale, SV,
 };
 
-use rinex_qc::{
+use gnss_qc::{
     plot::{MapboxStyle, NamedColor},
     prelude::{html, MarkerSymbol, Markup, Mode, Plot, QcExtraPage, Render},
 };

@@ -2,7 +2,7 @@ use crate::cli::Context;
 use crate::fops::{custom_prod_attributes, output_filename};
 use crate::Error;
 use clap::ArgMatches;
-use rinex_qc::prelude::ProductType;
+use gnss_qc::prelude::ProductType;
 
 #[cfg(feature = "csv")]
 use crate::fops::csv::{

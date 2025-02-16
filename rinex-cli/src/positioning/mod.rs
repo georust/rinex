@@ -36,7 +36,7 @@ use rinex::{
     prelude::{Constellation, Rinex},
 };
 
-use rinex_qc::prelude::QcExtraPage;
+use gnss_qc::prelude::QcExtraPage;
 
 use gnss_rtk::prelude::{
     BdModel, Carrier as RTKCarrier, Config, Duration, Epoch, Error as RTKError, KbModel, Method,

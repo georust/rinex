@@ -17,13 +17,13 @@ default = [] # no features by default
 
 # Unlock methods for Data analysis
 qc = [
-    "rinex-qc-traits",
+    "gnss-qc-traits",
 ]
 
 # Unlock processing features
 processing = [
     "qc",
-    "rinex-qc-traits/processing",
+    "gnss-qc-traits/processing",
 ]
 
 [package.metadata.docs.rs]
@@ -37,7 +37,7 @@ thiserror = "2"
 map_3d = "0.1.5"
 itertools = "0.13.0"
 hifitime = "4.0"
-rinex-qc-traits = { path = "../qc-traits", version = "=0.3.0", optional = true }
+gnss-qc-traits = { path = "../../rtk-rs/gnss-qc/traits", version = "=0.0.1", optional = true }
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
 gnss-rs = { version = "2.3.1", features = ["serde"] }

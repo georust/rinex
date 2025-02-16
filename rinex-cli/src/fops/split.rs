@@ -1,8 +1,8 @@
 use crate::cli::Context;
 use crate::Error;
 use clap::ArgMatches;
+use gnss_qc::prelude::ProductType;
 use rinex::prelude::Epoch;
-use rinex_qc::prelude::ProductType;
 
 use rinex::prelude::qc::Split;
 

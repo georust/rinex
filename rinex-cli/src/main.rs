@@ -11,8 +11,8 @@ mod report; // custom reports
 use preprocessing::preprocess;
 use report::Report;
 
+use gnss_qc::prelude::{QcContext, QcExtraPage};
 use rinex::prelude::{FormattingError as RinexFormattingError, ParsingError as RinexParsingError};
-use rinex_qc::prelude::{QcContext, QcExtraPage};
 
 use std::path::Path;
 use walkdir::WalkDir;
@@ -200,7 +200,7 @@ fn user_data_parsing(
         }
     }
 
-    /// Preprocessing
+    // Preprocessing
     preprocess(&mut ctx, cli);
 
     match cli.matches.subcommand() {

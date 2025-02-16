@@ -5,7 +5,7 @@ extern crate gnss_rs as gnss;
 use itertools::Itertools;
 
 #[cfg(feature = "qc")]
-extern crate rinex_qc_traits as qc_traits;
+extern crate gnss_qc_traits as qc_traits;
 
 use gnss::prelude::{Constellation, SV};
 use hifitime::{Duration, Epoch, ParsingError as EpochParsingError, TimeScale};

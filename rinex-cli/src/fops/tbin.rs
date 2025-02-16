@@ -3,9 +3,9 @@ use crate::fops::custom_prod_attributes;
 use crate::fops::output_filename;
 use crate::Error;
 use clap::ArgMatches;
+use gnss_qc::prelude::{Filter, Preprocessing, ProductType};
 use rinex::prelude::Duration;
 use rinex::prod::DetailedProductionAttributes;
-use rinex_qc::prelude::{Filter, Preprocessing, ProductType};
 
 /*
  * Time reframing: subdivide a RINEX into a batch of equal duration
