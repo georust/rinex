@@ -139,7 +139,9 @@ hifitime = { version = "4.0.0", features = ["serde", "std"] }
 gnss-rs = { version = "2.3.1", features = ["serde", "domes", "cospar"] }
 
 maud = { version = "0.26", optional = true }
-gnss-qc-traits = { path = "../../rtk-rs/gnss-qc/traits", version = "=0.0.1", features = ["html"], optional = true }
+
+gnss-qc-traits = { version = "0.0.1", features = ["html"], optional = true }
+# gnss-qc-traits = { path = "../../rtk-rs/gnss-qc/traits", version = "=0.0.1", features = ["html"], optional = true }
 
 # BINEX (serdes)
 binex = { path = "../binex", version = "0.4.0", optional = true }

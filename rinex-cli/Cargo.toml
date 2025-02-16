@@ -55,4 +55,6 @@ cggtts = { version = "4.2.0", features = ["serde", "scheduler"], optional = true
 
 rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["full"] }
 sp3 = { path = "../sp3", version = "=1.1.0-alpha-1", features = ["serde", "flate2"] }
-gnss-qc = { path = "../../rtk-rs/gnss-qc/qc", version = "=0.0.1", features = ["sp3"] } 
+
+gnss-qc = { path = "../../rtk-rs/gnss-qc", version = "0.0.1", features = ["sp3"] } 
+# gnss-qc = { git = "https://github.com/rtk-rs/gnss-qc", branch = "develop", features = ["sp3"] }
