@@ -62,7 +62,6 @@ to get started quickly. The examples span pretty much everything our application
 * [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
 * [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
-* [`qc-traits`](qc-traits/) declares Traits that are shared between `rinex` and `rinex-qc`
 * [`sinex`](sinex/) SNX dedicated core library
 * [`ublox-rnx`](ublox-rnx/) is an application to generate RINEX files from Ublox receivers.   
 This application is currently work in progress
