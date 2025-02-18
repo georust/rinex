@@ -17,12 +17,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - crate: rinex-qc-traits
           - crate: rinex
           - crate: sp3
           - crate: sinex
           - crate: binex
-          - crate: rinex-qc
           - crate: ublox-rnx
           - crate: rnx2crx
           - crate: crx2rnx
