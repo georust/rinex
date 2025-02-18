@@ -4,7 +4,7 @@ use thiserror::Error;
 use std::collections::BTreeMap;
 use strum_macros::EnumString;
 
-use crate::{epoch, merge, merge::Merge, prelude::SV, prelude::*, version::Version};
+use crate::{epoch, prelude::SV, prelude::*, version::Version};
 
 #[cfg(feature = "processing")]
 use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
@@ -310,39 +310,32 @@ pub(crate) fn fmt_epoch(epoch: &Epoch, key: &ClockKey, prof: &ClockProfile) -> S
     lines
 }
 
+#[cfg(feature = "qc")]
 use crate::merge::merge_mut_option;
 
-impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (rhs_epoch, rhs_content) in rhs.iter() {
-            if let Some(lhs_content) = self.get_mut(rhs_epoch) {
-                for (rhs_key, rhs_prof) in rhs_content.iter() {
-                    if let Some(lhs_prof) = lhs_content.get_mut(rhs_key) {
-                        // enhance only, if possible
-                        merge_mut_option(&mut lhs_prof.drift, &rhs_prof.drift);
-                        merge_mut_option(&mut lhs_prof.drift_dev, &rhs_prof.drift_dev);
-                        merge_mut_option(&mut lhs_prof.drift_change, &rhs_prof.drift_change);
-                        merge_mut_option(
-                            &mut lhs_prof.drift_change_dev,
-                            &rhs_prof.drift_change_dev,
-                        );
-                    } else {
-                        lhs_content.insert(rhs_key.clone(), rhs_prof.clone());
-                    }
+#[cfg(feature = "qc")]
+use qc_traits::MergeError;
+
+#[cfg(feature = "qc")]
+pub(crate) fn merge_mut(lhs: &mut Record, rhs: &Record) -> Result<(), MergeError> {
+    for (rhs_epoch, rhs_content) in rhs.iter() {
+        if let Some(lhs_content) = lhs.get_mut(rhs_epoch) {
+            for (rhs_key, rhs_prof) in rhs_content.iter() {
+                if let Some(lhs_prof) = lhs_content.get_mut(rhs_key) {
+                    // enhance only, if possible
+                    merge_mut_option(&mut lhs_prof.drift, &rhs_prof.drift);
+                    merge_mut_option(&mut lhs_prof.drift_dev, &rhs_prof.drift_dev);
+                    merge_mut_option(&mut lhs_prof.drift_change, &rhs_prof.drift_change);
+                    merge_mut_option(&mut lhs_prof.drift_change_dev, &rhs_prof.drift_change_dev);
+                } else {
+                    lhs_content.insert(rhs_key.clone(), rhs_prof.clone());
                 }
-            } else {
-                self.insert(*rhs_epoch, rhs_content.clone());
             }
+        } else {
+            lhs.insert(*rhs_epoch, rhs_content.clone());
         }
-        Ok(())
     }
+    Ok(())
 }
 
 #[cfg(feature = "processing")]

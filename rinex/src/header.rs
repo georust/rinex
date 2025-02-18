@@ -14,7 +14,7 @@ use crate::{
     marker::{GeodeticMarker, MarkerType},
     merge::{
         merge_mut_option, merge_mut_unique_map2d, merge_mut_unique_vec, merge_mut_vec,
-        merge_time_of_first_obs, merge_time_of_last_obs, Error as MergeError, Merge,
+        merge_time_of_first_obs, merge_time_of_last_obs,
     },
     meteo,
     meteo::HeaderFields as MeteoHeader,
@@ -2035,8 +2035,11 @@ impl Header {
     }
 }
 
+#[cfg(feature = "qc")]
+use qc_traits::{Merge, MergeError};
+
+#[cfg(feature = "qc")]
 impl Merge for Header {
-    /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         if self.rinex_type != rhs.rinex_type {
             return Err(MergeError::FileTypeMismatch);
@@ -2045,7 +2048,6 @@ impl Merge for Header {
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
-    /// Merges `rhs` into `Self` in place
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         if self.rinex_type != rhs.rinex_type {
             return Err(MergeError::FileTypeMismatch);
@@ -2130,7 +2132,7 @@ impl Merge for Header {
                 let mut mixed_antex = lhs.pcv_type.is_relative() && !rhs.pcv_type.is_relative();
                 mixed_antex |= !lhs.pcv_type.is_relative() && rhs.pcv_type.is_relative();
                 if mixed_antex {
-                    return Err(MergeError::AntexAbsoluteRelativeMismatch);
+                    return Err(MergeError::Other);
                 }
                 //TODO: merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
             }
@@ -2175,16 +2177,19 @@ impl Merge for Header {
         if let Some(lhs) = &mut self.ionex {
             if let Some(rhs) = &rhs.ionex {
                 if lhs.reference != rhs.reference {
-                    return Err(MergeError::IonexReferenceMismatch);
+                    return Err(MergeError::ReferenceFrameMismatch);
                 }
+
                 if lhs.grid != rhs.grid {
-                    return Err(MergeError::IonexMapGridMismatch);
+                    return Err(MergeError::Other);
                 }
+
                 if lhs.map_dimension != rhs.map_dimension {
-                    return Err(MergeError::IonexMapDimensionsMismatch);
+                    return Err(MergeError::DimensionMismatch);
                 }
+
                 if lhs.base_radius != rhs.base_radius {
-                    return Err(MergeError::IonexBaseRadiusMismatch);
+                    return Err(MergeError::Other);
                 }
 
                 //TODO: this is not enough, need to take into account and rescale..
@@ -2204,10 +2209,12 @@ impl Merge for Header {
                 }
             }
         }
+
         // add special comment
-        let now = Epoch::now()?;
+        let now = Epoch::now().unwrap_or_default();
         let merge_comment = Self::merge_comment(now);
         self.comments.push(merge_comment);
+
         Ok(())
     }
 }
