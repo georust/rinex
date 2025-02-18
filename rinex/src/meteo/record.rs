@@ -1,16 +1,11 @@
-use crate::{
-    epoch, merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split, types::Type,
-    version, Observable,
-};
+use crate::{epoch, merge, merge::Merge, prelude::*, types::Type, version, Observable};
 
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
-};
+use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
 /*
  * Meteo RINEX specific record type.
@@ -162,35 +157,6 @@ impl Merge for Record {
             }
         }
         Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k < &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let r1 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k >= &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((r0, r1))
-    }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-        Ok(Vec::new())
     }
 }
 

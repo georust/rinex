@@ -12,4 +12,4 @@ readme = "README.md"
 
 [dependencies]
 clap = { version = "4.4.13", features = ["derive", "color"] }
-rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["serde"] }
+rinex = { path = "../rinex", version = "=0.17.0-alpha-2", features = ["serde"] }

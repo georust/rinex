@@ -13,16 +13,12 @@ use super::{
     merge::Merge,
     meteo, navigation, observation,
     reader::BufferedReader,
-    split,
-    split::Split,
     types::Type,
     writer::BufferedWriter,
     *,
 };
 
 use crate::navigation::record::parse_epoch as parse_nav_epoch;
-
-use hifitime::Duration;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -671,31 +667,5 @@ impl Merge for Record {
             }
         }
         Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        if let Some(r) = self.as_obs() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::ObsRecord(r0), Self::ObsRecord(r1)))
-        } else if let Some(r) = self.as_nav() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::NavRecord(r0), Self::NavRecord(r1)))
-        } else if let Some(r) = self.as_meteo() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::MeteoRecord(r0), Self::MeteoRecord(r1)))
-        } else if let Some(r) = self.as_ionex() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::IonexRecord(r0), Self::IonexRecord(r1)))
-        } else if let Some(r) = self.as_clock() {
-            let (r0, r1) = r.split(epoch)?;
-            Ok((Self::ClockRecord(r0), Self::ClockRecord(r1)))
-        } else {
-            Err(split::Error::NoEpochIteration)
-        }
-    }
-    fn split_dt(&self, _dt: Duration) -> Result<Vec<Self>, split::Error> {
-        Ok(Vec::new())
     }
 }

@@ -4,7 +4,7 @@ use rinex::{
 };
 use std::collections::{BTreeMap, HashMap};
 
-use qc_traits::processing::{Filter, Preprocessing};
+use qc_traits::{Filter, Preprocessing};
 
 use crate::{
     plot::{MapboxStyle, MarkerSymbol, Mode},

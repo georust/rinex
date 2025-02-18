@@ -6,7 +6,7 @@
 extern crate gnss_rs as gnss;
 
 #[cfg(feature = "qc")]
-extern crate rinex_qc_traits as qc_traits;
+extern crate gnss_qc_traits as qc_traits;
 
 pub mod antex;
 pub mod carrier;
@@ -24,7 +24,6 @@ pub mod meteo;
 pub mod navigation;
 pub mod observation;
 pub mod record;
-pub mod split;
 pub mod types;
 pub mod version;
 
@@ -105,8 +104,8 @@ pub mod prelude {
     pub use hifitime::ut1::DeltaTaiUt1;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
     #[cfg(feature = "processing")]
-    pub use qc_traits::processing::{
-        Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing,
+    pub use qc_traits::{
+        Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing, Split,
     };
 }
 
@@ -118,7 +117,7 @@ pub mod prod {
 }
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
+use qc_traits::{
     Decimate, DecimationFilter, MaskFilter, Masking, Preprocessing, Repair, RepairTrait,
 };
 
@@ -139,7 +138,6 @@ use carrier::Carrier;
 use prelude::*;
 
 pub use merge::Merge;
-pub use split::Split;
 
 #[cfg(feature = "serde")]
 #[macro_use]
@@ -2932,27 +2930,19 @@ impl Merge for Rinex {
     }
 }
 
+#[cfg(feature = "processing")]
+#[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 impl Split for Rinex {
-    /// Splits `Self` at desired epoch
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let (r0, r1) = self.record.split(epoch)?;
-        Ok((
-            Self {
-                header: self.header.clone(),
-                comments: self.comments.clone(),
-                record: r0,
-                prod_attr: self.prod_attr.clone(),
-            },
-            Self {
-                header: self.header.clone(),
-                comments: self.comments.clone(),
-                record: r1,
-                prod_attr: self.prod_attr.clone(),
-            },
-        ))
+    fn split(&self, epoch: Epoch) -> (Self, Self) {
+        (Default::default(), Default::default())
     }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-        Ok(Vec::new())
+
+    fn split_mut(&mut self, t: Epoch) -> Self {
+        Default::default()
+    }
+
+    fn split_even_dt(&self, dt: Duration) -> Vec<Self> {
+        Default::default()
     }
 }
 

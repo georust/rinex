@@ -54,8 +54,6 @@ pub enum Error {
     MissingClockRinex,
     #[error("merge ops failure")]
     MergeError(#[from] rinex::merge::Error),
-    #[error("split ops failure")]
-    SplitError(#[from] rinex::split::Error),
     #[error("positioning solver error")]
     PositioningSolverError(#[from] positioning::Error),
     #[cfg(feature = "csv")]

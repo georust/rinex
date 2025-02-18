@@ -4,15 +4,14 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use crate::{
-    epoch, merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split, types::Type,
-    version::Version, Carrier, Observable,
+    epoch, merge, merge::Merge, prelude::*, types::Type, version::Version, Carrier, Observable,
 };
 
 use crate::observation::EpochFlag;
 use crate::observation::SNR;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
+use qc_traits::{
     DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand, Repair,
 };
 
@@ -807,51 +806,6 @@ impl Merge for Record {
             }
         }
         Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k.0 < epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let r1 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k.0 >= epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((r0, r1))
-    }
-    fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, split::Error> {
-        let mut curr = Self::new();
-        let mut ret: Vec<Self> = Vec::new();
-        let mut prev: Option<Epoch> = None;
-        for ((epoch, flag), data) in self {
-            if let Some(p_epoch) = prev {
-                let dt = *epoch - p_epoch;
-                if dt >= duration {
-                    prev = Some(*epoch);
-                    ret.push(curr);
-                    curr = Self::new();
-                }
-                curr.insert((*epoch, *flag), data.clone());
-            } else {
-                prev = Some(*epoch);
-            }
-        }
-        Ok(ret)
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{merge, merge::Merge, prelude::Duration, prelude::*, split, split::Split};
+use crate::{merge, merge::Merge, prelude::*};
 
 use crate::epoch;
 use std::collections::{BTreeMap, HashMap};
@@ -6,9 +6,7 @@ use std::str::FromStr;
 use thiserror::Error;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
-};
+use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
 pub(crate) fn is_new_tec_plane(line: &str) -> bool {
     line.contains("START OF TEC MAP")
@@ -271,35 +269,6 @@ impl Merge for Record {
             }
         }
         Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let before = self
-            .iter()
-            .flat_map(|((e, h), plane)| {
-                if *e < epoch {
-                    Some(((*e, *h), plane.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let after = self
-            .iter()
-            .flat_map(|((e, h), plane)| {
-                if *e >= epoch {
-                    Some(((*e, *h), plane.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((before, after))
-    }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-        Ok(Vec::new())
     }
 }
 
