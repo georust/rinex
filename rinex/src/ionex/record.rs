@@ -1,4 +1,4 @@
-use crate::{merge, merge::Merge, prelude::*};
+use crate::prelude::*;
 
 use crate::epoch;
 use std::collections::{BTreeMap, HashMap};
@@ -242,34 +242,29 @@ pub(crate) fn parse_plane(
     Ok((epoch, altitude, plane))
 }
 
-impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (eh, plane) in rhs {
-            if let Some(lhs_plane) = self.get_mut(eh) {
-                for (latlon, plane) in plane {
-                    if let Some(tec) = lhs_plane.get_mut(latlon) {
-                        if let Some(rms) = plane.rms {
-                            if tec.rms.is_none() {
-                                tec.rms = Some(rms);
-                            }
+#[cfg(feature = "qc")]
+use qc_traits::MergeError;
+
+#[cfg(feature = "qc")]
+pub(crate) fn merge_mut(lhs: &mut Record, rhs: &Record) -> Result<(), MergeError> {
+    for (eh, plane) in rhs {
+        if let Some(lhs_plane) = lhs.get_mut(eh) {
+            for (latlon, plane) in plane {
+                if let Some(tec) = lhs_plane.get_mut(latlon) {
+                    if let Some(rms) = plane.rms {
+                        if tec.rms.is_none() {
+                            tec.rms = Some(rms);
                         }
-                    } else {
-                        lhs_plane.insert(*latlon, plane.clone());
                     }
+                } else {
+                    lhs_plane.insert(*latlon, plane.clone());
                 }
-            } else {
-                self.insert(*eh, plane.clone());
             }
+        } else {
+            lhs.insert(*eh, plane.clone());
         }
-        Ok(())
     }
+    Ok(())
 }
 
 #[cfg(feature = "processing")]

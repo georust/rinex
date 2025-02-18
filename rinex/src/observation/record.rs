@@ -3,12 +3,13 @@ use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
 
-use crate::{
-    epoch, merge, merge::Merge, prelude::*, types::Type, version::Version, Carrier, Observable,
-};
+use crate::{epoch, prelude::*, types::Type, version::Version, Carrier, Observable};
 
 use crate::observation::EpochFlag;
 use crate::observation::SNR;
+
+#[cfg(feature = "qc")]
+use qc_traits::MergeError;
 
 #[cfg(feature = "processing")]
 use qc_traits::{
@@ -769,44 +770,36 @@ fn fmt_epoch_v2(
     lines
 }
 
-impl Merge for Record {
-    /// Merge `rhs` into `Self`
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merge `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (rhs_epoch, (rhs_clk, rhs_vehicles)) in rhs {
-            if let Some((clk, vehicles)) = self.get_mut(rhs_epoch) {
-                // exact epoch (both timestamp and flag) did exist
-                //  --> overwrite clock field (as is)
-                *clk = *rhs_clk;
-                // other fields:
-                // either insert (if did not exist), or overwrite
-                for (rhs_vehicle, rhs_observations) in rhs_vehicles {
-                    if let Some(observations) = vehicles.get_mut(rhs_vehicle) {
-                        for (rhs_observable, rhs_data) in rhs_observations {
-                            if let Some(data) = observations.get_mut(rhs_observable) {
-                                *data = *rhs_data; // overwrite
-                            } else {
-                                // new observation: insert it
-                                observations.insert(rhs_observable.clone(), *rhs_data);
-                            }
+#[cfg(feature = "qc")]
+pub(crate) fn merge_mut(lhs: &mut Record, rhs: &Record) -> Result<(), MergeError> {
+    for (rhs_epoch, (rhs_clk, rhs_vehicles)) in rhs {
+        if let Some((clk, vehicles)) = lhs.get_mut(rhs_epoch) {
+            // exact epoch (both timestamp and flag) did exist
+            //  --> overwrite clock field (as is)
+            *clk = *rhs_clk;
+            // other fields:
+            // either insert (if did not exist), or overwrite
+            for (rhs_vehicle, rhs_observations) in rhs_vehicles {
+                if let Some(observations) = vehicles.get_mut(rhs_vehicle) {
+                    for (rhs_observable, rhs_data) in rhs_observations {
+                        if let Some(data) = observations.get_mut(rhs_observable) {
+                            *data = *rhs_data; // overwrite
+                        } else {
+                            // new observation: insert it
+                            observations.insert(rhs_observable.clone(), *rhs_data);
                         }
-                    } else {
-                        // new SV: insert it
-                        vehicles.insert(*rhs_vehicle, rhs_observations.clone());
                     }
+                } else {
+                    // new SV: insert it
+                    vehicles.insert(*rhs_vehicle, rhs_observations.clone());
                 }
-            } else {
-                // this epoch did not exist previously: insert it
-                self.insert(*rhs_epoch, (*rhs_clk, rhs_vehicles.clone()));
             }
+        } else {
+            // this epoch did not exist previously: insert it
+            lhs.insert(*rhs_epoch, (*rhs_clk, rhs_vehicles.clone()));
         }
-        Ok(())
     }
+    Ok(())
 }
 
 #[cfg(feature = "processing")]

@@ -11,7 +11,6 @@ use std::{
 };
 
 use rinex::{
-    merge::{Error as RinexMergeError, Merge as RinexMerge},
     prelude::{Almanac, GroundPosition, Rinex, TimeScale},
     types::Type as RinexType,
     Error as RinexError,
@@ -48,10 +47,8 @@ pub enum Error {
     NonSupportedFileFormat,
     #[error("failed to determine filename")]
     FileNameDetermination,
-    #[error("invalid rinex format")]
+    #[error("invalid rinex: {0}")]
     RinexError(#[from] RinexError),
-    #[error("failed to extend rinex context")]
-    RinexMergeError(#[from] RinexMergeError),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

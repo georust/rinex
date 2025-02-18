@@ -36,7 +36,7 @@ fn double_exponent_digits(content: &str) -> String {
     lines.to_string()
 }
 
-use crate::{epoch, merge, merge::Merge, prelude::*, types::Type, version::Version};
+use crate::{epoch, prelude::*, types::Type, version::Version};
 
 use super::{
     orbits::closest_nav_standards, BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel,
@@ -537,30 +537,25 @@ fn fmt_epoch_v4(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Result<
     Ok(lines)
 }
 
-impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (rhs_epoch, rhs_frames) in rhs {
-            if let Some(frames) = self.get_mut(rhs_epoch) {
-                // this epoch already exists
-                for fr in rhs_frames {
-                    if !frames.contains(fr) {
-                        frames.push(fr.clone()); // insert new NavFrame
-                    }
+#[cfg(feature = "qc")]
+use qc_traits::MergeError;
+
+#[cfg(feature = "qc")]
+pub(crate) fn merge_mut(lhs: &mut Record, rhs: &Record) -> Result<(), MergeError> {
+    for (rhs_epoch, rhs_frames) in rhs {
+        if let Some(frames) = lhs.get_mut(rhs_epoch) {
+            // this epoch already exists
+            for fr in rhs_frames {
+                if !frames.contains(fr) {
+                    frames.push(fr.clone()); // insert new NavFrame
                 }
-            } else {
-                // insert new epoch
-                self.insert(*rhs_epoch, rhs_frames.clone());
             }
+        } else {
+            // insert new epoch
+            lhs.insert(*rhs_epoch, rhs_frames.clone());
         }
-        Ok(())
     }
+    Ok(())
 }
 
 #[cfg(feature = "processing")]

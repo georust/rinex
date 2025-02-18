@@ -107,6 +107,8 @@ pub mod prelude {
     pub use qc_traits::{
         Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing, Split,
     };
+    #[cfg(feature = "qc")]
+    pub use qc_traits::{Merge, MergeError};
 }
 
 /// Package dedicated to file production.
@@ -136,8 +138,6 @@ use crate::{
 
 use carrier::Carrier;
 use prelude::*;
-
-pub use merge::Merge;
 
 #[cfg(feature = "serde")]
 #[macro_use]
@@ -2904,15 +2904,17 @@ impl Rinex {
     }
 }
 
+#[cfg(feature = "qc")]
+use qc_traits::{Merge, MergeError};
+
+#[cfg(feature = "qc")]
 impl Merge for Rinex {
-    /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
-    /// Merges `rhs` into `Self` in place
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         self.header.merge_mut(&rhs.header)?;
         if !self.is_antex() {
             if self.epoch().count() == 0 {
@@ -2933,15 +2935,15 @@ impl Merge for Rinex {
 #[cfg(feature = "processing")]
 #[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 impl Split for Rinex {
-    fn split(&self, epoch: Epoch) -> (Self, Self) {
+    fn split(&self, _: Epoch) -> (Self, Self) {
         (Default::default(), Default::default())
     }
 
-    fn split_mut(&mut self, t: Epoch) -> Self {
+    fn split_mut(&mut self, _: Epoch) -> Self {
         Default::default()
     }
 
-    fn split_even_dt(&self, dt: Duration) -> Vec<Self> {
+    fn split_even_dt(&self, _: Duration) -> Vec<Self> {
         Default::default()
     }
 }

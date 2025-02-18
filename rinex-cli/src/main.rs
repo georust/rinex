@@ -13,13 +13,13 @@ use preprocessing::preprocess;
 mod report;
 use report::Report;
 
-use rinex_qc::prelude::{QcContext, QcExtraPage};
 use std::path::Path;
 use walkdir::WalkDir;
 
 extern crate gnss_rs as gnss;
 
-use rinex::prelude::Rinex;
+use rinex::prelude::{MergeError, Rinex};
+use rinex_qc::prelude::{QcContext, QcExtraPage};
 use sp3::prelude::SP3;
 
 use cli::{Cli, Context, RemoteReferenceSite, Workspace};
@@ -52,8 +52,8 @@ pub enum Error {
     MissingMeteoRinex,
     #[error("missing Clock RINEX")]
     MissingClockRinex,
-    #[error("merge ops failure")]
-    MergeError(#[from] rinex::merge::Error),
+    #[error("file merge error: {0}")]
+    MergeError(#[from] MergeError),
     #[error("positioning solver error")]
     PositioningSolverError(#[from] positioning::Error),
     #[cfg(feature = "csv")]

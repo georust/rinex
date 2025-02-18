@@ -9,9 +9,7 @@ use super::{
     antex, clock,
     clock::{ClockKey, ClockProfile},
     hatanaka::{Compressor, Decompressor},
-    header, ionex, is_rinex_comment, merge,
-    merge::Merge,
-    meteo, navigation, observation,
+    header, ionex, is_rinex_comment, meteo, navigation, observation,
     reader::BufferedReader,
     types::Type,
     writer::BufferedWriter,
@@ -632,26 +630,39 @@ pub fn parse_record(
     Ok((record, comments))
 }
 
+#[cfg(feature = "qc")]
+use qc_traits::{Merge, MergeError};
+
+#[cfg(feature = "qc")]
+use crate::{
+    // ionex::record::merge_mut as merge_mut_ionex,
+    antex::record::merge_mut as merge_mut_antex,
+    clock::record::merge_mut as merge_mut_clock,
+    meteo::record::merge_mut as merge_mut_meteo,
+    navigation::record::merge_mut as merge_mut_nav,
+    observation::record::merge_mut as merge_mut_obs,
+};
+
+#[cfg(feature = "qc")]
 impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+    fn merge(&self, rhs: &Self) -> Result<Self, MergeError> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
-    /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         if let Some(lhs) = self.as_mut_nav() {
             if let Some(rhs) = rhs.as_nav() {
-                lhs.merge_mut(rhs)?;
+                merge_mut_nav(lhs, rhs)?;
             }
         } else if let Some(lhs) = self.as_mut_obs() {
             if let Some(rhs) = rhs.as_obs() {
-                lhs.merge_mut(rhs)?;
+                merge_mut_obs(lhs, rhs)?;
             }
         } else if let Some(lhs) = self.as_mut_meteo() {
             if let Some(rhs) = rhs.as_meteo() {
-                lhs.merge_mut(rhs)?;
+                merge_mut_meteo(lhs, rhs)?;
             }
         /*} else if let Some(lhs) = self.as_mut_ionex() {
         if let Some(rhs) = rhs.as_ionex() {
@@ -659,11 +670,11 @@ impl Merge for Record {
         }*/
         } else if let Some(lhs) = self.as_mut_antex() {
             if let Some(rhs) = rhs.as_antex() {
-                lhs.merge_mut(rhs)?;
+                merge_mut_antex(lhs, rhs)?;
             }
         } else if let Some(lhs) = self.as_mut_clock() {
             if let Some(rhs) = rhs.as_clock() {
-                lhs.merge_mut(rhs)?;
+                merge_mut_clock(lhs, rhs)?;
             }
         }
         Ok(())

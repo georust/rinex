@@ -1,9 +1,9 @@
 use crate::cli::Context;
 use crate::Error;
 use clap::ArgMatches;
-use rinex::prelude::{Rinex, RinexType};
-use rinex::Merge;
 use std::path::PathBuf;
+
+use rinex::prelude::{Merge, Rinex, RinexType};
 
 /*
  * Merges proposed (single) file and generates resulting output, into the workspace

@@ -1,4 +1,4 @@
-use crate::{epoch, merge, merge::Merge, prelude::*, types::Type, version, Observable};
+use crate::{epoch, prelude::*, types::Type, version, Observable};
 
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
@@ -136,28 +136,25 @@ pub(crate) fn fmt_epoch(
     Ok(lines)
 }
 
-impl Merge for Record {
-    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
-        let mut lhs = self.clone();
-        lhs.merge_mut(rhs)?;
-        Ok(lhs)
-    }
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (epoch, observations) in rhs.iter() {
-            if let Some(oobservations) = self.get_mut(epoch) {
-                for (observation, data) in observations.iter() {
-                    if !oobservations.contains_key(observation) {
-                        // new observation
-                        oobservations.insert(observation.clone(), *data);
-                    }
+#[cfg(feature = "qc")]
+use qc_traits::MergeError;
+
+#[cfg(feature = "qc")]
+pub(crate) fn merge_mut(lhs: &mut Record, rhs: &Record) -> Result<(), MergeError> {
+    for (epoch, observations) in rhs.iter() {
+        if let Some(oobservations) = lhs.get_mut(epoch) {
+            for (observation, data) in observations.iter() {
+                if !oobservations.contains_key(observation) {
+                    // new observation
+                    oobservations.insert(observation.clone(), *data);
                 }
-            } else {
-                // new epoch
-                self.insert(*epoch, observations.clone());
             }
+        } else {
+            // new epoch
+            lhs.insert(*epoch, observations.clone());
         }
-        Ok(())
     }
+    Ok(())
 }
 
 #[cfg(feature = "processing")]

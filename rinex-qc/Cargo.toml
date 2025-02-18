@@ -1,6 +1,6 @@
 [package]
 name = "rinex-qc"
-version = "0.2.0-alpha-2"
+version = "0.2.0-alpha-3"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX and more broadly, GNSS data processing"
@@ -49,7 +49,7 @@ plotly = "0.9"
 
 gnss-rs = { version = "2.3.1", features = ["serde"] }
 
-rinex = { path = "../rinex", version = "=0.17.0-alpha-2", features = ["full"] }
+rinex = { path = "../rinex", version = "=0.17.0-alpha-3", features = ["full"] }
 sp3 = { path = "../sp3", version = "=1.1.0-alpha-2", features = ["qc", "processing", "serde"], optional = true }
 
 gnss-qc-traits = { version = "0.0.2", features = ["processing"] }
