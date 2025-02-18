@@ -39,9 +39,10 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
   - [Position solver](https://github.com/georust/rinex/wiki/Positioning)
   - [CGGTTS solver](https://github.com/georust/rinex/wiki/CGGTTS)
 
-## Disadvantages :warning:
+## Warnings :warning:
 
-- BINEX support is currently work in progress
+- The previous applications stored here have been moved to the [RTK-rs](https://github.com/rtk-rs) repository
+- The BINEX parser does not support all frames yet
 - Navigation is currently not feasible with Glonass and IRNSS
 - Differential navigation (SBAS, DGNSS or RTK) is not support yet
 - Our applications do not accept proprietary formats like Septentrio for example
