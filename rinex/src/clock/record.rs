@@ -4,20 +4,10 @@ use thiserror::Error;
 use std::collections::BTreeMap;
 use strum_macros::EnumString;
 
-use crate::{
-    epoch, merge,
-    merge::Merge,
-    prelude::*,
-    prelude::{Duration, SV},
-    split,
-    split::Split,
-    version::Version,
-};
+use crate::{epoch, merge, merge::Merge, prelude::SV, prelude::*, version::Version};
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
-};
+use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
 /// [`ClockKey`] describes each [`ClockProfile`] at a specific [Epoch].
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug, PartialOrd, Ord)]
@@ -352,35 +342,6 @@ impl Merge for Record {
             }
         }
         Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k <= &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let r1 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k > &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((r0, r1))
-    }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-        Ok(Vec::new())
     }
 }
 

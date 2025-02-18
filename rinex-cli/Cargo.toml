@@ -1,6 +1,6 @@
 [package]
 name = "rinex-cli"
-version = "0.12.0-alpha-1"
+version = "0.12.0-alpha-2"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Command line tool parse and analyze RINEX data"
@@ -43,7 +43,7 @@ plotly = "0.9"
 anise = { version = "0.5.0", features = ["embed_ephem"] }
 hifitime = { version = "4.0.0", features = ["serde", "std"] }
 
-gnss-rs = { version = "2.3.1", features = ["serde"] }
+gnss-rs = { version = "2.3.2", features = ["serde"] }
 
 # gnss-rtk = { version = "=0.7.4", features = ["serde"] }
 # gnss-rtk = { path = "../../rtk-rs/gnss-rtk", features = ["serde"] }
@@ -53,6 +53,6 @@ cggtts = { version = "4.2.0", features = ["serde", "scheduler"], optional = true
 # cggtts = { path = "../../cggtts/cggtts", features = ["serde", "scheduler"], optional = true }
 # cggtts = { git = "https://github.com/gwbres/cggtts", branch = "main", features = ["serde", "scheduler"], optional = true }
 
-rinex = { path = "../rinex", version = "=0.17.0-alpha-1", features = ["full"] }
-sp3 = { path = "../sp3", version = "=1.1.0-alpha-1", features = ["serde", "flate2"] }
-rinex-qc = { path = "../rinex-qc", version = "=0.2.0-alpha-1", features = ["sp3"] } 
+rinex = { path = "../rinex", version = "=0.17.0-alpha-2", features = ["full"] }
+sp3 = { path = "../sp3", version = "=1.1.0-alpha-2", features = ["serde", "flate2"] }
+rinex-qc = { path = "../rinex-qc", version = "=0.2.0-alpha-2", features = ["sp3"] } 

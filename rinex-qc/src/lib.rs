@@ -5,8 +5,8 @@
 #[macro_use]
 extern crate log;
 
+extern crate gnss_qc_traits as qc_traits;
 extern crate gnss_rs as gnss;
-extern crate rinex_qc_traits as qc_traits;
 
 mod cfg;
 
@@ -24,7 +24,7 @@ pub mod prelude {
     // Pub re-export
     pub use crate::plot::{Marker, MarkerSymbol, Mode, Plot};
     pub use maud::{html, Markup, Render};
-    pub use qc_traits::processing::{Filter, Preprocessing, Repair, RepairTrait};
+    pub use qc_traits::{Filter, Preprocessing, Repair, RepairTrait};
     pub use rinex::prelude::{Almanac, Error as RinexError, Rinex};
     #[cfg(feature = "sp3")]
     pub use sp3::prelude::{Error as SP3Error, SP3};

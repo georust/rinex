@@ -8,9 +8,7 @@ use std::str::FromStr;
 use crate::Bibliography;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
-    DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand,
-};
+use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
 
 /*
  * When formatting floating point number in Navigation RINEX,
@@ -38,16 +36,12 @@ fn double_exponent_digits(content: &str) -> String {
     lines.to_string()
 }
 
-use crate::{
-    epoch, merge, merge::Merge, prelude::*, split, split::Split, types::Type, version::Version,
-};
+use crate::{epoch, merge, merge::Merge, prelude::*, types::Type, version::Version};
 
 use super::{
     orbits::closest_nav_standards, BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel,
     StoMessage,
 };
-
-use hifitime::Duration;
 
 /// Navigation Message Types.
 /// Refer to [Bibliography::RINEX4] definitions.
@@ -566,35 +560,6 @@ impl Merge for Record {
             }
         }
         Ok(())
-    }
-}
-
-impl Split for Record {
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k < &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let r1 = self
-            .iter()
-            .flat_map(|(k, v)| {
-                if k >= &epoch {
-                    Some((*k, v.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        Ok((r0, r1))
-    }
-    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-        Ok(Vec::new())
     }
 }
 

@@ -2,7 +2,7 @@
 mod test {
     use crate::prelude::*;
     use itertools::Itertools;
-    use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
+    use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
     use std::str::FromStr;
     #[test]
     fn obs_gnss_v3_esbcdnk() {

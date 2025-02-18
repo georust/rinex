@@ -31,10 +31,7 @@ use anise::{
 #[cfg(feature = "sp3")]
 use sp3::prelude::SP3;
 
-use qc_traits::{
-    processing::{Filter, Preprocessing, Repair, RepairTrait},
-    Merge, MergeError,
-};
+use qc_traits::{Filter, Merge, MergeError, Preprocessing, Repair, RepairTrait};
 
 /// Context Error
 #[derive(Debug, Error)]

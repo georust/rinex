@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use maud::{html, Markup, Render};
-use qc_traits::processing::{Filter, FilterItem, MaskOperand, Preprocessing};
+use qc_traits::{Filter, FilterItem, MaskOperand, Preprocessing};
 use std::collections::HashMap;
 
 use sp3::prelude::{Constellation, SP3, SV};

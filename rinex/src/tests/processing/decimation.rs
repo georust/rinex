@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod decimation {
     use crate::prelude::*;
-    use qc_traits::processing::{Decimate, DecimationFilter};
+    use qc_traits::{Decimate, DecimationFilter};
     use std::path::Path;
     #[test]
     #[cfg(feature = "flate2")]

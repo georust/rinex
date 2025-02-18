@@ -5,7 +5,7 @@ extern crate gnss_rs as gnss;
 use itertools::Itertools;
 
 #[cfg(feature = "qc")]
-extern crate rinex_qc_traits as qc_traits;
+extern crate gnss_qc_traits as qc_traits;
 
 use gnss::prelude::{Constellation, SV};
 use hifitime::{Duration, Epoch, ParsingError as EpochParsingError, TimeScale};
@@ -17,9 +17,9 @@ use std::str::FromStr;
 use thiserror::Error;
 
 #[cfg(feature = "processing")]
-use qc_traits::processing::{
+use qc_traits::{
     Decimate, DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand, Masking,
-    Preprocessing,
+    Preprocessing, Split,
 };
 
 #[cfg(test)]
@@ -709,7 +709,7 @@ impl Merge for SP3 {
     }
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), MergeError> {
         if self.agency != rhs.agency {
-            return Err(MergeError::DataProviderAgencyMismatch);
+            return Err(MergeError::DataProviderMismatch);
         }
         if self.time_scale != rhs.time_scale {
             return Err(MergeError::TimescaleMismatch);
@@ -941,5 +941,20 @@ impl Decimate for SP3 {
                 });
             },
         }
+    }
+}
+
+#[cfg(feature = "processing")]
+impl Split for SP3 {
+    fn split(&self, _: Epoch) -> (Self, Self) {
+        (Default::default(), Default::default())
+    }
+
+    fn split_mut(&mut self, _: Epoch) -> Self {
+        Default::default()
+    }
+
+    fn split_even_dt(&self, _: Duration) -> Vec<Self> {
+        Default::default()
     }
 }
