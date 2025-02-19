@@ -62,7 +62,7 @@ If you need to reference this work, please use the following model:
 Formats & revisions
 ===================
 
-The core library supports parsing RINEX V4.0, that includes RINEX V4 Navigation files.   
+The parser supports RINEX V4.0, that includes RINEX V4 Navigation files.   
 We support the latest revisions for both IONEX and Clock RINEX.  
 We support the latest (rev D) SP3 format.  
 
@@ -83,52 +83,8 @@ RINEX formats & applications
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           | Troposphere modeling | Epoch | :question: |
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           | Bias estimates, like DCB.. | Epoch | :question: |
 
-:heavy_check_mark: means all revisions supported   
-:construction: : means Work in Progress   
-
-__CLI__ : possibility to [load this format](https://github.com/georust/rinex/wiki/file-loading) in the apps.  
-__CLI__ + :chart_with_upwards_trend: : possibility to [project or extract and plot](https://github.com/georust/rinex/wiki/graph-mode) this format.
-
-
 Other formats
 =============
-
-`RINEX-Cli` accepts more than RINEX data.  
-
-| Type                       | Parser            | Writer              |  CLI                 |      Content         | Record Iteration     | Timescale  |
-|----------------------------|-------------------|---------------------|----------------------|----------------------| ---------------------| ---------- |
-| SP3                        | :heavy_check_mark:| :construction: Work in progress | :heavy_check_mark: :chart_with_upwards_trend:  | High precision SV orbital state | Epoch | GNSS (any) |
-
-File formats
-============
-
-| Format                 | File name restrictions            |    Support                         |
-|------------------------|-----------------------------------|------------------------------------|
-| RINEX                  | :heavy_minus_sign:                | :heavy_check_mark:                 |
-| CRINEX                 | :heavy_minus_sign:                | :heavy_check_mark:                 | 
-| gzip compressed RINEX  | Name must end with `.gz`          | `--flate2` feature must be enabled |
-| gzip compressed CRINEX | Name must end with `.gz`          | `--flate2` feature must be enabled |
-| .Z compressed RINEX    | Not supported                     | Not supported                      |
-| DORIS RINEX            | :heavy_minus_sign:                | :construction: Work in progress    |
-| gzip compressed DORIS  | Name must end with `.gz`          | `--flate2` feature must be enabled |
-| .Z compressed DORIS    | Not supported                     | Not supported                      |
-| SP3                    | :heavy_minus_sign:                | :heavy_check_mark:                 | 
-| gzip compressed SP3    | Name must end with `.gz`          | `--flate2` feature must be enabled | 
-| .Z compressed SP3      | Not supported                     | Not supported                      |
-| BINEX                  | :heavy_minus_sign:                | :heavy_minus_sign: We do not support proprietary formats |
-| UBX                    | :heavy_minus_sign:                | :construction: Work in progress    |
-
-:heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
-
-Special Thanks
-==============
-
-These tools would not exist without the great libraries written by C. Rabotin, 
-[check out his work](https://github.com/nyx-space).  
-
-Some features would not exist without the invaluable help of J. Lesouple, through
-our countless discussions. Check out his 
-[PhD manuscript (french)](http://perso.recherche.enac.fr/~julien.lesouple/fr/publication/thesis/THESIS.pdf?fbclid=IwAR3WlHm0eP7ygRzywbL07Ig-JawvsdCEdvz1umJJaRRXVO265J9cp931YyI)
 
 Contributions
 =============
