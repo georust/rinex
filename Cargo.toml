@@ -3,14 +3,9 @@ resolver = "2"
 
 members = [
     "binex", 
-    "crx2rnx", 
     "rinex", 
-    "rinex-qc", 
-    "rinex-cli", 
-    "rnx2crx", 
     "sp3",
     "sinex",
-    "ublox-rnx", 
 ]
 
 exclude = [
