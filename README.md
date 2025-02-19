@@ -52,7 +52,6 @@ to get started quickly. The examples span pretty much everything our application
 * [`binex`](binex/) BINEX Encoding and Decoding library
 * [`sinex`](sinex/) SNX dedicated core library
 * [`tools`](tools/) are utility scripts and development tools
-* [`logs`](logs/) is dedicated to store session logs, if you work within this workspace directly.
 
 ## Citation and referencing
 
