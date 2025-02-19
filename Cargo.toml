@@ -4,7 +4,6 @@ resolver = "2"
 members = [
     "binex", 
     "rinex", 
-    "rinex-cli", 
     "sp3",
     "sinex",
 ]
