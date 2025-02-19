@@ -20,24 +20,18 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 ## Advantages :rocket: 
 
 - Fast
-- Render High level Geodetic survey reports
-- Resolve PPP solutions in a few seconds
 - Open sources: read and access all the code!
-- Self sustained examples and tutorials: data hosted within this repo
 - All modern GNSS constellations, codes and signals
   - Surveying with GPS, Galileo, BeiDou and QZSS
 - Time scales: GPST, QZSST, BDT, GST, UTC, TAI
-- Efficient seamless compression and decompression
 - RINEX V4 full support
-- All RINEX formats supported (see following table)
+- Efficient seamless compression and decompression
+- Most RINEX formats supported (see following table)
 - High Precision Clock RINEX products (for PPP)
 - High Precision Orbital [SP3 for PPP](https://docs.rs/sp3/1.0.7/sp3/)
 - DORIS (special RINEX)
 - Many pre-processing algorithms including Filter Designer
 - Several file operations: merging, splitting, time binning (batch)
-- Post processing:
-  - [Position solver](https://github.com/georust/rinex/wiki/Positioning)
-  - [CGGTTS solver](https://github.com/georust/rinex/wiki/CGGTTS)
 
 ## Warnings :warning:
 
@@ -52,11 +46,6 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 This library is reduced to parser libraries, previous applications have been moved to the [RTK-rs](https://github.com/rtk-rs) workspace.
 
 * [`rinex`](rinex/) is the core library 
-* [`rinex-cli`](rinex-cli/) is a command line application to process RINEX, SP3 and soon Ublox, and dedicated to typical GNSS post processing.  
-It is growing as some sort of Anubis/Teqc/Glab combination. No GUI currently available, this will be developed later.   
-It integrates a PVT and CGGTTS solutions solver.  
-The application is auto-generated for a few architectures, you can directly
-[download it from Github.com](https://github.com/georust/rinex/releases)
 * [`tutorials`](tutorials/) is a superset of scripts (Linux/MacOS compatible)
 to get started quickly. The examples span pretty much everything our applications allow.
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
@@ -65,29 +54,11 @@ to get started quickly. The examples span pretty much everything our application
 * [`tools`](tools/) are utility scripts and development tools
 * [`logs`](logs/) is dedicated to store session logs, if you work within this workspace directly.
 
-## Relevant frameworks
-
-* [Nyx-space](https://github.com/nyx-space/): Navigation and Orbital calculations
-- [RTK-RS](https://github.com/rtk-rs/): Precise Positioning
-* [CGGTTS](https://github.com/gwbres/cggtts): Common View Time Transfer
-* [Geo](https://github.com/georust/geo): Geospatial primitives and algorithms
-* [IGS stations network](https://network.igs.org/)
-
 ## Citation and referencing
 
 If you need to reference this work, please use the following model:
 
 `GeoRust RINEX Team (2023), RINEX: analysis and processing (Apache-2/MIT), https://georust.org`
-
-RINEX-Cli
-=========
-
-`rinex-cli` is our main application, build it without any features to obtain its smallest form.
-The available options are:
-
-- `kml`: allows formatting PPP solutions as KML tracks
-- `gpx`: allows formatting PPP solutions as GPX tracks
-- `cggtts`: enable CGGTTS solutions solver
 
 Formats & revisions
 ===================

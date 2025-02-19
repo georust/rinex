@@ -1,4 +1,0 @@
-Merge
-=====
-
-File merging applications.

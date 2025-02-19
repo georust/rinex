@@ -1,4 +1,0 @@
-GEO
-===
-
-Geostationnary / SBAS examples.
