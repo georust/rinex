@@ -41,7 +41,6 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 
 ## Warnings :warning:
 
-- The previous applications stored here have been moved to the [RTK-rs](https://github.com/rtk-rs) repository
 - The BINEX parser does not support all frames yet
 - Navigation is currently not feasible with Glonass and IRNSS
 - Differential navigation (SBAS, DGNSS or RTK) is not support yet
@@ -49,6 +48,8 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 - File production might lack some features, mostly because we're currently focused on data processing
 
 ## Repository 
+
+This library is reduced to parser libraries, previous applications have been moved to the [RTK-rs](https://github.com/rtk-rs) workspace.
 
 * [`rinex`](rinex/) is the core library 
 * [`rinex-cli`](rinex-cli/) is a command line application to process RINEX, SP3 and soon Ublox, and dedicated to typical GNSS post processing.  
@@ -60,24 +61,17 @@ The application is auto-generated for a few architectures, you can directly
 to get started quickly. The examples span pretty much everything our applications allow.
 * [`sp3`](sp3/) High Precision Orbits (by IGS) 
 * [`binex`](binex/) BINEX Encoding and Decoding library
-* [`rnx2crx`](rnx2crx/) is a RINEX compressor (RINEX to Compact RINEX)
-* [`crx2rnx`](crx2rnx/) is a CRINEX decompresor (Compact RINEX to RINEX)
-* [`rinex-qc`](rinex-qc/) is a library dedicated to RINEX files analysis 
 * [`sinex`](sinex/) SNX dedicated core library
-* [`ublox-rnx`](ublox-rnx/) is an application to generate RINEX files from Ublox receivers.   
-This application is currently work in progress
 * [`tools`](tools/) are utility scripts and development tools
 * [`logs`](logs/) is dedicated to store session logs, if you work within this workspace directly.
 
-## Relevant Ecosystem
+## Relevant frameworks
 
-* [IGS Network](https://network.igs.org/): browse and monitor any IGS station status
-* [Nyx-space](https://github.com/nyx-space/nyx): Navigation and Orbital calculations in Rust
-* [Hifitime](https://github.com/nyx-space/hifitime): Precise Time and Timescale support in Rust
-* [CGGTTS](https://github.com/gwbres/cggtts): Common View Time Transfer file format, in Rust
-* [Geo](https://github.com/georust/geo): Geospatial primitives and algorithms, in Rust
-- [RTK-RS](https://github.com/rtk-rs/gnss-rtk): Precise Positioning (calculations) in Rust
-* [GNSS definitions](https://github.com/rtk-rs/gnss), in Rust
+* [Nyx-space](https://github.com/nyx-space/): Navigation and Orbital calculations
+- [RTK-RS](https://github.com/rtk-rs/): Precise Positioning
+* [CGGTTS](https://github.com/gwbres/cggtts): Common View Time Transfer
+* [Geo](https://github.com/georust/geo): Geospatial primitives and algorithms
+* [IGS stations network](https://network.igs.org/)
 
 ## Citation and referencing
 
