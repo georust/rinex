@@ -10,9 +10,8 @@ RINEX
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/georust/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/georust/rinex/blob/main/LICENSE-MIT) 
 
-Rust tool suites to parse, analyze and process [RINEX](https://en.wikipedia.org/wiki/RINEX) and GNSS data.
-
-The [Wiki pages](https://github.com/georust/rinex/wiki) contain all documentation and example applications of this toolbox.  
+Parser and write for [RINEX](https://en.wikipedia.org/wiki/RINEX), SP3 and SINEX data.
+All these formats are open source solutions to answer the requirements of GNSS navigation.
 
 Use [Github Issues](https://github.com/georust/rinex/issues) to report bugs and other malfunctions.  
 You can also open a [Discussion](https://github.com/georust/rinex/discussions) or leave us a message [on Discord](https://discord.gg/Fp2aape).
@@ -43,8 +42,6 @@ You can also open a [Discussion](https://github.com/georust/rinex/discussions) o
 
 ## Repository 
 
-This library is reduced to parser libraries, previous applications have been moved to the [RTK-rs](https://github.com/rtk-rs) workspace.
-
 * [`rinex`](rinex/) is the core library 
 * [`tutorials`](tutorials/) is a superset of scripts (Linux/MacOS compatible)
 to get started quickly. The examples span pretty much everything our applications allow.
@@ -52,6 +49,8 @@ to get started quickly. The examples span pretty much everything our application
 * [`binex`](binex/) BINEX Encoding and Decoding library
 * [`sinex`](sinex/) SNX dedicated core library
 * [`tools`](tools/) are utility scripts and development tools
+
+This repository now only hosts parser libraries: previous applications have been moved to the [RTK-rs](https://github.com/rtk-rs) workspace.
 
 ## Citation and referencing
 
