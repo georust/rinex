@@ -582,7 +582,6 @@ fn v3_noa10630() {
 
     dut.to_file("v3_noa10630.txt").unwrap();
 
-    // TODO
     let parsed = Rinex::from_file("v3_noa10630.txt").unwrap();
     generic_rinex_comparison(&parsed, &dut);
 
