@@ -118,6 +118,11 @@ pub struct DecompressorExpert<const M: usize> {
     /// Epoch descriptor, for single allocation
     epoch_descriptor: String,
     epoch_desc_len: usize, // for internal logic
+    /// Stored index of current BLANKS
+    /// for correct flags omition in this case
+    blanking_indexes: Vec<usize>,
+    /// Cleaned up flags buffer (single malloc)
+    flags_buf: String,
     /// [TextDiff] for observation flags
     flags_diff: HashMap<SV, TextDiff>,
     /// Clock offset differentiator
@@ -146,6 +151,8 @@ impl<const M: usize> Default for DecompressorExpert<M> {
             obs_diff: HashMap::with_capacity(8),         // cannot initialize yet
             flags_diff: HashMap::with_capacity(8),       // cannot initialize yet
             epoch_descriptor: String::with_capacity(256),
+            blanking_indexes: Vec::with_capacity(32),
+            flags_buf: String::with_capacity(32),
             clock_diff: NumDiff::<M>::new(0, M),
         }
     }
@@ -245,6 +252,8 @@ impl<const M: usize> DecompressorExpert<M> {
             epoch_diff: TextDiff::new(""),
             obs_diff: HashMap::with_capacity(8), // cannot initialize yet
             flags_diff: HashMap::with_capacity(8), // cannot initialize yet
+            blanking_indexes: Vec::with_capacity(32),
+            flags_buf: String::with_capacity(32),
             epoch_descriptor: String::with_capacity(256),
             clock_diff: NumDiff::<M>::new(0, M),
         }
@@ -277,6 +286,7 @@ impl<const M: usize> DecompressorExpert<M> {
             return Err(Error::BufferOverflow);
         }
 
+        // println!("STATE={:?}", self.state); //DEBUG
         match self.state {
             State::Epoch => self.run_epoch(line, len),
             State::Clock => self.run_clock(line, len, buf),
@@ -318,11 +328,10 @@ impl<const M: usize> DecompressorExpert<M> {
             self.epoch_desc_len = self.epoch_descriptor.len();
         }
 
-        //#[cfg(feature = "log")]
-        //debug!(
-        //    "RECOVERED \"{}\" [{}]",
-        //    self.epoch_descriptor, self.epoch_desc_len
-        //);
+        // println!(
+        //     "RECOVERED \"{}\" [{}]",
+        //     self.epoch_descriptor, self.epoch_desc_len
+        // ); // DEBUG
 
         // numsat needs to be recovered right away,
         // because it is used to determine the next production size
@@ -519,8 +528,9 @@ impl<const M: usize> DecompressorExpert<M> {
         let mut produced = 0;
         let mut new_state = self.state;
 
-        //#[cfg(feature = "log")]
-        //debug!("[{}] LINE \"{}\"", self.sv, line);
+        self.blanking_indexes.clear(); // new run
+
+        println!("[{}] LINE \"{}\"", self.sv, line); // DEBUG
 
         if self.v3 {
             // prepend SVNN identity
@@ -605,6 +615,7 @@ impl<const M: usize> DecompressorExpert<M> {
                         consumed += 2; // consume this byte
                     } else {
                         consumed += 1;
+                        self.blanking_indexes.push(ptr);
                     }
                 }
 
@@ -733,9 +744,7 @@ impl<const M: usize> DecompressorExpert<M> {
                 let flags = textdiff.decompress("").trim_end();
                 let flags_len = flags.len();
 
-                //#[cfg(feature = "log")]
-                //debug!("PRESERVED \"{}\"", flags);
-
+                //println!("PRESERVED \"{}\"", flags); // DEBUG
                 Self::write_flags(flags, flags_len, self.numobs, self.v3, buf);
 
                 // conclude this SV
@@ -772,25 +781,44 @@ impl<const M: usize> DecompressorExpert<M> {
 
         // at this point, we should be left with "data flags" in the buffer.
         // That may not be the case. We may have consumed everything when
-        // the line is trimed and flags should be preserved
+        // the line was trimmed at production time, meaning flags should be preserved
 
         if consumed < len {
             // proceed to flags recovering
             let flags = &line[consumed..].trim_end();
 
-            //#[cfg(feature = "log")]
-            //debug!("FLAGS \"{}\"", flags);
+            println!("FLAGS \"{}\"", flags); // DEBUG
 
             let kernel = self.flags_diff.get_mut(&self.sv).expect("internal error");
 
             let flags = kernel.decompress(flags);
             let flags_len = flags.len();
 
-            //#[cfg(feature = "log")]
-            //debug!("RECOVERED \"{}\"", flags);
+            self.flags_buf = flags.to_string();
+
+            // blank flags for which observation is blanked
+            // otherwise, .decompress("") will return past value
+            for index in &self.blanking_indexes {
+                if flags_len > (index * 2) {
+                    self.flags_buf
+                        .replace_range(2 * index..(2 * index + 1), " ");
+                }
+                if flags_len > index * 2 + 1 {
+                    self.flags_buf
+                        .replace_range(2 * index + 1..(2 * index + 2), " ");
+                }
+            }
+
+            // update len
+            let flags_len = self.flags_buf.len();
 
             // copy all flags to user
-            Self::write_flags(flags, flags_len, self.numobs, self.v3, buf);
+            println!(
+                "RECOVERED \"{}\" (len={},numobs={})",
+                &self.flags_buf, flags_len, self.numobs
+            ); // DEBUG
+
+            Self::write_flags(&self.flags_buf, flags_len, self.numobs, self.v3, buf);
         }
 
         self.obs_ptr = 0;
@@ -849,7 +877,8 @@ impl<const M: usize> DecompressorExpert<M> {
     fn write_v1_flags(flags: &str, flags_len: usize, numobs: usize, buf: &mut [u8]) {
         let mut offset = 14;
         let bytes = flags.as_bytes();
-        for i in 0..numobs {
+
+        for i in 0..flags_len {
             let lli_idx = i * 2;
             if flags_len > lli_idx {
                 if !flags[lli_idx..lli_idx + 1].eq(" ") {
