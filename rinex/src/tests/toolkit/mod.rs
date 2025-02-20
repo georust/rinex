@@ -11,22 +11,35 @@ pub use observation::{
 };
 
 // IONEX test toolkit
+#[cfg(feature = "ionex")]
 mod ionex;
+
+#[cfg(feature = "ionex")]
 pub use ionex::{generic_ionex_test, TecPoint};
 
 // NAV RINEX dedicated tools
+#[cfg(feature = "nav")]
 mod nav;
+
+#[cfg(feature = "nav")]
 pub use nav::{
     generic_comparison as generic_navigation_comparison, generic_test as generic_navigation_test,
 };
 
 // DORIS RINEX dedicated tools
+#[cfg(feature = "doris")]
 mod doris;
-pub use doris::check_observables as doris_check_observables;
-pub use doris::check_stations as doris_check_stations;
+
+#[cfg(feature = "doris")]
+pub use doris::{
+    check_observables as doris_check_observables, check_stations as doris_check_stations,
+};
 
 // Meteo RINEX dedicated tests
+#[cfg(feature = "meteo")]
 mod meteo;
+
+#[cfg(feature = "meteo")]
 pub use meteo::{generic_comparison as generic_meteo_comparison, generic_meteo_rinex_test};
 
 pub mod timeframe;
@@ -220,8 +233,10 @@ pub fn generic_rinex_comparison(dut: &Rinex, model: &Rinex) {
     if dut.is_observation_rinex() && model.is_observation_rinex() {
         generic_observation_comparison(&dut, &model);
     } else if dut.is_meteo_rinex() && model.is_meteo_rinex() {
+        #[cfg(feature = "meteo")]
         generic_meteo_comparison(&dut, &model);
     } else if dut.is_navigation_rinex() && model.is_navigation_rinex() {
+        #[cfg(feature = "nav")]
         generic_navigation_comparison(&dut, &model);
     }
 }

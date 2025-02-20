@@ -40,7 +40,7 @@ mod test {
             let dut = rnx.rnx2crnx();
 
             // dump
-            rnx.to_file("v1_compressed.txt").unwrap();
+            dut.to_file("v1_compressed.txt").unwrap();
 
             // parse back
             let parsed_back = Rinex::from_file("v1_compressed.txt").unwrap();

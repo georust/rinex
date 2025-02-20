@@ -59,7 +59,7 @@ pub fn run_raw_decompression_test(
 
     let mut buf = [0; 4096];
 
-    for (nth, input) in input_lines.enumerate() {
+    for input in input_lines {
         // decompress each input
         match decomp.decompress(input, input.len(), &mut buf, 4096) {
             Ok(size) => {
@@ -70,7 +70,6 @@ pub fn run_raw_decompression_test(
                     .to_string();
 
                 let generated_lines = content.lines();
-                let len = generated_lines.clone().count();
 
                 // V1 we may generate more than 1 line for 1 input line
                 for line in generated_lines {
@@ -90,8 +89,8 @@ pub fn run_raw_decompression_test(
 
 use crate::{
     observation::EpochFlag,
-    prelude::{Epoch, GeodeticMarker, MarkerType, Rinex, SV},
-    tests::toolkit::{generic_observation_rinex_test, random_name, SignalDataPoint, TimeFrame},
+    prelude::{Epoch, Rinex, SV},
+    tests::toolkit::{generic_observation_rinex_test, SignalDataPoint, TimeFrame},
 };
 
 use std::{fs::remove_file as fs_remove_file, path::Path};
@@ -487,6 +486,9 @@ fn v3_acor00esp_r2021() {
             vec![],
         );
 }
+
+#[cfg(feature = "flate2")]
+use crate::prelude::{GeodeticMarker, MarkerType};
 
 #[test]
 #[cfg(feature = "flate2")]

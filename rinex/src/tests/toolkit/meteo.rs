@@ -6,6 +6,7 @@ use crate::{
 };
 
 /// [Rinex] against [Rinex] model verification
+#[cfg(feature = "meteo")]
 pub fn generic_comparison(dut: &Rinex, model: &Rinex) {
     // verify sensors
     let dut_sensors = dut.meteo_sensors_iter().collect::<Vec<_>>();

@@ -80,7 +80,7 @@ mod rtcm;
 mod tests;
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     fs::File,
     io::{BufReader, BufWriter, Read, Write},
     path::Path,
@@ -89,7 +89,14 @@ use std::{
 
 use itertools::Itertools;
 
-use antex::{Antenna, AntennaMatcher, AntennaSpecific, FrequencyDependentData};
+use antex::{Antenna, FrequencyDependentData};
+
+#[cfg(feature = "antex")]
+use antex::{AntennaMatcher, AntennaSpecific};
+
+#[cfg(feature = "clock")]
+use std::collections::BTreeMap;
+
 use epoch::epoch_decompose;
 use hatanaka::CRINEX;
 use observable::Observable;

@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[cfg(feature = "antex")]
 mod test {
     use crate::antex::pcv::Pcv;
     use crate::antex::AntennaMatcher;
@@ -7,7 +8,6 @@ mod test {
     use crate::linspace::Linspace;
     use crate::prelude::*;
     use std::str::FromStr;
-    #[cfg(feature = "antex")]
     #[test]
     fn v1_trosar_25r4_leit_2020_09_23() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()

@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[cfg(feature = "flate2")]
 mod test {
     use crate::prelude::*;
     use std::path::PathBuf;
