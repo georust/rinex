@@ -12,7 +12,6 @@ use std::{
     str::FromStr,
 };
 
-#[cfg(feature = "processing")]
 use itertools::Itertools;
 
 #[cfg(feature = "processing")]
