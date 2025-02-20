@@ -136,6 +136,7 @@ pub fn parse_epoch(
             }
         },
     };
+
     if let Some(offset) = offs {
         if let Ok(offset_s) = offset.parse::<f64>() {
             observations
