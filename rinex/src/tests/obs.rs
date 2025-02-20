@@ -201,10 +201,8 @@ fn v3_duth0630() {
 
     dut.to_file("v3_duth0630.txt").unwrap();
 
-    // TODO
-    let _parsed = Rinex::from_file("v3_duth0630.txt").unwrap();
-
-    //generic_rinex_comparison(&parsed, &dut);
+    let parsed = Rinex::from_file("v3_duth0630.txt").unwrap();
+    generic_rinex_comparison(&parsed, &dut);
 
     let _ = remove_file("v3_duth0630.txt");
 }
@@ -250,7 +248,6 @@ fn v4_kms300dnk_r_2022_v3crx() {
 
 #[test]
 // TODO: wrong SV content
-#[ignore]
 fn v2_kosg0010_95o() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -538,7 +535,7 @@ fn v2_ajac3550() {
                         value: 114305043.723,
                         observable: Observable::from_str("L1").unwrap(),
                         lli: None,
-                        snr: None,
+                        snr: Some(SNR::DbHz48_53),
                     },
                 },
             ],

@@ -182,7 +182,7 @@ pub fn generic_observation_rinex_test(
                 if signal.observable == point.signal.observable {
                     assert_eq!(signal.value, point.signal.value);
                     assert_eq!(signal.lli, point.signal.lli);
-                    //assert_eq!(signal.snr, point.signal.snr); //TODO unlock
+                    assert_eq!(signal.snr, point.signal.snr);
                     passed = true;
                 }
             }

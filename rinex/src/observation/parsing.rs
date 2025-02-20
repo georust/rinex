@@ -398,17 +398,14 @@ fn parse_signals_v2(
 
             if slice.len() > OBSERVABLE_F14_WIDTH + 1 {
                 let snr_slice = &slice[OBSERVABLE_F14_WIDTH + 1..OBSERVABLE_F14_WIDTH + 2];
-                //println!("snr: \"{}\"", snr_slice);
                 match SNR::from_str(snr_slice) {
                     Ok(found) => {
+                        //println!("SNR (OK): \"{}\" [{:?}]", snr_slice, observables[obs_ptr]); // DEBUG
                         snr = Some(found);
                     },
-                    #[cfg(feature = "log")]
-                    Err(e) => {
-                        //error!("snr: {:?}", e);
+                    Err(_) => {
+                        // println!("SNR (ERR): {:?} [{:?}]", e, observables[obs_ptr]); // DEBUG
                     },
-                    #[cfg(not(feature = "log"))]
-                    Err(_) => {},
                 }
             }
 
