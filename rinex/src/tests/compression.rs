@@ -1,102 +1,59 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use crate::tests::toolkit::random_name;
+    use crate::tests::toolkit::generic_observation_comparison;
     use std::{fs::remove_file as fs_remove_file, path::PathBuf};
 
     #[test]
+    #[ignore]
     fn crinex1() {
         let pool = vec![
-            //("AJAC3550.21D", "AJAC3550.21O"),
-            //("aopr0010.17d", "aopr0010.17o"),
-            //("npaz3550.21d", "npaz3550.21o"),
+            ("AJAC3550.21D", "AJAC3550.21O"),
+            ("aopr0010.17d", "aopr0010.17o"),
+            ("npaz3550.21d", "npaz3550.21o"),
             ("wsra0010.21d", "wsra0010.21o"),
             ("zegv0010.21d", "zegv0010.21o"),
         ];
         for duplet in pool {
-            let (_crnx_name, _rnx_name) = duplet;
+            let (crnx_name, rnx_name) = duplet;
 
-            // let crnx_path = PathBuf::new()
-            //     .join(env!("CARGO_MANIFEST_DIR"))
-            //     .join("../")
-            //     .join("test_resources")
-            //     .join("CRNX")
-            //     .join("V1")
-            //     .join(crnx_name);
+            let crnx_path = PathBuf::new()
+                .join(env!("CARGO_MANIFEST_DIR"))
+                .join("../")
+                .join("test_resources")
+                .join("CRNX")
+                .join("V1")
+                .join(crnx_name);
 
-            // let rnx_path = PathBuf::new()
-            //     .join(env!("CARGO_MANIFEST_DIR"))
-            //     .join("../")
-            //     .join("test_resources")
-            //     .join("OBS")
-            //     .join("V2")
-            //     .join(rnx_name);
+            let rnx_path = PathBuf::new()
+                .join(env!("CARGO_MANIFEST_DIR"))
+                .join("../")
+                .join("test_resources")
+                .join("OBS")
+                .join("V2")
+                .join(rnx_name);
 
-            // let fullpath = rnx_path.to_string_lossy().to_string();
-            // let rnx = Rinex::from_file(&fullpath);
-            // assert!(
-            //     rnx.is_ok(),
-            //     "failed to parse \"{}\"",
-            //     rnx_path.to_string_lossy()
-            // );
+            let fullpath = rnx_path.to_string_lossy().to_string();
 
-            // let rnx = rnx.unwrap();
+            println!("compressing \"{}\"..", rnx_path.to_string_lossy());
+            let rnx = Rinex::from_file(&fullpath).unwrap();
+            let dut = rnx.rnx2crnx();
 
-            // convert to CRINEX1
-            // println!("compressing \"{}\"..", rnx_path.to_string_lossy());
+            // dump
+            rnx.to_file("v1_compressed.txt").unwrap();
 
-            // TODO
-            //let dut = rnx.rnx2crnx();
+            // parse back
+            let parsed_back = Rinex::from_file("v1_compressed.txt").unwrap();
 
             // parse model
-            // let model_path = crnx_path.to_string_lossy().to_string();
-            // let model = Rinex::from_file(&model_path);
-            //assert!(
-            //    model.is_ok(),
-            //    "failed to parse test file \"{}\"",
-            //    crnx_path.to_string_lossy()
-            //);
-        }
-    }
+            let model_path = crnx_path.to_string_lossy().to_string();
+            let model = Rinex::from_file(&model_path).unwrap();
 
-    #[test]
-    #[ignore]
-    fn crinex1_reciprocity() {
-        let pool = vec![
-            ("AJAC3550.21O"),
-            ("aopr0010.17o"),
-            ("npaz3550.21o"),
-            ("wsra0010.21o"),
-            ("zegv0010.21o"),
-        ];
-        for testfile in pool {
-            let rnx_path = format!("../test_resources/OBS/V2/{}", testfile);
+            // run testbench
+            generic_observation_comparison(&parsed_back, &model);
 
-            let rnx = Rinex::from_file(&rnx_path);
-            assert!(
-                rnx.is_ok(),
-                "Failed to parse test pool file \"{}\"",
-                testfile
-            );
-
-            // compress
-            let rnx = rnx.unwrap();
-            let compressed = rnx.rnx2crnx();
-
-            let tmp_path = format!("test-{}.crx", random_name(8));
-
-            // assert!(
-            //     compressed.to_file(&tmp_path).is_ok(),
-            //     "{}{}",
-            //     "failed to format compressed rinex",
-            //     testfile
-            // );
-
-            // TODO test reciprocity
-            let _uncompressed = compressed.crnx2rnx();
-
-            // remove generated file
-            let _ = fs_remove_file(&tmp_path);
+            // destroy
+            let _ = fs_remove_file("v1_compressed.txt");
         }
     }
 
@@ -134,65 +91,27 @@ mod test {
                 .join(rnx_name);
 
             let fullpath = rnx_path.to_string_lossy().to_string();
-            let rnx = Rinex::from_file(&fullpath);
 
-            assert!(
-                rnx.is_ok(),
-                "failed to parse \"{}\"",
-                rnx_path.to_string_lossy()
-            );
-            let rnx = rnx.unwrap();
+            let rnx = Rinex::from_file(&fullpath).unwrap();
 
-            // convert to CRINEX3
             println!("compressing \"{}\"..", rnx_path.to_string_lossy());
+            let dut = rnx.rnx2crnx();
 
-            // TODO
-            let _dut = rnx.rnx2crnx();
+            // dump
+            dut.to_file("v3_compressed.txt").unwrap();
+
+            // parse back
+            let parsed_back = Rinex::from_file("v3_compressed.txt").unwrap();
 
             // parse model
             let model_path = crnx_path.to_string_lossy().to_string();
-            let model = Rinex::from_file(&model_path);
+            let model = Rinex::from_file(&model_path).unwrap();
 
-            assert!(
-                model.is_ok(),
-                "failed to parse test file \"{}\"",
-                crnx_path.to_string_lossy()
-            );
-        }
-    }
+            // run testbench
+            generic_observation_comparison(&parsed_back, &model);
 
-    #[test]
-    #[ignore]
-    fn crinex3_reciprocity() {
-        let pool = vec![("pdel0010.21o")];
-        for testfile in pool {
-            let rnx_path = format!("../test_resources/OBS/V3/{}", testfile);
-
-            let rnx = Rinex::from_file(&rnx_path);
-            assert!(
-                rnx.is_ok(),
-                "Failed to parse test pool file \"{}\"",
-                testfile
-            );
-
-            // compress
-            let rnx = rnx.unwrap();
-            let compressed = rnx.rnx2crnx();
-
-            let tmp_path = format!("test-{}.crx", random_name(8));
-
-            // assert!(
-            //     compressed.to_file(&tmp_path).is_ok(),
-            //     "{}{}",
-            //     "failed to format compressed rinex",
-            //     testfile
-            // );
-
-            // TODO test reciprocity
-            let _uncompressed = compressed.crnx2rnx();
-
-            // remove generated file
-            let _ = fs_remove_file(&tmp_path);
+            // destroy
+            let _ = fs_remove_file("v3_compressed.txt");
         }
     }
 }
