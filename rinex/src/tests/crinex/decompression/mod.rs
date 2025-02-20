@@ -8,6 +8,8 @@ mod esbcdnk;
 mod pdel0010_21;
 // v1 test with clock (not very meaningful though..)
 mod vlns0630;
+// v1
+mod zegv0010;
 
 use std::{
     collections::HashMap,
@@ -53,6 +55,7 @@ pub fn run_raw_decompression_test(
     // run test, on every provided input versus output
     let input_lines = input.lines();
     let mut output_lines = output.lines();
+    let mut nth_output = 0;
 
     let mut buf = [0; 4096];
 
@@ -69,23 +72,15 @@ pub fn run_raw_decompression_test(
                 let generated_lines = content.lines();
                 let len = generated_lines.clone().count();
 
-                if len < 2 {
+                // V1 we may generate more than 1 line for 1 input line
+                for line in generated_lines {
                     // we are not 100 % equivalent, in terms of trailing whitespace
-                    let content = content.trim_end();
+                    let content = line.trim_end();
 
-                    let output = output_lines.next().unwrap().trim_end();
+                    let model = output_lines.next().expect("missing line model!").trim_end();
 
-                    assert_eq!(content, output, "failed on line={} \"{}\"", nth, input);
-                } else {
-                    // in V1 we may generate more than 1 line for 1 input line
-                    for line in generated_lines {
-                        // we are not 100 % equivalent, in terms of trailing whitespace
-                        let content = line.trim_end();
-
-                        let output = output_lines.next().unwrap().trim_end();
-
-                        assert_eq!(content, output, "failed on line={} \"{}\"", nth, input);
-                    }
+                    assert_eq!(content, model, "failed on line={}", nth_output);
+                    nth_output += 1;
                 }
             },
             Err(e) => panic!("decompression failed with {}", e),
@@ -403,8 +398,6 @@ fn testbench_v3() {
 }
 
 #[test]
-// TODO: BAD SV
-#[ignore]
 fn v1_zegv0010_21d() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
