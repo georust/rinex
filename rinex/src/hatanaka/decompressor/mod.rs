@@ -530,7 +530,7 @@ impl<const M: usize> DecompressorExpert<M> {
 
         self.blanking_indexes.clear(); // new run
 
-        println!("[{}] LINE \"{}\"", self.sv, line); // DEBUG
+        // println!("[{}] LINE \"{}\"", self.sv, line); // DEBUG
 
         if self.v3 {
             // prepend SVNN identity
@@ -787,7 +787,7 @@ impl<const M: usize> DecompressorExpert<M> {
             // proceed to flags recovering
             let flags = &line[consumed..].trim_end();
 
-            println!("FLAGS \"{}\"", flags); // DEBUG
+            // println!("FLAGS \"{}\"", flags); // DEBUG
 
             let kernel = self.flags_diff.get_mut(&self.sv).expect("internal error");
 
@@ -813,10 +813,10 @@ impl<const M: usize> DecompressorExpert<M> {
             let flags_len = self.flags_buf.len();
 
             // copy all flags to user
-            println!(
-                "RECOVERED \"{}\" (len={},numobs={})",
-                &self.flags_buf, flags_len, self.numobs
-            ); // DEBUG
+            // println!(
+            //     "RECOVERED \"{}\" (len={},numobs={})",
+            //     &self.flags_buf, flags_len, self.numobs
+            // ); // DEBUG
 
             Self::write_flags(&self.flags_buf, flags_len, self.numobs, self.v3, buf);
         }
