@@ -5,7 +5,6 @@ mod test {
     use std::{fs::remove_file as fs_remove_file, path::PathBuf};
 
     #[test]
-    #[ignore]
     fn crinex1() {
         let pool = vec![
             //("AJAC3550.21D", "AJAC3550.21O"),
