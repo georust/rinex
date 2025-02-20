@@ -85,10 +85,8 @@ fn v2_npaz3550_21o() {
 
     dut.to_file("v2_npaz3550_21o.txt").unwrap();
 
-    // TODO
-    let _parsed = Rinex::from_file("v2_npaz3550_21o.txt").unwrap();
-
-    //generic_rinex_comparison(&parsed, &dut);
+    let parsed = Rinex::from_file("v2_npaz3550_21o.txt").unwrap();
+    generic_rinex_comparison(&parsed, &dut);
 
     let _ = remove_file("v2_npaz3550_21o.txt");
 }
@@ -142,10 +140,8 @@ fn v2_rovn0010_21o() {
 
     dut.to_file("v2_rovn0010_21o.txt").unwrap();
 
-    // TODO
-    let _parsed = Rinex::from_file("v2_rovn0010_21o.txt").unwrap();
-
-    //generic_rinex_comparison(&parsed, &dut);
+    let parsed = Rinex::from_file("v2_rovn0010_21o.txt").unwrap();
+    generic_rinex_comparison(&parsed, &dut);
 
     let _ = remove_file("v2_rovn0010_21o.txt");
 }
@@ -542,10 +538,11 @@ fn v2_ajac3550() {
             vec![],
         );
 
-    //dut.to_file("v2_ajac3550.txt").unwrap();
+    dut.to_file("v2_ajac3550.txt").unwrap();
 
-    //let parsed = Rinex::from_file("v2_ajac3550.txt").unwrap();
-    //generic_rinex_comparison(&parsed, &dut);
+    let parsed = Rinex::from_file("v2_ajac3550.txt").unwrap();
+    generic_rinex_comparison(&parsed, &dut);
+
     let _ = remove_file("v2_ajac3550.txt");
 }
 
@@ -586,9 +583,8 @@ fn v3_noa10630() {
     dut.to_file("v3_noa10630.txt").unwrap();
 
     // TODO
-    let _parsed = Rinex::from_file("v3_noa10630.txt").unwrap();
-
-    //generic_rinex_comparison(&parsed, &dut);
+    let parsed = Rinex::from_file("v3_noa10630.txt").unwrap();
+    generic_rinex_comparison(&parsed, &dut);
 
     let _ = remove_file("v3_noa10630.txt");
 }

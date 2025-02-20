@@ -191,7 +191,7 @@ mod test {
         let snr = SNR::from_str("10");
         assert!(snr.is_err());
 
-        let snr: SNR = SNR::from(48_u8);
+        let snr: SNR = SNR::from(8);
         assert_eq!(snr, SNR::DbHz48_53);
         assert!(snr.excellent());
         assert_eq!(format!("{:x}", snr), "8");

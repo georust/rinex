@@ -225,9 +225,27 @@ pub fn generic_comparison(dut: &Rinex, model: &Rinex) {
                     .filter(|sig| sig.sv == model_sig.sv && sig.observable == model_sig.observable)
                     .reduce(|k, _| k)
                 {
+                    // RINEX garantees 3 digit accuracy
+                    let err = (dut_sig.value - model_sig.value).abs();
+                    assert!(
+                        err < 1E-2,
+                        "signal error too large @ {}:{} {}",
+                        model_sig.sv,
+                        model_sig.observable,
+                        k.epoch
+                    );
+
+                    // LLI should reach strict equality
                     assert_eq!(
-                        dut_sig, model_sig,
-                        "invalid signal observation @ {}:{} {}",
+                        dut_sig.lli, model_sig.lli,
+                        "invalid signal LLI @ {}:{} {}",
+                        model_sig.sv, model_sig.observable, k.epoch
+                    );
+
+                    // SNR should reach strict equality
+                    assert_eq!(
+                        dut_sig.snr, model_sig.snr,
+                        "invalid signal SNR @ {}:{} {}",
                         model_sig.sv, model_sig.observable, k.epoch
                     );
                 } else {

@@ -4,7 +4,7 @@ use crate::{
     hatanaka::Compressor,
     observation::Record,
     observation::{ClockObservation, HeaderFields, ObsKey},
-    prelude::{Header, RinexType, SV},
+    prelude::{Constellation, Header, RinexType, SV},
     FormattingError,
 };
 
@@ -112,9 +112,15 @@ fn format_v3<W: Write>(
                 write!(w, "{:x}", sv)?;
 
                 // following header definition
-                let observables = observables
-                    .get(&sv.constellation)
-                    .ok_or(FormattingError::MissingObservableDefinition)?;
+                let observables = if sv.constellation.is_sbas() {
+                    observables
+                        .get(&Constellation::SBAS)
+                        .ok_or(FormattingError::MissingObservableDefinition)?
+                } else {
+                    observables
+                        .get(&sv.constellation)
+                        .ok_or(FormattingError::MissingObservableDefinition)?
+                };
 
                 for observable in observables.iter() {
                     if let Some(observation) = v
@@ -198,7 +204,7 @@ fn format_v2<W: Write>(
     header: &HeaderFields,
     record: &Record,
 ) -> Result<(), FormattingError> {
-    const BLANKING: &str = "        ";
+    const BLANKING: &str = "                ";
     const OBSERVATIONS_PER_LINE: usize = 5;
 
     let observables = &header.codes;
@@ -217,9 +223,15 @@ fn format_v2<W: Write>(
 
         for sv in sv_list.iter() {
             // following Header specs
-            let observables = observables
-                .get(&sv.constellation)
-                .ok_or(FormattingError::MissingObservableDefinition)?;
+            let observables = if sv.constellation.is_sbas() {
+                observables
+                    .get(&Constellation::SBAS)
+                    .ok_or(FormattingError::MissingObservableDefinition)?
+            } else {
+                observables
+                    .get(&sv.constellation)
+                    .ok_or(FormattingError::MissingObservableDefinition)?
+            };
 
             let mut modulo = 0;
 

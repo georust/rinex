@@ -1,6 +1,8 @@
 use crate::*;
 use rand::{distributions::Alphanumeric, Rng};
 
+use crate::hardware::Antenna;
+
 // OBS RINEX dedicated tools
 mod observation;
 pub use observation::{
@@ -62,6 +64,36 @@ pub fn generic_timeframe_test(dut: &Rinex, tf: TimeFrame) {
         "timeframe exceeded! unexpected content {:?}",
         next.unwrap()
     );
+}
+
+/// RX antenna tb
+/// {0, 0, 0} and No coordinates have the same meaning
+fn rcvr_antenna_comparison(dut: &Option<Antenna>, model: &Option<Antenna>) {
+    if let Some(dut) = dut {
+        if let Some(model) = model {
+            assert_eq!(dut.model, model.model);
+            assert_eq!(dut.sn, model.sn);
+
+            let model_h = model.height.unwrap_or(0.0);
+            let dut_h = dut.height.unwrap_or(0.0);
+            assert_eq!(dut_h, model_h);
+
+            assert_eq!(dut.coords, model.coords);
+
+            let (model_east, model_north) =
+                (model.eastern.unwrap_or(0.0), model.northern.unwrap_or(0.0));
+            let (dut_east, dut_north) = (dut.eastern.unwrap_or(0.0), dut.northern.unwrap_or(0.0));
+
+            assert_eq!(dut_east, model_east);
+            assert_eq!(dut_north, model_north);
+        } else {
+            panic!("found unexpected rx-antenna infos!");
+        }
+    } else {
+        if model.is_some() {
+            panic!("missing rx-antenna infos!");
+        }
+    }
 }
 
 /// Generic test that may apply to any [Rinex].
@@ -164,7 +196,9 @@ pub fn generic_header_comparison(dut: &Header, model: &Header) {
     assert_eq!(dut.doi, model.doi);
     assert_eq!(dut.gps_utc_delta, model.gps_utc_delta);
     assert_eq!(dut.rcvr, model.rcvr);
-    assert_eq!(dut.rcvr_antenna, model.rcvr_antenna);
+
+    rcvr_antenna_comparison(&dut.rcvr_antenna, &model.rcvr_antenna);
+
     assert_eq!(dut.sv_antenna, model.sv_antenna);
     assert_eq!(dut.ionod_corrections, model.ionod_corrections);
     assert_eq!(dut.dcb_compensations, model.dcb_compensations);
