@@ -17,15 +17,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - crate: rinex-qc-traits
           - crate: rinex
           - crate: sp3
           - crate: sinex
           - crate: binex
-          - crate: rinex-qc
           - crate: ublox-rnx
-          - crate: rnx2crx
-          - crate: crx2rnx
           - crate: rinex-cli
     steps:
       - name: Checkout
@@ -95,23 +91,15 @@ jobs:
           --all-features \
           --release \
           -p rinex-cli \
-          -p rnx2crx \
-          -p crx2rnx \
           -p ublox-rnx
         ls -lah target/${{ matrix.target }}/release
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          crx2rnx="target/${{ matrix.target }}/release/crx2rnx.exe"
-          rnx2crx="target/${{ matrix.target }}/release/rnx2crx.exe"
           rinexcli="target/${{ matrix.target }}/release/rinex-cli.exe"
           ubloxrnx="target/${{ matrix.target }}/release/ublox-rnx.exe"
         else
-          crx2rnx="target/${{ matrix.target }}/release/crx2rnx"
-          rnx2crx="target/${{ matrix.target }}/release/rnx2crx"
           rinexcli="target/${{ matrix.target }}/release/rinex-cli"
           ubloxrnx="target/${{ matrix.target }}/release/ublox-rnx"
         fi
-        echo "CRX2RNX=$crx2rnx" >> $GITHUB_ENV
-        echo "RNX2CRX=$crx2rnx" >> $GITHUB_ENV
         echo "RNXCLI=$rinexcli" >> $GITHUB_ENV
         echo "UBX2RNX=$ubloxrnx" >> $GITHUB_ENV
 
@@ -125,8 +113,6 @@ jobs:
       run: |
         mkdir -p "$ARCHIVE"
         cp {README.md,LICENSE-MIT,LICENSE-APACHE} "$ARCHIVE"/
-        cp "$CRX2RNX" "$ARCHIVE"/
-        cp "$RNX2CRX" "$ARCHIVE"/
         cp "$RNXCLI" "$ARCHIVE"/
         cp "$UBX2RNX" "$ARCHIVE"/
 

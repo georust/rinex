@@ -14,20 +14,21 @@
  * FAQ          : https://github.com/georust/rinex/tree/main/tutorials/FAQ.md
  */
 
-extern crate gnss_rs as gnss;
-extern crate num;
-
-#[cfg(feature = "qc")]
-extern crate gnss_qc_traits as qc_traits;
-
-#[cfg(feature = "flate2")]
-use flate2::{read::GzDecoder, write::GzEncoder, Compression as GzCompression};
-
 #[macro_use]
 extern crate num_derive;
 
 #[macro_use]
 extern crate lazy_static;
+
+#[cfg(feature = "serde")]
+#[macro_use]
+extern crate serde;
+
+extern crate gnss_rs as gnss;
+extern crate num;
+
+#[cfg(feature = "qc")]
+extern crate gnss_qc_traits as qc_traits;
 
 pub mod antex;
 pub mod carrier;
@@ -93,6 +94,9 @@ use antex::{Antenna, FrequencyDependentData};
 
 #[cfg(feature = "antex")]
 use antex::{AntennaMatcher, AntennaSpecific};
+
+#[cfg(feature = "flate2")]
+use flate2::{read::GzDecoder, write::GzEncoder, Compression as GzCompression};
 
 #[cfg(feature = "clock")]
 use std::collections::BTreeMap;
@@ -212,6 +216,9 @@ pub mod prod {
     };
 }
 
+use carrier::Carrier;
+use prelude::*;
+
 #[cfg(feature = "processing")]
 use qc_traits::{MaskFilter, Masking};
 
@@ -222,13 +229,6 @@ use crate::{
     meteo::mask::mask_mut as meteo_mask_mut, navigation::mask::mask_mut as navigation_mask_mut,
     observation::mask::mask_mut as observation_mask_mut,
 };
-
-use carrier::Carrier;
-use prelude::*;
-
-#[cfg(feature = "serde")]
-#[macro_use]
-extern crate serde;
 
 #[cfg(docsrs)]
 pub use bibliography::Bibliography;
@@ -1263,6 +1263,15 @@ impl Rinex {
         )
     }
 
+    /// Copies and returns new [Rinex] that is the result
+    /// of observation differentiation. See [Self::observation_substract_mut] for more
+    /// information.
+    pub fn observation_substract(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.observation_substract_mut(rhs);
+        s
+    }
+
     /// Modifies [Rinex] in place with observation differentiation
     /// using the remote (RHS) counterpart, for each identical observation and signal source.
     /// This only applies to Observation RINEX (1), DORIS (2) or Meteo RINEX (3).
@@ -1313,15 +1322,6 @@ impl Rinex {
                 }
             }
         }
-    }
-
-    /// Copies and returns new [Rinex] that is the result
-    /// of observation differentiation. See [Self::observation_substract_mut] for more
-    /// information.
-    pub fn observation_substract(&self, rhs: &Self) -> Self {
-        let mut s = self.clone();
-        s.observation_substract_mut(rhs);
-        s
     }
 }
 

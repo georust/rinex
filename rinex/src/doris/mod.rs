@@ -16,6 +16,7 @@ mod rinex;
 mod station;
 
 pub(crate) use formatting::format;
+pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
 #[cfg(feature = "processing")]
 pub(crate) mod decim;
@@ -28,8 +29,6 @@ pub(crate) mod repair;
 
 pub use header::HeaderFields;
 pub use station::Station;
-
-pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
 /// DORIS Station & record parsing error
 #[derive(Debug, Error)]

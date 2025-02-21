@@ -71,15 +71,6 @@ jobs:
           - name: SP3 All-features
             folder: sp3
             opts: --all-features
-          - name: RINEX-QC Default
-            folder: rinex-qc
-            opts: -r
-          - name: RINEX-QC SP3
-            folder: rinex-qc
-            opts: --features "sp3"
-          - name: RINEX-QC All-features
-            folder: rinex-qc
-            opts: --all-features
 
     steps:
     - uses: actions/checkout@v3
