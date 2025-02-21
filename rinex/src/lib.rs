@@ -188,14 +188,14 @@ pub mod prelude {
     #[cfg(feature = "qc")]
     #[cfg_attr(docsrs, doc(cfg(feature = "qc")))]
     pub mod qc {
-        pub use qc_traits::{Merge, MergeError, Split};
+        pub use qc_traits::{Merge, MergeError};
     }
 
     #[cfg(feature = "processing")]
     #[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
     pub mod processing {
         pub use qc_traits::{
-            Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing,
+            Decimate, DecimationFilter, Filter, MaskFilter, Masking, Preprocessing, Split,
         };
     }
 

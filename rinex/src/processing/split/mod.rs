@@ -1,4 +1,6 @@
-use crate::prelude::{qc::Split, Duration, Epoch, Header, Record, Rinex};
+use crate::prelude::{Duration, Epoch, Header, Record, Rinex};
+
+use gnss_qc_traits::Split;
 
 mod clock;
 mod doris;
