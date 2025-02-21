@@ -2,7 +2,9 @@ use crate::{
     doris::format as format_doris_observations,
     meteo::format as format_meteo_observations,
     navigation::format as format_navigation,
-    observation::format as format_observations,
+    observation::{
+        format as format_observations, format_compressed as format_compressed_observations,
+    },
     prelude::{FormattingError, Header},
     record::Record,
 };
@@ -16,7 +18,18 @@ impl Record {
         header: &Header,
     ) -> Result<(), FormattingError> {
         if let Some(rec) = self.as_obs() {
-            format_observations(w, rec, header)
+            if let Some(obs_header) = &header.obs {
+                if obs_header.crinex.is_some() {
+                    format_compressed_observations(w, rec, &obs_header)
+                } else {
+                    format_observations(w, rec, header)
+                }
+            } else {
+                // missing observation specific fields
+                // run through standard process
+                // but this will rapidly panic
+                format_observations(w, rec, header)
+            }
         } else if let Some(rec) = self.as_meteo() {
             format_meteo_observations(w, rec, header)
         } else if let Some(rec) = self.as_doris() {
