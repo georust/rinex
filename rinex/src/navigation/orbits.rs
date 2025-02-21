@@ -1,9 +1,10 @@
 //! NAV Orbits description, spanning all revisions and constellations
 use super::health;
-use crate::version;
 use bitflags::bitflags;
+use num::FromPrimitive;
 use std::str::FromStr;
-use thiserror::Error;
+
+use crate::prelude::ParsingError;
 
 include!(concat!(env!("OUT_DIR"), "/nav_orbits.rs"));
 
@@ -65,60 +66,58 @@ impl From<f64> for OrbitItem {
     }
 }
 
-/// `OrbitItem` related errors
-#[derive(Error, Debug)]
-pub enum OrbitItemError {
-    #[error("failed to parse int value")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse float value")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("unknown type descriptor \"{0}\"")]
-    UnknownTypeDescriptor(String),
-}
-
 impl OrbitItem {
     /// Builds a `OrbitItem` from type descriptor and string content
     pub fn new(
         type_desc: &str,
         content: &str,
         constellation: Constellation,
-    ) -> Result<OrbitItem, OrbitItemError> {
+    ) -> Result<OrbitItem, ParsingError> {
         match type_desc {
             "u8" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace('D', "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitUnsignedData)?;
                 Ok(OrbitItem::U8(float as u8))
             },
             "i8" => {
                 // float->signed conversion
-                let float = f64::from_str(&content.replace('D', "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitSignedData)?;
                 Ok(OrbitItem::I8(float as i8))
             },
             "u32" => {
                 // float->signed conversion
-                let float = f64::from_str(&content.replace('D', "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitUnsignedData)?;
                 Ok(OrbitItem::U32(float as u32))
             },
-            "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace('D', "e"))?)),
+            "f64" => {
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitFloatData)?;
+                Ok(OrbitItem::F64(float))
+            },
             "gloStatus" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace('D', "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitUnsignedData)?;
                 let unsigned = float as u32;
                 let status = GloStatus::from_bits(unsigned).unwrap_or(GloStatus::empty());
                 Ok(OrbitItem::GloStatus(status))
             },
             "health" => {
                 // float->unsigned conversion
-                let float = f64::from_str(&content.replace('D', "e"))?;
+                let float = f64::from_str(&content.replace('D', "e"))
+                    .map_err(|_| ParsingError::OrbitUnsignedData)?;
                 let unsigned = float as u32;
                 match constellation {
                     Constellation::GPS | Constellation::QZSS => {
-                        let flag: health::Health = num::FromPrimitive::from_u32(unsigned)
-                            .unwrap_or(health::Health::default());
+                        let flag: health::Health =
+                            FromPrimitive::from_u32(unsigned).unwrap_or(health::Health::default());
                         Ok(OrbitItem::Health(flag))
                     },
                     Constellation::Glonass => {
-                        let flag: health::GloHealth = num::FromPrimitive::from_u32(unsigned)
+                        let flag: health::GloHealth = FromPrimitive::from_u32(unsigned)
                             .unwrap_or(health::GloHealth::default());
                         Ok(OrbitItem::GloHealth(flag))
                     },
@@ -145,7 +144,7 @@ impl OrbitItem {
                     },
                 }
             }, // "health"
-            _ => Err(OrbitItemError::UnknownTypeDescriptor(type_desc.to_string())),
+            _ => Err(ParsingError::NoNavigationDefinition),
         }
     }
     /// Formats self following RINEX standards,
@@ -168,6 +167,9 @@ impl OrbitItem {
     pub fn as_f64(&self) -> Option<f64> {
         match self {
             OrbitItem::F64(f) => Some(*f),
+            OrbitItem::U8(val) => Some(*val as f64),
+            OrbitItem::I8(val) => Some(*val as f64),
+            OrbitItem::U32(val) => Some(*val as f64),
             _ => None,
         }
     }
@@ -175,6 +177,9 @@ impl OrbitItem {
     pub fn as_u32(&self) -> Option<u32> {
         match self {
             OrbitItem::U32(v) => Some(*v),
+            OrbitItem::U8(val) => Some(*val as u32),
+            OrbitItem::I8(val) => Some(*val as u32),
+            OrbitItem::F64(val) => Some(val.round() as u32),
             _ => None,
         }
     }
@@ -182,6 +187,9 @@ impl OrbitItem {
     pub fn as_u8(&self) -> Option<u8> {
         match self {
             OrbitItem::U8(u) => Some(*u),
+            OrbitItem::U32(val) => Some(*val as u8),
+            OrbitItem::I8(val) => Some(*val as u8),
+            OrbitItem::F64(val) => Some(val.round() as u8),
             _ => None,
         }
     }
@@ -229,17 +237,15 @@ impl OrbitItem {
     }
 }
 
-/*
- * Identifies closest (but older) revision contained in NAV database.
- * Closest content (in time) is used during record parsing to identify and sort data.
- * Returns None
- *   - if no database entries were found for requested constellation.
- *   - or only newer revision exist : we prefer matching on older revisions
- */
+/// Identifies closest (but older) revision contained in NAV database.
+/// Closest content (in time) is used during record parsing to identify and sort data.
+/// Returns None
+/// - if no database entries were found for requested constellation.
+///  - or only newer revision exist : we prefer matching on older revisions
 pub(crate) fn closest_nav_standards(
     constellation: Constellation,
-    revision: version::Version,
-    msg: NavMsgType,
+    revision: Version,
+    msg: NavMessageType,
 ) -> Option<&'static NavHelper<'static>> {
     let database = &NAV_ORBITS;
     // start by trying to locate desired revision.
@@ -248,7 +254,7 @@ pub(crate) fn closest_nav_standards(
     loop {
         // filter on both:
         //  + Exact Constellation
-        //  + Exact NavMsgType
+        //  + Exact NavMessageType
         //  + Exact revision we're currently trying to locate
         //    algorithm: decreasing, starting from desired revision
         let items: Vec<_> = database
@@ -286,6 +292,8 @@ pub(crate) fn closest_nav_standards(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::navigation::NavMessageType;
+
     #[test]
     fn orbit_database_sanity() {
         for frame in NAV_ORBITS.iter() {
@@ -314,38 +322,107 @@ mod test {
             }
         }
     }
+
     #[test]
     fn nav_standards_finder() {
         // Constellation::Mixed is not contained in db!
         assert_eq!(
-            closest_nav_standards(Constellation::Mixed, Version::default(), NavMsgType::LNAV),
+            closest_nav_standards(
+                Constellation::Mixed,
+                Version::default(),
+                NavMessageType::LNAV
+            ),
             None,
             "Mixed GNSS constellation is or should not exist in the DB"
         );
 
         // Test existing (exact match) entries
         for (constellation, rev, msg) in [
-            (Constellation::GPS, Version::new(1, 0), NavMsgType::LNAV),
-            (Constellation::GPS, Version::new(2, 0), NavMsgType::LNAV),
-            (Constellation::GPS, Version::new(4, 0), NavMsgType::LNAV),
-            (Constellation::GPS, Version::new(4, 0), NavMsgType::CNAV),
-            (Constellation::GPS, Version::new(4, 0), NavMsgType::CNV2),
-            (Constellation::Glonass, Version::new(2, 0), NavMsgType::LNAV),
-            (Constellation::Glonass, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::Galileo, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::Galileo, Version::new(4, 0), NavMsgType::INAV),
-            (Constellation::Galileo, Version::new(4, 0), NavMsgType::FNAV),
-            (Constellation::QZSS, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::QZSS, Version::new(4, 0), NavMsgType::LNAV),
-            (Constellation::QZSS, Version::new(4, 0), NavMsgType::CNAV),
-            (Constellation::QZSS, Version::new(4, 0), NavMsgType::CNV2),
-            (Constellation::BeiDou, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::D1),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::D2),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV1),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV2),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV3),
-            (Constellation::SBAS, Version::new(4, 0), NavMsgType::SBAS),
+            (Constellation::GPS, Version::new(1, 0), NavMessageType::LNAV),
+            (Constellation::GPS, Version::new(2, 0), NavMessageType::LNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMessageType::LNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMessageType::CNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMessageType::CNV2),
+            (
+                Constellation::Glonass,
+                Version::new(2, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::Glonass,
+                Version::new(3, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::Galileo,
+                Version::new(3, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::Galileo,
+                Version::new(4, 0),
+                NavMessageType::INAV,
+            ),
+            (
+                Constellation::Galileo,
+                Version::new(4, 0),
+                NavMessageType::FNAV,
+            ),
+            (
+                Constellation::QZSS,
+                Version::new(3, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::QZSS,
+                Version::new(4, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::QZSS,
+                Version::new(4, 0),
+                NavMessageType::CNAV,
+            ),
+            (
+                Constellation::QZSS,
+                Version::new(4, 0),
+                NavMessageType::CNV2,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(3, 0),
+                NavMessageType::LNAV,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(4, 0),
+                NavMessageType::D1,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(4, 0),
+                NavMessageType::D2,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(4, 0),
+                NavMessageType::CNV1,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(4, 0),
+                NavMessageType::CNV2,
+            ),
+            (
+                Constellation::BeiDou,
+                Version::new(4, 0),
+                NavMessageType::CNV3,
+            ),
+            (
+                Constellation::SBAS,
+                Version::new(4, 0),
+                NavMessageType::SBAS,
+            ),
         ] {
             let found = closest_nav_standards(constellation, rev, msg);
             assert!(
@@ -377,19 +454,19 @@ mod test {
                 Constellation::GPS,
                 Version::new(5, 0),
                 Version::new(4, 0),
-                NavMsgType::LNAV,
+                NavMessageType::LNAV,
             ),
             (
                 Constellation::GPS,
                 Version::new(4, 1),
                 Version::new(4, 0),
-                NavMsgType::LNAV,
+                NavMessageType::LNAV,
             ),
             (
                 Constellation::Glonass,
                 Version::new(3, 4),
                 Version::new(3, 0),
-                NavMsgType::LNAV,
+                NavMessageType::LNAV,
             ),
         ] {
             let found = closest_nav_standards(constellation, desired, msg);
@@ -419,25 +496,24 @@ mod test {
                 expected);
         }
     }
+
     #[test]
     fn test_db_item() {
         let e = OrbitItem::U8(10);
-        assert!(e.as_u8().is_some());
-        assert!(e.as_u32().is_none());
-        let u = e.as_u8().unwrap();
-        assert_eq!(u, 10);
+        assert_eq!(e.as_u8(), Some(10));
 
         let e = OrbitItem::F64(10.0);
-        assert!(e.as_u8().is_none());
-        assert!(e.as_u32().is_none());
-        assert!(e.as_f64().is_some());
-        let u = e.as_f64().unwrap();
-        assert_eq!(u, 10.0_f64);
+        assert_eq!(e.as_u8(), Some(10));
+        assert_eq!(e.as_u32(), Some(10));
+        assert_eq!(e.as_f64(), Some(10.0));
 
         let e = OrbitItem::U32(1);
-        assert!(e.as_u32().is_some());
-        assert!(e.as_f64().is_none());
-        let u = e.as_u32().unwrap();
-        assert_eq!(u, 1_u32);
+        assert_eq!(e.as_u32(), Some(1));
+        assert_eq!(e.as_f64(), Some(1.0));
+    }
+
+    #[test]
+    fn test_orbit_channel_5() {
+        let _ = OrbitItem::new("i8", "5.000000000000D+00", Constellation::Glonass).unwrap();
     }
 }

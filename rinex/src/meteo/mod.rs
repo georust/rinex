@@ -1,67 +1,39 @@
 //! Meteo RINEX module
-pub mod record;
-pub use record::Record;
+mod formatting;
+mod header;
+mod parsing;
+mod rinex;
+mod sensor; // high level methods
 
-pub mod sensor;
-use sensor::Sensor;
+pub use header::HeaderFields;
+pub use sensor::Sensor;
 
-use crate::Observable;
+use crate::prelude::{Epoch, Observable};
+use std::collections::BTreeMap;
+
+pub(crate) use formatting::format;
+pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
 #[cfg(feature = "processing")]
-use std::str::FromStr;
+pub(crate) mod mask; // mask Trait implementation
 
 #[cfg(feature = "processing")]
-use qc_traits::{FilterItem, MaskFilter, MaskOperand};
+pub(crate) mod decim; // decim Trait implementation
 
-/// Meteo specific header fields
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
+#[cfg(feature = "processing")]
+pub(crate) mod repair; // repair Trait implementation
+
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct HeaderFields {
-    /// Observation types contained in this file
-    pub codes: Vec<Observable>,
-    /// Sensors that produced the following observables
-    pub sensors: Vec<Sensor>,
+pub struct MeteoKey {
+    /// [Epoch] of observation
+    pub epoch: Epoch,
+    /// [Observable] determines the physics
+    pub observable: Observable,
 }
 
-impl HeaderFields {
-    #[cfg(feature = "processing")]
-    pub(crate) fn mask_mut(&mut self, f: &MaskFilter) {
-        match f.operand {
-            MaskOperand::Equals => match &f.item {
-                FilterItem::ComplexItem(complex) => {
-                    // try to interprate as [Observable]
-                    let observables = complex
-                        .iter()
-                        .filter_map(|f| {
-                            if let Ok(ob) = Observable::from_str(f) {
-                                Some(ob)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    self.codes.retain(|c| observables.contains(&c));
-                },
-                _ => {},
-            },
-            MaskOperand::NotEquals => match &f.item {
-                FilterItem::ComplexItem(complex) => {
-                    // try to interprate as [Observable]
-                    let observables = complex
-                        .iter()
-                        .filter_map(|f| {
-                            if let Ok(ob) = Observable::from_str(f) {
-                                Some(ob)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    self.codes.retain(|c| !observables.contains(&c));
-                },
-                _ => {},
-            },
-            _ => {},
-        }
-    }
-}
+/// [MeteoObservation]s sorted by [Epoch]
+pub type Record = BTreeMap<MeteoKey, f64>;

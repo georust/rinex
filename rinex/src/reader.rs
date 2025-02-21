@@ -1,109 +1,154 @@
-//! Buffered Reader wrapper, for efficient data reading
-//! and integrated .gz decompression.
-#[cfg(feature = "flate2")]
-use flate2::read::GzDecoder;
-use std::fs::File;
-use std::io::BufReader; // Seek, SeekFrom};
+//! Buffered Reader wrapper, for efficient data reading.
+use std::io::{BufRead, BufReader, Error as IoError, Read};
 
-#[derive(Debug)]
-pub enum BufferedReader {
-    /// Readable `RINEX`
-    PlainFile(BufReader<File>),
-    /// gzip compressed RINEX
-    #[cfg(feature = "flate2")]
-    GzFile(BufReader<GzDecoder<File>>),
+// Modify this value to update the internal buffer depth.
+// RINEX is \n termination based, and always made of rather short lines (about 512 is reasonnable).
+// So the proposed value should be more than enough.
+const BUF_SIZE: usize = 2048;
+
+/// [Reader] is dedicated to efficient RINEX input parsing.
+/// Whether they are local files or not. It implements efficient
+/// internal buffering that is specifically scaled for RINEX content.
+/// It is solely here to provide [BufRead] implementation on [Read]able interfaces.
+pub struct Reader<R: Read> {
+    /// Internal buffer, which needs to store up to two complete lines.
+    /// Since the objective here is to always provide a complete Line (without \n termination),
+    /// and be consistent with std::Lines iterator.
+    /// RINEX lines are short, and this will be more than enough.
+    buf: [u8; BUF_SIZE],
+    rd_ptr: usize,
+    wr_ptr: usize,
+    reader: R,
 }
 
-impl BufferedReader {
-    /// Builds a new BufferedReader for efficient file interation,
-    /// with possible .gz decompression
-    pub fn new(path: &str) -> std::io::Result<Self> {
-        let f = File::open(path)?;
-        if path.ends_with(".gz") {
-            // --> gzip encoded
-            #[cfg(feature = "flate2")]
-            {
-                Ok(Self::GzFile(BufReader::new(GzDecoder::new(f))))
-            }
-            #[cfg(not(feature = "flate2"))]
-            {
-                panic!(".gz data requires --flate2 feature")
-            }
-        } else if path.ends_with(".Z") {
-            panic!(".z decompresion is not supported: uncompress manually")
+impl<R: Read> Reader<R> {
+    pub fn new(reader: R) -> Self {
+        Self {
+            reader,
+            wr_ptr: 0,
+            rd_ptr: 0,
+            buf: [0; BUF_SIZE],
+        }
+    }
+}
+
+impl<R: Read> Read for Reader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        // always try to pull new content, if we can
+        let avail = BUF_SIZE - self.wr_ptr;
+        if avail > 0 {
+            let size = self.reader.read(&mut self.buf[self.wr_ptr..])?;
+            self.wr_ptr += size;
+        }
+
+        // try to provide new content if possible
+        let buf_len = buf.len();
+
+        let avail = BUF_SIZE - self.rd_ptr;
+        if avail < buf_len {
+            // we have less than buffer can accept:
+            // return everything we have
+            buf[..avail].copy_from_slice(&self.buf[self.rd_ptr..]);
+            Ok(avail)
         } else {
-            // Assumes no extra compression
-            Ok(Self::PlainFile(BufReader::new(f)))
-        }
-    }
-    /*
-        /// Enhances self for hatanaka internal decompression,
-        /// preserves inner pointer state
-        pub fn with_hatanaka (&self, m: usize) -> std::io::Result<Self> {
-            match &self.reader {
-                ReaderWrapper::PlainFile(bufreader) => {
-                    let inner = bufreader.get_ref();
-                    let fd = inner.try_clone()?; // preserves pointer
-                    Ok(BufferedReader {
-                        reader: ReaderWrapper::PlainFile(BufReader::new(fd)),
-                        decompressor: Some(Decompressor::new(m)),
-                    })
-                },
-                #[cfg(feature = "flate2")]
-                ReaderWrapper::GzFile(bufreader) => {
-                    let inner = bufreader.get_ref().get_ref();
-                    let fd = inner.try_clone()?; // preserves pointer
-                    Ok(BufferedReader {
-                        reader: ReaderWrapper::GzFile(BufReader::new(GzDecoder::new(fd))),
-                        decompressor: Some(Decompressor::new(m)),
-                    })
-                },
-            }
-        }
-    */
-    /*
-        /// Modifies inner file pointer position
-        pub fn seek (&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
-            match self.reader {
-                ReaderWrapper::PlainFile(ref mut bufreader) => bufreader.seek(pos),
-                #[cfg(feature = "flate2")]
-                ReaderWrapper::GzFile(ref mut bufreader) => bufreader.seek(pos),
-            }
-        }
-        /// rewind filer inner pointer, to offset = 0
-        pub fn rewind (&mut self) -> Result<(), std::io::Error> {
-            match self.reader {
-                ReaderWrapper::PlainFile(ref mut bufreader) => bufreader.rewind(),
-                #[cfg(feature = "flate2")]
-                ReaderWrapper::GzFile(ref mut bufreader) => bufreader.rewind(),
-            }
-        }
-    */
-}
-
-impl std::io::Read for BufferedReader {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        match self {
-            Self::PlainFile(ref mut h) => h.read(buf),
-            #[cfg(feature = "flate2")]
-            Self::GzFile(ref mut h) => h.read(buf),
+            // we have more than buffer can accept
+            // return only what it can accept, avoiding overflow
+            buf.copy_from_slice(&self.buf[self.rd_ptr..self.rd_ptr + buf_len]);
+            Ok(buf_len)
         }
     }
 }
 
-impl std::io::BufRead for BufferedReader {
-    fn fill_buf(&mut self) -> Result<&[u8], std::io::Error> {
-        match self {
-            Self::PlainFile(ref mut bufreader) => bufreader.fill_buf(),
-            #[cfg(feature = "flate2")]
-            Self::GzFile(ref mut bufreader) => bufreader.fill_buf(),
+impl<R: Read> BufRead for Reader<R> {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        let avail = BUF_SIZE - self.wr_ptr;
+        if avail > 0 {
+            let size = self.reader.read(&mut self.buf[self.wr_ptr..])?;
+            self.wr_ptr += size;
         }
+        Ok(&self.buf[self.rd_ptr..])
     }
     fn consume(&mut self, s: usize) {
-        match self {
-            Self::PlainFile(ref mut bufreader) => bufreader.consume(s),
-            #[cfg(feature = "flate2")]
-            Self::GzFile(ref mut bufreader) => bufreader.consume(s),
+        let avail = 8192 - self.rd_ptr;
+        if avail >= s {
+            self.rd_ptr += s;
+        } else {
+            self.rd_ptr = 8192;
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Reader;
+    use std::fs::File;
+    use std::io::BufRead;
+    use std::io::BufReader;
+
+    #[test]
+    fn v3_lines_iter() {
+        let mut last_passed = false;
+
+        let fd = File::open("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
+        let reader = BufReader::new(fd);
+
+        for (nth, line) in reader.lines().enumerate() {
+            if let Ok(line) = line {
+                println!("LINE \"{}\"", line);
+                if nth == 0 {
+                    assert_eq!(line, "     3.02           OBSERVATION DATA    M: MIXED            RINEX VERSION / TYPE");
+                } else if nth == 1 {
+                    assert_eq!(
+                        line,
+                        "HEADER CHANGED BY EPN CB ON 2022-03-11                      COMMENT"
+                    );
+                } else if nth == 34 {
+                    assert_eq!(
+                        line,
+                        "                                                            END OF HEADER"
+                    );
+                } else if nth == 89 {
+                    assert_eq!(line, "R24  20147683.700   107738728.87108     -2188.113          51.000    20147688.700    83796794.50808     -1701.871          48.500");
+                    last_passed = true;
+                } else {
+                    if nth > 89 {
+                        panic!("producing more than expected!");
+                    }
+                }
+            }
+        }
+        assert!(last_passed);
+    }
+
+
+    #[test]
+    fn v3_lengthy_lines_iter() {
+        let mut last_passed = false;
+
+        let fd = File::open("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz").unwrap();
+        let reader = Reader::new(fd);
+
+        for (nth, line) in reader.lines().enumerate() {
+            if let Ok(line) = line {
+                if nth == 0 {
+assert_eq!(line, "3.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE");
+                } else if nth == 1 {
+assert_eq!(line, "RNX2CRX ver.4.0.8                       06-Jul-22 13:22     CRINEX PROG / DATE");
+                } else if nth == 56 {
+                    assert_eq!(
+                        line,
+                        "                                                            END OF HEADER"
+                    );
+                } else if nth == 136615 {
+                    assert_eq!(line, "-14156  -3697  936  250");
+                    last_passed = true;
+                } else {
+                    if nth > 89 {
+                        panic!("producing more than expected!");
+                    }
+                }
+            }
+        }
+        assert!(last_passed);
     }
 }

@@ -1,15 +1,22 @@
-//! Hardware: receiver, antenna informations
-use crate::prelude::{COSPAR, SV};
-use std::str::FromStr;
+//! Receiver and antenna
+use crate::{
+    fmt_rinex,
+    prelude::{FormattingError, COSPAR, SV},
+};
+
+use std::{
+    io::{BufWriter, Write},
+    str::FromStr,
+};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "qc")]
-use maud::{html, Markup, Render};
+use qc_traits::{html, Markup, QcHtmlReporting};
 
 /// GNSS receiver description
-#[derive(Default, Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Receiver {
     /// Receiver (hardware) model
@@ -20,7 +27,40 @@ pub struct Receiver {
     pub firmware: String, // firmware #
 }
 
-impl std::str::FromStr for Receiver {
+impl Receiver {
+    /// Formats [Receiver] into [BufWriter]
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        writeln!(
+            w,
+            "{}",
+            fmt_rinex(
+                &format!("{:<20}{:<20}{}", self.sn, self.model, self.firmware),
+                "REC # / TYPE / VERS"
+            )
+        )?;
+        Ok(())
+    }
+
+    pub fn with_model(&self, model: &str) -> Self {
+        let mut s = self.clone();
+        s.model = model.to_string();
+        s
+    }
+
+    pub fn with_serial_number(&self, sn: &str) -> Self {
+        let mut s = self.clone();
+        s.sn = sn.to_string();
+        s
+    }
+
+    pub fn with_firmware(&self, firmware: &str) -> Self {
+        let mut s = self.clone();
+        s.firmware = firmware.to_string();
+        s
+    }
+}
+
+impl FromStr for Receiver {
     type Err = std::io::Error;
     fn from_str(line: &str) -> Result<Self, Self::Err> {
         let (id, rem) = line.split_at(20);
@@ -35,7 +75,7 @@ impl std::str::FromStr for Receiver {
 }
 
 /// Antenna description
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Antenna {
     /// Hardware model / make descriptor
@@ -56,36 +96,74 @@ pub struct Antenna {
 }
 
 impl Antenna {
+    /// Formats [Antenna] into [BufWriter]
+    pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
+        writeln!(
+            w,
+            "{}",
+            fmt_rinex(&format!("{:<20}{}", self.sn, self.model), "ANT # / TYPE")
+        )?;
+        if let Some(coords) = &self.coords {
+            writeln!(
+                w,
+                "{}",
+                fmt_rinex(
+                    &format!("{:14.4}{:14.4}{:14.4}", coords.0, coords.1, coords.2),
+                    "APPROX POSITION XYZ"
+                )
+            )?;
+        }
+        writeln!(
+            w,
+            "{}",
+            fmt_rinex(
+                &format!(
+                    "{:14.4}{:14.4}{:14.4}",
+                    self.height.unwrap_or(0.0),
+                    self.eastern.unwrap_or(0.0),
+                    self.northern.unwrap_or(0.0)
+                ),
+                "ANTENNA: DELTA H/E/N"
+            )
+        )?;
+        Ok(())
+    }
+
     /// Sets desired model
     pub fn with_model(&self, m: &str) -> Self {
         let mut s = self.clone();
         s.model = m.to_string();
         s
     }
+
     /// Sets desired Serial Number
     pub fn with_serial_number(&self, sn: &str) -> Self {
         let mut s = self.clone();
         s.sn = sn.to_string();
         s
     }
+
     /// Sets reference/base coordinates (3D)
     pub fn with_base_coordinates(&self, coords: (f64, f64, f64)) -> Self {
         let mut s = self.clone();
         s.coords = Some(coords);
         s
     }
+
     /// Sets antenna `h` eccentricity component
     pub fn with_height(&self, h: f64) -> Self {
         let mut s = self.clone();
         s.height = Some(h);
         s
     }
+
     /// Sets antenna `eastern` coordinates component
     pub fn with_eastern_component(&self, e: f64) -> Self {
         let mut s = self.clone();
         s.eastern = Some(e);
         s
     }
+
     /// Sets antenna `northern` coordiantes component
     pub fn with_northern_component(&self, n: f64) -> Self {
         let mut s = self.clone();
@@ -95,7 +173,7 @@ impl Antenna {
 }
 
 #[cfg(feature = "qc")]
-impl Render for Antenna {
+impl QcHtmlReporting for Antenna {
     fn render(&self) -> Markup {
         html! {
             table class="table is-bordered" {
@@ -160,7 +238,7 @@ impl Render for Antenna {
 }
 
 #[cfg(feature = "qc")]
-impl Render for Receiver {
+impl QcHtmlReporting for Receiver {
     fn render(&self) -> Markup {
         html! {
             div class="table-container" {

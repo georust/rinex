@@ -1,74 +1,54 @@
-use crate::navigation::FrameClass;
 use crate::*;
 use rand::{distributions::Alphanumeric, Rng};
 
-use hifitime::TimeSeries;
+use crate::hardware::Antenna;
 
-/* OBS RINEX dedicated tools */
+// OBS RINEX dedicated tools
 mod observation;
-pub use observation::check_observables as obsrinex_check_observables;
-pub use observation::test_observation_rinex;
+pub use observation::{
+    generic_comparison as generic_observation_comparison, generic_observation_epoch_decoding_test,
+    generic_observation_rinex_test, SignalDataPoint,
+};
 
-/* NAV RINEX dedicated tools */
-pub mod nav;
+// IONEX test toolkit
+#[cfg(feature = "ionex")]
+mod ionex;
 
-/* DORIS RINEX dedicated tools */
+#[cfg(feature = "ionex")]
+pub use ionex::{generic_ionex_test, TecPoint};
+
+// NAV RINEX dedicated tools
+#[cfg(feature = "nav")]
+mod nav;
+
+#[cfg(feature = "nav")]
+pub use nav::{
+    generic_comparison as generic_navigation_comparison, generic_test as generic_navigation_test,
+};
+
+// DORIS RINEX dedicated tools
+#[cfg(feature = "doris")]
 mod doris;
-pub use doris::check_observables as doris_check_observables;
-pub use doris::check_stations as doris_check_stations;
 
-/* ANY RINEX == constant (special ops) */
-mod constant;
-pub use constant::is_null_rinex;
+#[cfg(feature = "doris")]
+pub use doris::{
+    check_observables as doris_check_observables, check_stations as doris_check_stations,
+};
 
-//#[macro_use]
-#[macro_export]
-macro_rules! erratic_time_frame {
-    ($csv: expr) => {
-        TestTimeFrame::Erratic(
-            $csv.split(",")
-                .map(|c| Epoch::from_str(c.trim()).unwrap())
-                .unique()
-                .collect::<Vec<Epoch>>(),
-        )
-    };
-}
+// Meteo RINEX dedicated tests
+#[cfg(feature = "meteo")]
+mod meteo;
 
-#[macro_export]
-macro_rules! evenly_spaced_time_frame {
-    ($start: expr, $end: expr, $step: expr) => {
-        TestTimeFrame::EvenlySpaced(TimeSeries::inclusive(
-            Epoch::from_str($start.trim()).unwrap(),
-            Epoch::from_str($end.trim()).unwrap(),
-            Duration::from_str($step.trim()).unwrap(),
-        ))
-    };
-}
+#[cfg(feature = "meteo")]
+pub use meteo::{generic_comparison as generic_meteo_comparison, generic_meteo_rinex_test};
 
-#[derive(Debug, Clone)]
-pub enum TestTimeFrame {
-    Erratic(Vec<Epoch>),
-    EvenlySpaced(TimeSeries),
-}
+pub mod timeframe;
+pub use timeframe::TimeFrame;
 
-impl TestTimeFrame {
-    pub fn evenly_spaced(&self) -> Option<TimeSeries> {
-        match self {
-            Self::EvenlySpaced(ts) => Some(ts.clone()),
-            _ => None,
-        }
-    }
-    pub fn erratic(&self) -> Option<Vec<Epoch>> {
-        match self {
-            Self::Erratic(ts) => Some(ts.clone()),
-            _ => None,
-        }
-    }
-}
+pub mod csv;
+pub use csv::{gnss_csv, observables_csv, sv_csv};
 
-/*
- * Tool to generate random names when we need to produce a file
- */
+/// Random name generator
 pub fn random_name(size: usize) -> String {
     rand::thread_rng()
         .sample_iter(&Alphanumeric)
@@ -77,253 +57,187 @@ pub fn random_name(size: usize) -> String {
         .collect()
 }
 
-/*
- * Creates list of observables
- */
-pub fn build_observables(observable_csv: &str) -> Vec<Observable> {
-    observable_csv
-        .split(',')
-        .map(|c| {
-            let c = c.trim();
-            if let Ok(observ) = Observable::from_str(c) {
-                observ
-            } else {
-                panic!("invalid observable in csv");
-            }
-        })
-        .collect::<Vec<Observable>>()
-        .into_iter()
-        .unique()
-        .collect()
-}
+/// Generic sampling test
+pub fn generic_timeframe_test(dut: &Rinex, tf: TimeFrame) {
+    // grab epoch iter
+    let mut dut = dut.epoch_iter();
+    let mut model = tf.into_iter();
 
-use std::str::FromStr;
-
-/*
- * Build GNSS list
- */
-pub fn build_gnss_csv(gnss_csv: &str) -> Vec<Constellation> {
-    gnss_csv
-        .split(',')
-        .map(|c| Constellation::from_str(c.trim()).unwrap())
-        .collect::<Vec<Constellation>>()
-        .into_iter()
-        .unique()
-        .collect()
-}
-
-/*
- * Test method to compare one RINEX against GNSS content
- */
-pub fn test_gnss_csv(dut: &Rinex, gnss_csv: &str) {
-    let gnss = build_gnss_csv(gnss_csv);
-    let dut_gnss: Vec<Constellation> = dut.constellation().collect();
-    for g in &gnss {
-        assert!(
-            dut_gnss.contains(g),
-            "dut does not contain constellation \"{}\"",
-            g
-        );
-    }
-    for g in &dut_gnss {
-        assert!(
-            gnss.contains(g),
-            "dut should not contain constellation \"{:X}\"",
-            g
-        );
-    }
-}
-
-/*
- * Compares one RINEX against SV total content
- */
-pub fn test_sv_csv(dut: &Rinex, sv_csv: &str) {
-    let sv: Vec<SV> = sv_csv
-        .split(',')
-        .map(|c| SV::from_str(c.trim()).unwrap())
-        .collect::<Vec<SV>>()
-        .into_iter()
-        .unique()
-        .collect();
-
-    let dut_sv: Vec<SV> = dut.sv().collect();
-    for v in &sv {
-        assert!(dut_sv.contains(v), "dut does not contain vehicle \"{}\"", v);
-    }
-    for v in &sv {
-        assert!(sv.contains(v), "dut should not contain vehicle \"{}\"", v);
-    }
-}
-
-/*
- * Compares one RINEX against given epoch content
- */
-pub fn test_time_frame(dut: &Rinex, tf: TestTimeFrame) {
-    let mut dut_epochs = dut.epoch();
-    let _epochs: Vec<Epoch> = Vec::new();
-    if let Some(serie) = tf.evenly_spaced() {
-        for e in serie {
-            assert_eq!(
-                Some(e),
-                dut_epochs.next(),
-                "dut does not contain epoch {}",
-                e
-            );
-        }
-        for e in dut_epochs.by_ref() {
-            panic!("dut should not contain epoch {}", e);
-        }
-    } else if let Some(serie) = tf.erratic() {
-        for e in serie {
-            assert!(
-                dut_epochs.any(|epoch| e == epoch),
-                "dut does not contain epoch {}",
-                e
-            );
-        }
-        for e in dut_epochs {
-            panic!("dut should not contain epoch {}", e);
+    while let Some(model) = model.next() {
+        if let Some(dut) = dut.next() {
+            assert_eq!(model, dut);
+        } else {
+            panic!("missing temporal data {:?}", model);
         }
     }
-}
 
-/*
- * Tests provided vehicles per epoch
- * This is METEO + OBS compatible
- */
-pub fn test_observables_csv(dut: &Rinex, observables_csv: &str) {
-    let observ = build_observables(observables_csv);
-    let dut_observ: Vec<&Observable> = dut.observable().collect();
-    for o in &observ {
-        assert!(
-            dut_observ.contains(&o),
-            "dut does not contain observable {}",
-            o
-        );
-    }
-    for o in &dut_observ {
-        assert!(
-            dut_observ.contains(o),
-            "dut should not contain observable {}",
-            o
-        );
-    }
-}
-
-/*
- * OBS RINEX thorough comparison
- */
-fn observation_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
-    let rec_dut = dut.record.as_obs().expect("failed to unwrap rinex record");
-    let rec_model = model
-        .record
-        .as_obs()
-        .expect("failed to unwrap rinex record");
-    /*
-     * 1: make sure constellations are identical
-     */
-    let dut_constell: Vec<_> = dut.constellation().collect();
-    let expected_constell: Vec<_> = model.constellation().collect();
-    assert_eq!(
-        dut_constell, expected_constell,
-        "mismatch for \"{}\"",
-        filename
+    let next = dut.next();
+    assert!(
+        next.is_none(),
+        "timeframe exceeded! unexpected content {:?}",
+        next.unwrap()
     );
+}
 
-    for (e_model, (clk_offset_model, vehicles_model)) in rec_model.iter() {
-        if let Some((clk_offset_dut, vehicles_dut)) = rec_dut.get(e_model) {
-            assert_eq!(
-                clk_offset_model, clk_offset_dut,
-                "\"{}\" - {:?} - faulty clock offset, expecting {:?} got {:?}",
-                filename, e_model, clk_offset_model, clk_offset_dut
-            );
-            for (sv_model, observables_model) in vehicles_model.iter() {
-                if let Some(observables_dut) = vehicles_dut.get(sv_model) {
-                    for (code_model, obs_model) in observables_model {
-                        if let Some(obs_dut) = observables_dut.get(code_model) {
-                            assert!(
-                                (obs_model.obs - obs_dut.obs).abs() < epsilon,
-                                "\"{}\" - {:?} - {:?} - \"{}\" expecting {} got {}",
-                                filename,
-                                e_model,
-                                sv_model,
-                                code_model,
-                                obs_model.obs,
-                                obs_dut.obs
-                            );
-                            assert_eq!(
-                                obs_model.lli, obs_dut.lli,
-                                "\"{}\" - {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
-                                filename, e_model, sv_model, code_model, obs_model.lli, obs_dut.lli
-                            );
-                            assert_eq!(
-                                obs_model.snr, obs_dut.snr,
-                                "\"{}\" - {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
-                                filename, e_model, sv_model, code_model, obs_model.snr, obs_dut.snr
-                            );
-                        } else {
-                            panic!(
-                                "\"{}\" - {:?} - {:?} : missing \"{}\" observation",
-                                filename, e_model, sv_model, code_model
-                            );
-                        }
-                    }
-                } else {
-                    panic!(
-                        "\"{}\" - {:?} - missing vehicle {:?}",
-                        filename, e_model, sv_model
-                    );
-                }
-            }
+/// RX antenna tb
+/// {0, 0, 0} and No coordinates have the same meaning
+fn rcvr_antenna_comparison(dut: &Option<Antenna>, model: &Option<Antenna>) {
+    if let Some(dut) = dut {
+        if let Some(model) = model {
+            assert_eq!(dut.model, model.model);
+            assert_eq!(dut.sn, model.sn);
+
+            let model_h = model.height.unwrap_or(0.0);
+            let dut_h = dut.height.unwrap_or(0.0);
+            assert_eq!(dut_h, model_h);
+
+            assert_eq!(dut.coords, model.coords);
+
+            let (model_east, model_north) =
+                (model.eastern.unwrap_or(0.0), model.northern.unwrap_or(0.0));
+            let (dut_east, dut_north) = (dut.eastern.unwrap_or(0.0), dut.northern.unwrap_or(0.0));
+
+            assert_eq!(dut_east, model_east);
+            assert_eq!(dut_north, model_north);
         } else {
-            panic!("\"{}\" - missing epoch {:?}", filename, e_model);
+            panic!("found unexpected rx-antenna infos!");
+        }
+    } else {
+        if model.is_some() {
+            panic!("missing rx-antenna infos!");
         }
     }
+}
 
-    for (e_b, (clk_offset_b, vehicles_b)) in rec_model.iter() {
-        if let Some((clk_offset_model, vehicles_model)) = rec_dut.get(e_b) {
-            assert_eq!(clk_offset_model, clk_offset_b);
-            for (sv_b, observables_b) in vehicles_b.iter() {
-                if let Some(observables_model) = vehicles_model.get(sv_b) {
-                    for (code_b, obs_b) in observables_b {
-                        if let Some(obs_model) = observables_model.get(code_b) {
-                            assert!(
-                                (obs_model.obs - obs_b.obs).abs() < 1.0E-6,
-                                "\"{}\" - {:?} - {:?} - \"{}\" expecting {} got {}",
-                                filename,
-                                e_b,
-                                sv_b,
-                                code_b,
-                                obs_model.obs,
-                                obs_b.obs
-                            );
-                            assert_eq!(
-                                obs_model.lli, obs_b.lli,
-                                "\"{}\" - {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
-                                filename, e_b, sv_b, code_b, obs_model.lli, obs_b.lli
-                            );
-                            assert_eq!(
-                                obs_model.snr, obs_b.snr,
-                                "\"{}\" - {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
-                                filename, e_b, sv_b, code_b, obs_model.snr, obs_b.snr
-                            );
-                        } else {
-                            panic!(
-                                "\"{}\" - {:?} - {:?} : parsed \"{}\" unexpectedly",
-                                filename, e_b, sv_b, code_b
-                            );
-                        }
-                    }
-                } else {
-                    panic!(
-                        "\"{}\" - {:?} - parsed {:?} unexpectedly",
-                        filename, e_b, sv_b
-                    );
-                }
+/// Generic test that may apply to any [Rinex].
+/// Verifies
+///   - [Version]
+///   - [Constellation]
+///   - [RinexType]
+///   - Possible [TimeFrame] for complex sampling testing
+pub fn generic_rinex_test(
+    dut: &Rinex,
+    version: &str,
+    constellation: Option<&str>,
+    expected_type: RinexType,
+    timeframe: Option<TimeFrame>,
+) {
+    assert_eq!(dut.header.rinex_type, expected_type);
+
+    let version = Version::from_str(version).unwrap();
+    assert_eq!(dut.header.version, version);
+
+    let constellation = constellation.map(|s| Constellation::from_str(s.trim()).unwrap());
+    assert_eq!(dut.header.constellation, constellation);
+
+    if let Some(tf) = timeframe {
+        generic_timeframe_test(dut, tf);
+    }
+}
+
+/// Verifies that all contained data is Constant with Epsilon tolerance
+pub fn generic_constant_rinex_test(dut: &Rinex, constant: f64, epsilon: f64) {
+    if let Some(rec) = dut.record.as_obs() {
+        for (k, v) in rec.iter() {
+            for signal in v.signals.iter() {
+                let err = (signal.value - constant).abs();
+                assert!(
+                    err < epsilon,
+                    "({}{}) {} != {}",
+                    k.epoch,
+                    signal.sv,
+                    signal.observable,
+                    constant
+                );
             }
-        } else {
-            panic!("\"{}\" - parsed epoch {:?} unexpectedly", filename, e_b);
         }
+    }
+}
+
+/// Verifies that all contained data is Null
+pub fn generic_null_rinex_test(dut: &Rinex) {
+    generic_constant_rinex_test(dut, 0.0, 1.0E-9);
+}
+
+/// Verifies two [Header]s are "strictly" identical
+pub fn generic_header_comparison(dut: &Header, model: &Header) {
+    assert_eq!(dut.version, model.version);
+    assert_eq!(dut.rinex_type, model.rinex_type);
+    assert_eq!(dut.constellation, model.constellation);
+    assert_eq!(dut.comments, model.comments);
+    assert_eq!(dut.program, model.program);
+    assert_eq!(dut.run_by, model.run_by);
+    assert_eq!(dut.date, model.date);
+    assert_eq!(dut.station_url, model.station_url);
+    assert_eq!(dut.observer, model.observer);
+    assert_eq!(dut.agency, model.agency);
+    assert_eq!(dut.geodetic_marker, model.geodetic_marker);
+    assert_eq!(dut.glo_channels, model.glo_channels);
+    assert_eq!(dut.cospar, model.cospar);
+    assert_eq!(dut.leap, model.leap);
+    if let Some((dut_x, dut_y, dut_z)) = dut.rx_position {
+        if let Some((model_x, model_y, model_z)) = model.rx_position {
+            assert!(
+                (dut_x - model_x).abs() < 1.0E-2,
+                "error too large: {}/{}",
+                dut_x,
+                model_x
+            );
+            assert!(
+                (dut_y - model_y).abs() < 1.0E-2,
+                "error too large: {}/{}",
+                dut_y,
+                model_y
+            );
+            assert!(
+                (dut_z - model_z).abs() < 1.0E-2,
+                "error too large: {}/{}",
+                dut_z,
+                model_z
+            );
+        } else {
+            panic!("got unexpected rx position!");
+        }
+    } else {
+        if model.rx_position.is_some() {
+            panic!("missing rx position!");
+        }
+    }
+    assert_eq!(dut.wavelengths, model.wavelengths);
+    assert_eq!(dut.sampling_interval, model.sampling_interval);
+    assert_eq!(dut.license, model.license);
+    assert_eq!(dut.doi, model.doi);
+    assert_eq!(dut.gps_utc_delta, model.gps_utc_delta);
+    assert_eq!(dut.rcvr, model.rcvr);
+
+    rcvr_antenna_comparison(&dut.rcvr_antenna, &model.rcvr_antenna);
+
+    assert_eq!(dut.sv_antenna, model.sv_antenna);
+    assert_eq!(dut.ionod_corrections, model.ionod_corrections);
+    assert_eq!(dut.dcb_compensations, model.dcb_compensations);
+    assert_eq!(dut.pcv_compensations, model.pcv_compensations);
+    assert_eq!(dut.obs, model.obs);
+    assert_eq!(dut.meteo, model.meteo);
+    assert_eq!(dut.clock, model.clock);
+    assert_eq!(dut.antex, model.antex);
+    assert_eq!(dut.ionex, model.ionex);
+    assert_eq!(dut.doris, model.doris);
+}
+
+/// Compares strict equality between [A, B]
+/// for all supported types, with panic on any single error;
+/// and meaningful error report
+pub fn generic_rinex_comparison(dut: &Rinex, model: &Rinex) {
+    generic_header_comparison(&dut.header, &model.header);
+
+    if dut.is_observation_rinex() && model.is_observation_rinex() {
+        generic_observation_comparison(&dut, &model);
+    } else if dut.is_meteo_rinex() && model.is_meteo_rinex() {
+        #[cfg(feature = "meteo")]
+        generic_meteo_comparison(&dut, &model);
+    } else if dut.is_navigation_rinex() && model.is_navigation_rinex() {
+        #[cfg(feature = "nav")]
+        generic_navigation_comparison(&dut, &model);
     }
 }
 
@@ -354,275 +268,4 @@ fn clocks_against_model(dut: &Rinex, model: &Rinex, filename: &str, _epsilon: f6
             panic!("\"{}\" - missing epoch {:?}", filename, e_model);
         }
     }
-}
-
-/*
- * Navigation RINEX thorough comparison
- */
-fn navigation_against_model(dut: &Rinex, model: &Rinex, filename: &str, _epsilon: f64) {
-    let rec_dut = dut.record.as_nav().expect("failed to unwrap rinex record");
-    let rec_model = model
-        .record
-        .as_nav()
-        .expect("failed to unwrap rinex record");
-    for (e_model, model_frames) in rec_model.iter() {
-        if let Some(dut_frames) = rec_dut.get(e_model) {
-            println!("{:?}", dut_frames);
-            for model_frame in model_frames {
-                let mut frametype = FrameClass::default();
-                if model_frame.as_eph().is_some() {
-                    frametype = FrameClass::Ephemeris;
-                } else if model_frame.as_sto().is_some() {
-                    frametype = FrameClass::SystemTimeOffset;
-                } else if model_frame.as_eop().is_some() {
-                    frametype = FrameClass::EarthOrientation;
-                } else if model_frame.as_ion().is_some() {
-                    frametype = FrameClass::IonosphericModel;
-                }
-                if !dut_frames.contains(model_frame) {
-                    panic!(
-                        "\"{}\" - @{} missing {} frame {:?}",
-                        filename, e_model, frametype, model_frame
-                    );
-                    //assert_eq!(
-                    //    observation_model, observation_dut,
-                    //    "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
-                    //    filename, e_model, code_model, observation_model, observation_dut
-                    //);
-                }
-            }
-        } else {
-            panic!("\"{}\" - missing epoch {:?}", filename, e_model);
-        }
-    }
-
-    //for (e_dut, obscodes_dut) in rec_dut.iter() {
-    //    if let Some(obscodes_model) = rec_model.get(e_dut) {
-    //        for (code_dut, observation_dut) in obscodes_dut.iter() {
-    //            if let Some(observation_model) = obscodes_model.get(code_dut) {
-    //                assert_eq!(
-    //                    observation_model, observation_dut,
-    //                    "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
-    //                    filename, e_dut, code_dut, observation_model, observation_dut
-    //                );
-    //            } else {
-    //                panic!(
-    //                    "\"{}\" - {:?} parsed \"{}\" unexpectedly",
-    //                    filename, e_dut, code_dut
-    //                );
-    //            }
-    //        }
-    //    } else {
-    //        panic!("\"{}\" - parsed {:?} unexpectedly", filename, e_dut);
-    //    }
-    //}
-}
-
-/*
- * Meteo RINEX thorough comparison
- */
-fn meteo_against_model(dut: &Rinex, model: &Rinex, filename: &str, _epsilon: f64) {
-    let rec_dut = dut
-        .record
-        .as_meteo()
-        .expect("failed to unwrap rinex record");
-    let rec_model = model
-        .record
-        .as_meteo()
-        .expect("failed to unwrap rinex record");
-    for (e_model, obscodes_model) in rec_model.iter() {
-        if let Some(obscodes_dut) = rec_dut.get(e_model) {
-            for (code_model, observation_model) in obscodes_model.iter() {
-                if let Some(observation_dut) = obscodes_dut.get(code_model) {
-                    assert_eq!(
-                        observation_model, observation_dut,
-                        "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
-                        filename, e_model, code_model, observation_model, observation_dut
-                    );
-                } else {
-                    panic!(
-                        "\"{}\" - {:?} missing \"{}\" observation",
-                        filename, e_model, code_model
-                    );
-                }
-            }
-        } else {
-            panic!("\"{}\" - missing epoch {:?}", filename, e_model);
-        }
-    }
-
-    for (e_dut, obscodes_dut) in rec_dut.iter() {
-        if let Some(obscodes_model) = rec_model.get(e_dut) {
-            for (code_dut, observation_dut) in obscodes_dut.iter() {
-                if let Some(observation_model) = obscodes_model.get(code_dut) {
-                    assert_eq!(
-                        observation_model, observation_dut,
-                        "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
-                        filename, e_dut, code_dut, observation_model, observation_dut
-                    );
-                } else {
-                    panic!(
-                        "\"{}\" - {:?} parsed \"{}\" unexpectedly",
-                        filename, e_dut, code_dut
-                    );
-                }
-            }
-        } else {
-            panic!("\"{}\" - parsed {:?} unexpectedly", filename, e_dut);
-        }
-    }
-}
-
-/*
- * Compares "dut" Device Under Test to given Model,
- * panics on unexpected content with detailed explanations.
- */
-pub fn test_against_model(dut: &Rinex, model: &Rinex, filename: &str, epsilon: f64) {
-    if dut.is_observation_rinex() {
-        observation_against_model(dut, model, filename, epsilon);
-    } else if dut.is_meteo_rinex() {
-        meteo_against_model(dut, model, filename, epsilon);
-    } else if dut.is_clock_rinex() {
-        clocks_against_model(dut, model, filename, epsilon);
-    } else if dut.is_navigation_rinex() {
-        navigation_against_model(dut, model, filename, epsilon);
-    }
-}
-
-/*
- * Any parsed RINEX should go through this test
- */
-pub fn test_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
-    let version = Version::from_str(version).unwrap();
-    assert!(
-        dut.header.version == version,
-        "parsed wrong version {}, expecting \"{}\"",
-        dut.header.version,
-        version
-    );
-
-    let constellation = constellation.map(|s| Constellation::from_str(s.trim()).unwrap());
-    assert!(
-        dut.header.constellation == constellation,
-        "bad gnss description: {:?}, expecting {:?}",
-        dut.header.constellation,
-        constellation
-    );
-}
-
-/*
- * Any parsed METEO RINEX should go through this test
- */
-pub fn test_meteo_rinex(
-    dut: &Rinex,
-    version: &str,
-    observables_csv: &str,
-    time_frame: TestTimeFrame,
-) {
-    test_rinex(dut, version, None);
-    assert!(dut.is_meteo_rinex(), "should be declared as METEO RINEX");
-    test_observables_csv(dut, observables_csv);
-    test_time_frame(dut, time_frame);
-    /*
-     * Header specific fields
-     */
-    assert!(
-        dut.header.obs.is_none(),
-        "should not contain specific OBS fields"
-    );
-    assert!(
-        dut.header.meteo.is_some(),
-        "should contain specific METEO fields"
-    );
-    assert!(
-        dut.header.ionex.is_none(),
-        "should not contain specific IONEX fields"
-    );
-    assert!(
-        dut.header.clock.is_none(),
-        "should not contain specific CLOCK fields"
-    );
-
-    let _header = dut.header.meteo.as_ref().unwrap();
-}
-
-/*
- * Any parsed NAVIGATION RINEX should go through this test
- */
-pub fn test_navigation_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
-    test_rinex(dut, version, constellation);
-    assert!(dut.is_navigation_rinex(), "should be declared as NAV RINEX");
-    /*
-     * Header specific fields
-     */
-    assert!(
-        dut.header.obs.is_none(),
-        "should not contain specific OBS fields"
-    );
-    assert!(
-        dut.header.meteo.is_none(),
-        "should not contain specific METEO fields"
-    );
-    assert!(
-        dut.header.ionex.is_none(),
-        "should not contain specific IONEX fields"
-    );
-    assert!(
-        dut.header.clock.is_none(),
-        "should not contain specific CLOCK fields"
-    );
-}
-
-/*
- * Any parsed CLOCK RINEX should go through this test
- */
-pub fn test_clock_rinex(dut: &Rinex, version: &str, constellation: Option<&str>) {
-    test_rinex(dut, version, constellation);
-    assert!(dut.is_clock_rinex(), "should be declared as CLK RINEX");
-    /*
-     * Header specific fields
-     */
-    assert!(
-        dut.header.obs.is_none(),
-        "should not contain specific OBS fields"
-    );
-    assert!(
-        dut.header.meteo.is_none(),
-        "should not contain specific METEO fields"
-    );
-    assert!(
-        dut.header.ionex.is_none(),
-        "should not contain specific IONEX fields"
-    );
-    assert!(
-        dut.header.clock.is_some(),
-        "should contain specific CLOCK fields"
-    );
-}
-
-/*
- * Any parsed IONEX should go through this test
- */
-pub fn test_ionex(dut: &Rinex, version: &str, constellation: Option<&str>) {
-    test_rinex(dut, version, constellation);
-    assert!(dut.is_ionex(), "should be declared as IONEX");
-    /*
-     * Header specific fields
-     */
-    assert!(
-        dut.header.obs.is_none(),
-        "should not contain specific OBS fields"
-    );
-    assert!(
-        dut.header.meteo.is_none(),
-        "should not contain specific METEO fields"
-    );
-    assert!(
-        dut.header.ionex.is_some(),
-        "should contain specific IONEX fields"
-    );
-    assert!(
-        dut.header.clock.is_none(),
-        "should not contain specific CLOCK fields"
-    );
 }

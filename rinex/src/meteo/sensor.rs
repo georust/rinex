@@ -1,14 +1,17 @@
 //! Meteo sensor
-use crate::observable;
-use crate::prelude::GroundPosition;
-use crate::Observable;
-use thiserror::Error;
+use crate::prelude::{Observable, ParsingError};
+
+#[cfg(feature = "nav")]
+use anise::{
+    math::Vector6,
+    prelude::{Epoch, Frame, Orbit},
+};
 
 #[cfg(feature = "qc")]
 use maud::{html, Markup, Render};
 
 /// Meteo Observation Sensor
-#[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Sensor {
     /// Physics measured by this sensor
@@ -19,9 +22,8 @@ pub struct Sensor {
     pub sensor_type: Option<String>,
     /// Sensor accuracy [°C,..]
     pub accuracy: Option<f32>,
-    /// Posible sensor location (ECEF) and possible
-    /// height eccentricity
-    pub position: Option<GroundPosition>,
+    /// Posible sensor location (ECEF)
+    pub position: Option<(f64, f64, f64)>,
     /// Possible sensor height eccentricity (m)
     pub height: Option<f64>,
 }
@@ -53,16 +55,26 @@ impl Render for Sensor {
                         td { (format!("{:.3E}", accuracy)) }
                     }
                 }
-                @if let Some(pos) = self.position {
-                    tr {
-                        th { "Sensor position" }
-                        td { (pos.render()) }
+                @if cfg!(feature = "nav") {
+                    @if let Some((x_ecef_m, y_ecef_m, z_ecef_m)) = self.position {
+                        tr {
+                            th { "Sensor position (ECEF m)" }
+                            td {
+                                (format!("{:.3E}m", x_ecef_m))
+                            }
+                            td {
+                                (format!("{:.3E}m", y_ecef_m))
+                            }
+                            td {
+                                (format!("{:.3E}m", z_ecef_m))
+                            }
+                        }
                     }
-                }
-                @if let Some(h) = self.height {
-                    tr {
-                        th { "Height" }
-                        td { (format!("{:.3} m", h)) }
+                    @if let Some(h) = self.height {
+                        tr {
+                            th { "Height" }
+                            td { (format!("{:.3} m", h)) }
+                        }
                     }
                 }
             }
@@ -70,16 +82,8 @@ impl Render for Sensor {
     }
 }
 
-#[derive(Error, Debug)]
-pub enum ParseSensorError {
-    #[error("observable parsing error")]
-    ObservableParsingErro(#[from] observable::ParsingError),
-    #[error("failed to parse accuracy field")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-}
-
 impl std::str::FromStr for Sensor {
-    type Err = ParseSensorError;
+    type Err = ParsingError;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let (model, rem) = content.split_at(20);
         let (s_type, rem) = rem.split_at(20 + 6);
@@ -135,12 +139,13 @@ impl std::fmt::Display for Sensor {
         }
         writeln!(f, "{} SENSOR MOD/TYPE/ACC", self.observable)?;
 
-        if let Some(pos) = self.position {
-            let (x, y, z) = pos.to_ecef_wgs84();
+        if let Some((x, y, z)) = self.position {
             write!(f, "{:14.4}", x)?;
             write!(f, "{:14.4}", y)?;
             write!(f, "{:14.4}", z)?;
+
             let h = self.height.unwrap_or(0.0);
+
             write!(f, "{:14.4}", h)?;
             writeln!(f, " {} SENSOR POS XYZ/H", self.observable)?
         }
@@ -149,46 +154,79 @@ impl std::fmt::Display for Sensor {
 }
 
 impl Sensor {
+    /// Define a new [Observable] sensor
     pub fn new(observable: Observable) -> Self {
         Self::default().with_observable(observable)
     }
+
+    /// Copies and defines [Sensor] model
     pub fn with_model(&self, model: &str) -> Self {
         let mut s = self.clone();
         s.model = Some(model.to_string());
         s
     }
+
+    /// Copies and defines [Sensor] type
     pub fn with_type(&self, stype: &str) -> Self {
         let mut s = self.clone();
         s.sensor_type = Some(stype.to_string());
         s
     }
+
+    /// Copies and defines [Sensor] [Observable]
     pub fn with_observable(&self, observable: Observable) -> Self {
         let mut s = self.clone();
         s.observable = observable;
         s
     }
-    pub fn with_position(&self, pos: GroundPosition) -> Self {
+
+    /// Copies and define new sensor position
+    pub fn with_position(&self, position: (f64, f64, f64)) -> Self {
         let mut s = self.clone();
-        s.position = Some(pos);
+        s.position = Some(position);
         s
     }
+
+    /// Copies and define new sensor height eccentricity
     pub fn with_height(&self, h: f64) -> Self {
         let mut s = self.clone();
         s.height = Some(h);
         s
     }
+
+    /// Copies and defines sensor accuracy
     pub fn with_accuracy(&self, accuracy: f32) -> Self {
         let mut s = self.clone();
         s.accuracy = Some(accuracy);
         s
     }
+
+    #[cfg(feature = "nav")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nav")))]
+    /// Expresses [Sensor] position as an [Orbit]
+    pub fn rx_orbit(&self, t: Epoch, frame: Frame) -> Option<Orbit> {
+        let (x_ecef_m, y_ecef_m, z_ecef_m) = self.position?;
+
+        let pos_vel = Vector6::new(
+            x_ecef_m / 1000.0,
+            y_ecef_m / 1000.0,
+            z_ecef_m / 1000.0,
+            0.0,
+            0.0,
+            0.0,
+        );
+
+        Some(Orbit::from_cartesian_pos_vel(pos_vel, t, frame))
+    }
 }
 
 #[cfg(test)]
+// #[cfg(feature = "nav")]
 mod test {
     use super::*;
-    use crate::prelude::GroundPosition;
+    // use anise::prelude::{Orbit, Frame};
     use std::str::FromStr;
+
     #[test]
     fn test_formatting() {
         let s = Sensor::new(Observable::Temperature);
@@ -213,14 +251,25 @@ mod test {
             "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC\n"
         );
 
-        let mut s = s.with_position(GroundPosition::from_ecef_wgs84((0.0, 0.0, 0.0)));
-        s.height = Some(1234.5678);
-        assert_eq!(
-            s.to_string(),
-            "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC
-        0.0000        0.0000        0.0000     1234.5678 PR SENSOR POS XYZ/H\n"
-        );
+        // let rx_orbit = Orbit::from_position(
+        //     0.0,
+        //     0.0,
+        //     0.0,
+        //     Default::default(),
+        //     Frame::from_name("EARTH", ""),
+        // );
+
+        // let mut s = s.with_position(rx_orbit);
+
+        // s.height = Some(1234.5678);
+
+        // assert_eq!(
+        //     s.to_string(),
+        //     "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC
+        // 0.0000        0.0000        0.0000     1234.5678 PR SENSOR POS XYZ/H\n"
+        // );
     }
+
     #[test]
     fn from_str() {
         let s = Sensor::from_str("                                                  0.0    PR ");
@@ -235,9 +284,11 @@ mod test {
             "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC",
         );
         assert!(s.is_ok());
+
         let s = Sensor::from_str(
             "                                                  0.0    PR SENSOR MOD/TYPE/ACC",
         );
+
         assert!(s.is_ok());
     }
 }

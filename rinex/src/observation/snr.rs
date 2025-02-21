@@ -138,26 +138,17 @@ impl From<SNR> for f64 {
 
 impl From<u8> for SNR {
     fn from(u: u8) -> Self {
-        if u >= 54 {
-            Self::DbHz54
-        } else if u >= 48 {
-            Self::DbHz48_53
-        } else if u >= 42 {
-            Self::DbHz42_47
-        } else if u >= 36 {
-            Self::DbHz36_41
-        } else if u >= 30 {
-            Self::DbHz30_35
-        } else if u >= 24 {
-            Self::DbHz24_29
-        } else if u >= 18 {
-            Self::DbHz18_23
-        } else if u >= 12 {
-            Self::DbHz12_17
-        } else if u > 1 {
-            Self::DbHz12
-        } else {
-            Self::DbHz0
+        match u {
+            1 => Self::DbHz12,
+            2 => Self::DbHz12_17,
+            3 => Self::DbHz18_23,
+            4 => Self::DbHz24_29,
+            5 => Self::DbHz30_35,
+            6 => Self::DbHz36_41,
+            7 => Self::DbHz42_47,
+            8 => Self::DbHz48_53,
+            9 => Self::DbHz54,
+            _ => Self::DbHz0,
         }
     }
 }
@@ -191,13 +182,16 @@ mod test {
         assert_eq!(snr, SNR::DbHz0);
         assert!(snr.bad());
 
+        let snr = SNR::from_str("8").unwrap();
+        assert_eq!("8", format!("{:x}", snr));
+
         let snr = SNR::from_str("9").unwrap();
         assert!(snr.excellent());
 
         let snr = SNR::from_str("10");
         assert!(snr.is_err());
 
-        let snr: SNR = SNR::from(48_u8);
+        let snr: SNR = SNR::from(8);
         assert_eq!(snr, SNR::DbHz48_53);
         assert!(snr.excellent());
         assert_eq!(format!("{:x}", snr), "8");

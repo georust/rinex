@@ -1,8 +1,5 @@
 //! Carrier channels and associated methods
-use crate::{Constellation, Observable};
-use thiserror::Error;
-
-use gnss::prelude::SV;
+use crate::prelude::{Constellation, Error, Observable, ParsingError, SV};
 
 lazy_static! {
     pub(crate) static ref KNOWN_CODES: Vec<&'static str> = vec![
@@ -71,19 +68,6 @@ pub enum Carrier {
     U2,
 }
 
-#[derive(Error, Debug, Clone, PartialEq)]
-pub enum Error {
-    /// Unable to parse Carrier from given string content
-    #[error("carrier::from_str(\"{0}\")")]
-    ParseError(String),
-    //#[error("unable to identify glonass channel from \"{0}\"")]
-    //ParseIntError(#[from] std::num::ParseIntError),
-    #[error("carrier::from_observable unrecognized \"{0}\"")]
-    UnknownObservable(String),
-    #[error("unknown sv system")]
-    UnknownSV(SV),
-}
-
 impl std::fmt::Display for Carrier {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -118,7 +102,8 @@ impl std::fmt::Display for Carrier {
 }
 
 impl std::str::FromStr for Carrier {
-    type Err = Error;
+    type Err = ParsingError;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let content = s.to_uppercase();
         let content = content.trim();
@@ -174,7 +159,7 @@ impl std::str::FromStr for Carrier {
         } else if content.eq("U2") {
             Ok(Self::U2)
         } else {
-            Err(Error::ParseError(s.to_string()))
+            Err(ParsingError::ObservableParsing)
         }
     }
 }
@@ -218,10 +203,19 @@ impl Carrier {
             Self::U2 => 401.25,
         }
     }
+
+    /// True if this [Carrier] matches a L1 pivot carrier
+    /// used in carrier recombinations
+    #[cfg(feature = "obs")]
+    pub(crate) fn is_l1_pivot(&self) -> bool {
+        matches!(self, Self::L1 | Self::E1 | Self::B1A | Self::B1C)
+    }
+
     /// Returns carrier wavelength
     pub fn wavelength(&self) -> f64 {
         299_792_458.0_f64 / self.frequency()
     }
+
     /// Returns channel bandwidth in MHz.
     pub fn bandwidth_mhz(&self) -> f64 {
         match self {
@@ -341,7 +335,7 @@ impl Carrier {
     }
     fn from_gps_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -353,10 +347,10 @@ impl Carrier {
                 } else if Self::gpsl5_codes().contains(&code) {
                     Ok(Self::L5)
                 } else {
-                    Err(Error::UnknownObservable(code.to_string()))
+                    Err(Error::UnknownGPSObservable)
                 }
             },
-            _ => Err(Error::UnknownObservable(obs.to_string())),
+            _ => Err(Error::UnknownGPSObservable),
         }
     }
     pub(crate) fn g1_codes() -> [&'static str; 12] {
@@ -387,7 +381,7 @@ impl Carrier {
     }
     fn from_glo_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -403,10 +397,10 @@ impl Carrier {
                 } else if Self::g3_codes().contains(&code) {
                     Ok(Self::G3)
                 } else {
-                    Err(Error::UnknownObservable(code.to_string()))
+                    Err(Error::UnknownGlonassObservable)
                 }
             },
-            _ => Err(Error::UnknownObservable(obs.to_string())),
+            _ => Err(Error::UnknownGlonassObservable),
         }
     }
     pub(crate) fn e1_codes() -> [&'static str; 24] {
@@ -439,7 +433,7 @@ impl Carrier {
     }
     fn from_gal_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -455,10 +449,10 @@ impl Carrier {
                 } else if Self::e5b_codes().contains(&code) {
                     Ok(Self::E5b)
                 } else {
-                    Err(Error::UnknownObservable(code.to_string()))
+                    Err(Error::UnknownGalieoObservable)
                 }
             },
-            _ => Err(Error::UnknownObservable(obs.to_string())),
+            _ => Err(Error::UnknownGalieoObservable),
         }
     }
     pub(crate) fn geol1_codes() -> [&'static str; 8] {
@@ -472,7 +466,7 @@ impl Carrier {
     }
     fn from_geo_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -482,10 +476,10 @@ impl Carrier {
                 } else if Self::geol5_codes().contains(&code) {
                     Ok(Self::L5)
                 } else {
-                    Err(Error::UnknownObservable(code.to_string()))
+                    Err(Error::UnknownSBASObservable)
                 }
             },
-            _ => Err(Error::UnknownObservable(obs.to_string())),
+            _ => Err(Error::UnknownSBASObservable),
         }
     }
     pub(crate) fn qzl1_codes() -> [&'static str; 32] {
@@ -516,7 +510,7 @@ impl Carrier {
     }
     fn from_qzss_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -530,10 +524,10 @@ impl Carrier {
                 } else if Self::qzl6_codes().contains(&code) {
                     Ok(Self::L6)
                 } else {
-                    Err(Error::UnknownObservable(code.to_string()))
+                    Err(Error::UnknownQZSSObservable)
                 }
             },
-            _ => Err(Error::UnknownObservable(obs.to_string())),
+            _ => Err(Error::UnknownQZSSObservable),
         }
     }
     pub(crate) fn b1a_codes() -> [&'static str; 12] {
@@ -585,7 +579,7 @@ impl Carrier {
     }
     fn from_bds_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -609,10 +603,10 @@ impl Carrier {
                 } else if Self::b3a_codes().contains(&code) {
                     Ok(Self::B3A)
                 } else {
-                    Err(Error::UnknownObservable(code.to_string()))
+                    Err(Error::UnknownBeiDouObservable)
                 }
             },
-            _ => Err(Error::UnknownObservable(obs.to_string())),
+            _ => Err(Error::UnknownBeiDouObservable),
         }
     }
     pub(crate) fn irnl5_codes() -> [&'static str; 20] {
@@ -629,7 +623,7 @@ impl Carrier {
     }
     fn from_irnss_observable(obs: &Observable) -> Result<Self, Error> {
         match obs {
-            Observable::Phase(code)
+            Observable::PhaseRange(code)
             | Observable::Doppler(code)
             | Observable::SSI(code)
             | Observable::PseudoRange(code) => {
@@ -639,10 +633,10 @@ impl Carrier {
                 } else if Self::irn_s_codes().contains(&code) {
                     Ok(Self::S)
                 } else {
-                    Err(Error::UnknownObservable(code.to_string()))
+                    Err(Error::UnknownIRNSSObservable)
                 }
             },
-            _ => Err(Error::UnknownObservable(obs.to_string())),
+            _ => Err(Error::UnknownIRNSSObservable),
         }
     }
     /// Identifies Frequency channel, from given observable, related
@@ -662,16 +656,17 @@ impl Carrier {
                 if c.is_sbas() {
                     Self::from_geo_observable(observable)
                 } else {
-                    unreachable!("observable for {}", constellation);
+                    panic!("no known observable for constellation={}", constellation);
                 }
             },
         }
     }
+
     /*
      * Build a frequency from standard SV description.
      * This is used in ATX records to identify the antenna frequency
      */
-    pub(crate) fn from_sv(sv: SV) -> Result<Self, Error> {
+    pub(crate) fn from_sv(sv: SV) -> Result<Self, ParsingError> {
         match sv.constellation {
             Constellation::GPS => match sv.prn {
                 1 => Ok(Self::L1),
@@ -720,10 +715,11 @@ impl Carrier {
                 9 => Ok(Self::S),
                 _ => Ok(Self::L1),
             },
-            _ => Err(Error::UnknownSV(sv)),
+            _ => Err(ParsingError::AntexFrequency),
         }
     }
-    /// Builds Self from DORIS observable
+
+    /// Builds [Carrier] from DORIS [Observable]
     pub fn from_doris_observable(obs: &Observable) -> Result<Self, Error> {
         let obs = obs.to_string();
         if obs.contains("1") {
@@ -731,7 +727,7 @@ impl Carrier {
         } else if obs.contains("2") {
             Ok(Self::U2)
         } else {
-            Err(Error::UnknownObservable(obs.clone()))
+            Err(Error::UnknownDORISObservable)
         }
     }
 }
@@ -766,17 +762,26 @@ mod test {
                 let codes = vec!["L1", "L1C", "D1C", "L1N", "S1Y", "D1W"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L1),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::L1
+                    );
                 }
                 let codes = vec!["L2", "L2C", "D2C", "L2N", "S2Y", "D2W"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L2),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::L2
+                    );
                 }
                 let codes = vec!["C5", "L5I", "D5Q", "S5X", "C5X", "S5I"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L5),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::L5
+                    );
                 }
             /*
              * SBAS
@@ -785,12 +790,18 @@ mod test {
                 let codes = vec!["C1", "L1C", "D1", "S1", "S1C", "D1C"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L1),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::L1
+                    );
                 }
                 let codes = vec!["C5", "L5I", "D5I", "S5", "S5Q", "D5X", "S5X", "L5Q"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L5),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::L5
+                    );
                 }
             /*
              * Glonass
@@ -800,32 +811,41 @@ mod test {
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
                     assert_eq!(
-                        Carrier::from_observable(constell, &obs),
-                        Ok(Carrier::G1(None)),
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::G1(None),
                     );
                 }
                 let codes = vec!["L4A", "S4X", "D4B", "C4X"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::G1a),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::G1a
+                    );
                 }
                 let codes = vec!["L2", "C2", "L2P", "S2C", "S2P", "D2"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
                     assert_eq!(
-                        Carrier::from_observable(constell, &obs),
-                        Ok(Carrier::G2(None)),
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::G2(None),
                     );
                 }
                 let codes = vec!["L6A", "D6A", "S6X", "L6X", "S6B"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::G2a),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::G2a
+                    );
                 }
                 let codes = vec!["C3", "D3I", "S3Q", "L3X", "D3X", "C3Q"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::G3),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::G3
+                    );
                 }
             /*
              * BeiDou
@@ -834,47 +854,74 @@ mod test {
                 let codes = vec!["L1", "L2I", "D2X", "D2Q", "S1", "S2I"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::B1I));
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::B1I
+                    );
                 }
                 let codes = vec!["C1D", "L1D", "S1X", "S1P"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::B1C),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::B1C
+                    );
                 }
                 let codes = vec!["L1S", "D1S", "S1Z", "L1Z", "C1L", "C1Z"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::B1A),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::B1A
+                    );
                 }
                 let codes = vec!["C5D", "S5D", "S5X", "S5P", "D5P", "C5X"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::B2A),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::B2A
+                    );
                 }
                 let codes = vec!["C2", "L2", "C7I", "L7X", "S7X", "S7I"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::B2I),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::B2I
+                    );
                 }
                 let codes = vec!["C7D", "L7D", "L7P", "C7Z", "S7Z", "L7Z"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::B2B),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::B2B
+                    );
                 }
                 let codes = vec!["C8D", "L8D", "L8P", "C8X", "S8X", "L8X"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::B2),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::B2
+                    );
                 }
                 let codes = vec!["C6I", "L6I", "L6X", "C6X", "S6I", "S6Q", "D6Q"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::B3),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::B3
+                    );
                 }
                 let codes = vec!["C6D", "L6Z", "S6Z", "L6Z", "C6Z", "S6P"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::B3A),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::B3A
+                    );
                 }
             /*
              * Galileo
@@ -883,27 +930,42 @@ mod test {
                 let codes = vec!["C1", "L1", "S1B", "L1A", "D1Z", "S1Z"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::E1),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::E1
+                    );
                 }
                 let codes = vec!["C5I", "L5X", "D5X", "S5Q", "C5X", "D5I"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::E5a),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::E5a
+                    );
                 }
                 let codes = vec!["C7I", "L7X", "D7X", "S7Q", "C7X", "D7I"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::E5b),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::E5b
+                    );
                 }
                 let codes = vec!["C5", "L8I", "C8I", "C8X", "L8X", "S8X"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::E5),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::E5
+                    );
                 }
                 let codes = vec!["C6", "L6", "L6A", "C6C", "S6Z", "D6X"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::E6),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::E6
+                    );
                 }
             /*
              * IRNSS
@@ -914,12 +976,18 @@ mod test {
                 ];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L5),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::L5
+                    );
                 }
                 let codes = vec!["C9A", "L9B", "L9X", "C9X", "S9B", "D9B", "C9B"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::S),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::S
+                    );
                 }
             /*
              * QZSS
@@ -928,22 +996,34 @@ mod test {
                 let codes = vec!["C1", "L1", "L1B", "C1E", "S1Z", "S1L", "L1E", "S1S"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L1),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::L1
+                    );
                 }
                 let codes = vec!["C2", "L2", "L2S", "C2S", "S2L", "S2X", "L2S", "S2X"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L2),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::L2
+                    );
                 }
                 let codes = vec!["C5", "L5", "L5D", "C5I", "S5I", "S5X", "L5Z", "D5P"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L5),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::L5
+                    );
                 }
                 let codes = vec!["C6", "L6", "L6S", "C6L", "S6S", "S6L", "L6X", "D6E"];
                 for code in codes {
                     let obs = Observable::from_str(code).unwrap();
-                    assert_eq!(Carrier::from_observable(constell, &obs), Ok(Carrier::L6),);
+                    assert_eq!(
+                        Carrier::from_observable(constell, &obs).unwrap(),
+                        Carrier::L6
+                    );
                 }
             }
         }

@@ -1,5 +1,5 @@
 //! `RINEX` revision description
-use thiserror::Error;
+use crate::prelude::ParsingError;
 
 /// Current `RINEX` version supported to this day
 pub const SUPPORTED_VERSION: Version = Version { major: 4, minor: 0 };
@@ -12,14 +12,6 @@ pub struct Version {
     pub major: u8,
     /// Version minor number
     pub minor: u8,
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum ParsingError {
-    #[error("non supported version \"{0}\"")]
-    NotSupported(String),
-    #[error("failed to parse version")]
-    ParseIntError(#[from] std::num::ParseIntError),
 }
 
 impl Default for Version {
@@ -89,18 +81,26 @@ impl From<Version> for (u8, u8) {
 impl std::str::FromStr for Version {
     type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut digits = s.split('.');
+
         match s.contains('.') {
             true => {
-                let mut digits = s.split('.');
-                Ok(Self {
-                    major: digits.next().unwrap().parse::<u8>()?,
-                    minor: digits.next().unwrap().parse::<u8>()?,
-                })
+                let major = digits.next().ok_or(ParsingError::VersionFormat)?;
+
+                let minor = digits.next().ok_or(ParsingError::VersionFormat)?;
+
+                let major = major.parse::<u8>().or(Err(ParsingError::VersionParsing))?;
+                let minor = minor.parse::<u8>().or(Err(ParsingError::VersionParsing))?;
+
+                Ok(Self { major, minor })
             },
-            false => Ok(Self {
-                major: s.parse::<u8>()?,
-                minor: 0,
-            }),
+            false => {
+                let major = digits.next().ok_or(ParsingError::VersionFormat)?;
+
+                let major = major.parse::<u8>().or(Err(ParsingError::VersionParsing))?;
+
+                Ok(Self { major, minor: 0 })
+            },
         }
     }
 }

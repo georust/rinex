@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use num_derive::FromPrimitive;
 
 /// GNSS / GPS orbit health indication
 #[derive(Default, Debug, Clone, FromPrimitive, PartialEq, PartialOrd)]

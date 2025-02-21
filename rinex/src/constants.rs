@@ -1,9 +1,12 @@
 //! const value of Gnss
 
+#[cfg(feature = "nav")]
 use crate::prelude::{Constellation, SV};
 
+#[cfg(feature = "nav")]
 pub(crate) struct GM;
 
+#[cfg(feature = "nav")]
 impl GM {
     pub const GPS: f64 = 3.9860050E14;
     pub const BDS: f64 = 3.986004418E14;
@@ -11,8 +14,10 @@ impl GM {
     pub const GAL: f64 = 3.986004418E14;
 }
 
+#[cfg(feature = "nav")]
 pub(crate) struct Omega;
 
+#[cfg(feature = "nav")]
 impl Omega {
     pub const GPS: f64 = 7.2921151467E-5;
     pub const BDS: f64 = 7.292115E-5;
@@ -30,20 +35,16 @@ impl DtrF {
     pub const GAL: f64 = -0.00000000044428073090439775;
 }
 
-//
-#[allow(dead_code)]
-pub(crate) struct MaxIterNumber;
-#[allow(dead_code)]
-impl MaxIterNumber {
-    /// Maximum number of iterations to calculate the anastomosis angle
-    pub const KEPLER: u8 = 30;
-}
-
 /// Const values used in RINEX crate
+#[cfg(feature = "nav")]
 pub(crate) struct Constants;
 
+#[cfg(feature = "nav")]
 impl Constants {
-    // earth
+    /// Maximal iteration in the iterative Kepler solver
+    pub const MAX_KEPLER_ITER: u8 = 30;
+
+    /// Earth gravitation.
     pub const fn gm(sv: SV) -> f64 {
         match sv.constellation {
             Constellation::BeiDou => GM::BDS,
@@ -61,7 +62,7 @@ impl Constants {
             _ => Omega::GPS,
         }
     }
-    ///  Auxiliary Quantities for Calculating Relativistic Effects in Clock Correction
+    /// Auxiliary Quantities for Calculating Relativistic Effects in Clock Correction
     pub const fn dtr_f(sv: SV) -> f64 {
         match sv.constellation {
             Constellation::GPS => DtrF::GPS,

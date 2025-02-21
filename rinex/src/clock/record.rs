@@ -1,10 +1,11 @@
-use std::str::FromStr;
 use thiserror::Error;
 
-use std::collections::BTreeMap;
-use strum_macros::EnumString;
+use std::{collections::BTreeMap, str::FromStr};
 
-use crate::{epoch, prelude::SV, prelude::*, version::Version};
+use crate::{
+    epoch::parse_in_timescale as parse_epoch_in_timescale,
+    prelude::{Epoch, ParsingError, TimeScale, Version, SV},
+};
 
 #[cfg(feature = "processing")]
 use qc_traits::{DecimationFilter, DecimationFilterType, FilterItem, MaskFilter, MaskOperand};
@@ -70,23 +71,6 @@ impl std::fmt::Display for ClockType {
     }
 }
 
-#[derive(Error, Debug)]
-/// Clocks file parsing & identification errors
-pub enum Error {
-    #[error("unknown data code \"{0}\"")]
-    UnknownDataCode(String),
-    #[error("failed to parse epoch")]
-    EpochParsingError(#[from] epoch::ParsingError),
-    #[error("failed to parse # of data fields")]
-    DataFieldsParsing,
-    #[error("failed to parse clock profile")]
-    ClockProfileParsing,
-    #[error("failed to identify observable")]
-    ParseObservableError(#[from] strum::ParseError),
-    #[error("failed to write data")]
-    WriterIoError(#[from] std::io::Error),
-}
-
 /// Clock Profile is the actual measurement or estimate
 /// at a specified Epoch.
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -107,7 +91,7 @@ pub struct ClockProfile {
 }
 
 /// Clock data observables
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, EnumString)]
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ClockProfileType {
     /// Data analysis results for receiver clocks
@@ -122,6 +106,20 @@ pub enum ClockProfileType {
     DR,
     /// Broadcast SV clocks monitor measurements
     MS,
+}
+
+impl std::str::FromStr for ClockProfileType {
+    type Err = ParsingError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "ar" => Ok(Self::AR),
+            "as" => Ok(Self::AS),
+            "cr" => Ok(Self::CR),
+            "dr" => Ok(Self::DR),
+            "ms" => Ok(Self::MS),
+            _ => Err(ParsingError::ClockProfileType),
+        }
+    }
 }
 
 impl std::fmt::Display for ClockProfileType {
@@ -156,9 +154,10 @@ pub(crate) fn parse_epoch(
     version: Version,
     content: &str,
     ts: TimeScale,
-) -> Result<(Epoch, ClockKey, ClockProfile), Error> {
+) -> Result<(Epoch, ClockKey, ClockProfile), ParsingError> {
     let mut lines = content.lines();
-    let line = lines.next().unwrap();
+    let line = lines.next().ok_or(ParsingError::EmptyEpoch)?;
+
     const LIMIT: Version = Version { major: 3, minor: 4 };
     let (dtype, mut rem) = line.split_at(3);
     let profile_type = ClockProfileType::from_str(dtype.trim())?;
@@ -195,7 +194,7 @@ pub(crate) fn parse_epoch(
     const OFFSET: usize = "yyyy mm dd hh mm sssssssssss".len();
 
     let (epoch, rem) = rem.split_at(OFFSET);
-    let epoch = epoch::parse_in_timescale(epoch.trim(), ts)?;
+    let epoch = parse_epoch_in_timescale(epoch.trim(), ts)?;
 
     // nb of data fields
     let (_n, rem) = rem.split_at(4);
@@ -209,13 +208,13 @@ pub(crate) fn parse_epoch(
                 profile.bias = item
                     .trim()
                     .parse::<f64>()
-                    .map_err(|_| Error::ClockProfileParsing)?;
+                    .map_err(|_| ParsingError::ClockProfile)?;
             },
             1 => {
                 profile.bias_dev = Some(
                     item.trim()
                         .parse::<f64>()
-                        .map_err(|_| Error::ClockProfileParsing)?,
+                        .map_err(|_| ParsingError::ClockProfile)?,
                 );
             },
             _ => {},
@@ -228,28 +227,28 @@ pub(crate) fn parse_epoch(
                     profile.drift = Some(
                         item.trim()
                             .parse::<f64>()
-                            .map_err(|_| Error::ClockProfileParsing)?,
+                            .map_err(|_| ParsingError::ClockProfile)?,
                     );
                 },
                 1 => {
                     profile.drift_dev = Some(
                         item.trim()
                             .parse::<f64>()
-                            .map_err(|_| Error::ClockProfileParsing)?,
+                            .map_err(|_| ParsingError::ClockProfile)?,
                     );
                 },
                 2 => {
                     profile.drift_change = Some(
                         item.trim()
                             .parse::<f64>()
-                            .map_err(|_| Error::ClockProfileParsing)?,
+                            .map_err(|_| ParsingError::ClockProfile)?,
                     );
                 },
                 3 => {
                     profile.drift_change_dev = Some(
                         item.trim()
                             .parse::<f64>()
-                            .map_err(|_| Error::ClockProfileParsing)?,
+                            .map_err(|_| ParsingError::ClockProfile)?,
                     );
                 },
                 _ => {},
@@ -308,34 +307,6 @@ pub(crate) fn fmt_epoch(epoch: &Epoch, key: &ClockKey, prof: &ClockProfile) -> S
         lines.push('\n');
     }
     lines
-}
-
-#[cfg(feature = "qc")]
-use crate::merge::merge_mut_option;
-
-#[cfg(feature = "qc")]
-use qc_traits::MergeError;
-
-#[cfg(feature = "qc")]
-pub(crate) fn merge_mut(lhs: &mut Record, rhs: &Record) -> Result<(), MergeError> {
-    for (rhs_epoch, rhs_content) in rhs.iter() {
-        if let Some(lhs_content) = lhs.get_mut(rhs_epoch) {
-            for (rhs_key, rhs_prof) in rhs_content.iter() {
-                if let Some(lhs_prof) = lhs_content.get_mut(rhs_key) {
-                    // enhance only, if possible
-                    merge_mut_option(&mut lhs_prof.drift, &rhs_prof.drift);
-                    merge_mut_option(&mut lhs_prof.drift_dev, &rhs_prof.drift_dev);
-                    merge_mut_option(&mut lhs_prof.drift_change, &rhs_prof.drift_change);
-                    merge_mut_option(&mut lhs_prof.drift_change_dev, &rhs_prof.drift_change_dev);
-                } else {
-                    lhs_content.insert(rhs_key.clone(), rhs_prof.clone());
-                }
-            }
-        } else {
-            lhs.insert(*rhs_epoch, rhs_content.clone());
-        }
-    }
-    Ok(())
 }
 
 #[cfg(feature = "processing")]

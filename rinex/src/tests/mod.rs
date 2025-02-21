@@ -3,11 +3,13 @@ pub mod toolkit;
 
 mod antex;
 mod compression;
-mod decompression;
+mod crinex;
 mod filename;
-mod merge;
+pub mod formatting;
 mod parsing;
-mod production;
+
+#[cfg(feature = "qc")]
+mod merge;
 
 #[cfg(feature = "clock")]
 mod clock;
@@ -27,5 +29,4 @@ mod meteo;
 #[cfg(feature = "nav")]
 mod nav;
 
-#[cfg(feature = "obs")]
 mod obs;

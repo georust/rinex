@@ -1,14 +1,15 @@
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use crate::prelude::{clock::*, Constellation, DOMESTrackingPoint, Epoch, Rinex, DOMES, SV};
     use std::str::FromStr;
+
     #[test]
     fn clk_v2_cod20352() {
         let test_resource =
             env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V2/COD20352.CLK";
         let rinex = Rinex::from_file(&test_resource);
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.epoch().count(), 10);
+        assert_eq!(rinex.epoch_iter().count(), 10);
 
         for (epoch, content) in rinex.precise_clock() {
             let epoch_str = epoch.to_string();
@@ -193,7 +194,7 @@ mod test {
             ]
         );
 
-        assert_eq!(rinex.epoch().count(), 1);
+        assert_eq!(rinex.epoch_iter().count(), 1);
 
         for (epoch, content) in rinex.precise_clock() {
             assert_eq!(*epoch, Epoch::from_str("1994-07-14T20:59:00 GPST").unwrap());
@@ -282,7 +283,7 @@ mod test {
             ]
         );
 
-        assert_eq!(rinex.epoch().count(), 1);
+        assert_eq!(rinex.epoch_iter().count(), 1);
     }
     #[test]
     fn clk_v3_04_example2() {
@@ -292,6 +293,6 @@ mod test {
         assert!(rinex.is_ok());
         let rinex = rinex.unwrap();
 
-        assert_eq!(rinex.epoch().count(), 1);
+        assert_eq!(rinex.epoch_iter().count(), 1);
     }
 }

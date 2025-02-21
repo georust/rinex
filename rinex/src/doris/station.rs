@@ -1,6 +1,7 @@
 //! DORIS Station
-use crate::{doris::Error, prelude::DOMES};
+use crate::prelude::{ParsingError, DOMES};
 
+/// DORIS Ground [Station] description.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Station {
@@ -20,24 +21,23 @@ pub struct Station {
 
 impl Station {
     const USO_FREQ: f64 = 5.0E6_f64;
+
     /// Station S1 Frequency shift factor
     pub fn s1_frequency_shift(&self) -> f64 {
         543.0 * Self::USO_FREQ * (3.0 / 4.0 + 87.0 * self.k_factor as f64 / 5.0 * 2.0_f64.powi(26))
     }
+
     /// Station U2 Frequency shift factor
     pub fn u2_frequency_shift(&self) -> f64 {
         107.0 * Self::USO_FREQ * (3.0 / 4.0 + 87.0 * self.k_factor as f64 / 5.0 * 2.0_f64.powi(26))
     }
 }
 
-/*
- * Parses DORIS station, returns ID# code and Station
- */
 impl std::str::FromStr for Station {
-    type Err = Error;
+    type Err = ParsingError;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         if content.len() < 40 {
-            return Err(Error::InvalidStation);
+            return Err(ParsingError::DorisStationFormat);
         }
 
         let content = content.split_at(1).1;
@@ -55,9 +55,15 @@ impl std::str::FromStr for Station {
             gen: gen
                 .trim()
                 .parse::<u8>()
-                .or(Err(Error::BeaconGenerationParsing))?,
-            k_factor: k_factor.trim().parse::<i8>().or(Err(Error::KfParsing))?,
-            key: key.trim().parse::<u16>().or(Err(Error::IdParsing))?,
+                .map_err(|_| ParsingError::DorisStation)?,
+            k_factor: k_factor
+                .trim()
+                .parse::<i8>()
+                .map_err(|_| ParsingError::DorisStation)?,
+            key: key
+                .trim()
+                .parse::<u16>()
+                .map_err(|_| ParsingError::DorisStation)?,
         })
     }
 }

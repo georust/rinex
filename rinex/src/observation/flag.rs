@@ -1,14 +1,8 @@
+use crate::prelude::ParsingError;
 use std::str::FromStr;
-use thiserror::Error;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-
-#[derive(Error, Clone, Debug, PartialEq)]
-pub enum Error {
-    #[error("non recognized epoch flag")]
-    UnknownFlag,
-}
 
 /// `EpochFlag` validates an epoch,
 /// or describes possible events that occurred
@@ -45,7 +39,7 @@ impl EpochFlag {
 }
 
 impl FromStr for EpochFlag {
-    type Err = Error;
+    type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "0" => Ok(EpochFlag::Ok),
@@ -55,7 +49,7 @@ impl FromStr for EpochFlag {
             "4" => Ok(EpochFlag::HeaderInformationFollows),
             "5" => Ok(EpochFlag::ExternalEvent),
             "6" => Ok(EpochFlag::CycleSlip),
-            _ => Err(Error::UnknownFlag),
+            _ => Err(ParsingError::EpochFlag),
         }
     }
 }
