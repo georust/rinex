@@ -4,5 +4,6 @@ use crate::prelude::Rinex;
 
 mod decim;
 mod repair;
+mod split;
 
 impl Preprocessing for Rinex {}
