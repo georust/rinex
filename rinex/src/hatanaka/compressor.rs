@@ -16,6 +16,9 @@ use itertools::Itertools;
 pub type Compressor = CompressorExpert<5>;
 
 pub struct CompressorExpert<const M: usize> {
+    /// True (by default) if this a CRINEX3 compressor.
+    /// Modify this before getting started!
+    pub v3: bool,
     /// True when epoch descriptor should be compressed.
     /// True on first epoch.
     epoch_compression: bool,
@@ -37,7 +40,8 @@ pub struct CompressorExpert<const M: usize> {
 impl<const M: usize> Default for CompressorExpert<M> {
     fn default() -> Self {
         Self {
-            epoch_compression: true,
+            v3: true,
+            epoch_compression: false,
             epoch_diff: TextDiff::new(""),
             epoch_buf: String::with_capacity(128),
             flags_buf: String::with_capacity(128),
@@ -58,8 +62,9 @@ impl<const M: usize> CompressorExpert<M> {
         header: &HeaderFields,
     ) -> Result<(), FormattingError> {
         for (k, v) in record.iter() {
-            // kernel reset on phase lock loss ?
+            // TODO: epoch kernel reset on phase lock loss ?
             //if k.flags.intersects(LliFlags::LOCK_LOSS || LliFlags::HALF_CYCLE_SLIP) {
+            //  self.epoch_compression = false;
             //}
 
             let (y, m, d, hh, mm, ss, ns) = epoch_decomposition(k.epoch);
@@ -74,7 +79,7 @@ impl<const M: usize> CompressorExpert<M> {
                 .collect::<Vec<_>>();
 
             self.epoch_buf = format!(
-                "{:04} {:02} {:02} {:04} {:04} {:04}.{:07} {}{:3}      ",
+                "{:04} {:02} {:02} {:02} {:02} {:02}.{:07}  {}{:3}      ",
                 y,
                 m,
                 d,
@@ -93,15 +98,19 @@ impl<const M: usize> CompressorExpert<M> {
 
             // Epoch compression
             if self.epoch_compression {
-                writeln!(w, "&{}", self.epoch_buf)?;
-            } else {
                 let compressed = self.epoch_diff.compress(&self.epoch_buf);
                 writeln!(w, " {}", compressed)?;
+            } else {
+                if self.v3 {
+                    writeln!(w, "> {}", self.epoch_buf)?;
+                } else {
+                    writeln!(w, "&{}", self.epoch_buf)?;
+                }
             }
 
             if let Some(clk) = v.clock {
-                // TODO: this needs its own compressor
-                writeln!(w, "{:14.3}", clk.offset_s)?;
+                // TODO: clock is not correctly supported yet
+                writeln!(w, "{}", clk.offset_s)?;
             } else {
                 // No clock: BLANKed line
                 writeln!(w, "{}", "")?;
@@ -132,14 +141,14 @@ impl<const M: usize> CompressorExpert<M> {
                             .reduce(|k, _| k)
                         {
                             let compressed = sv_kernel.compress(quantized);
-                            write!(w, "{}", compressed)?;
+                            write!(w, "{} ", compressed)?;
                         } else {
                             // first encounter: build kernel
                             let kernel = NumDiff::<M>::new(quantized, 3);
                             self.sv_kernels
                                 .insert((signal.sv, signal.observable.clone()), kernel);
 
-                            write!(w, "{}&{:14.3}", 3, signal.value)?;
+                            write!(w, "{}&{} ", 3, quantized)?;
                         }
 
                         if let Some(lli) = signal.lli {
@@ -168,8 +177,7 @@ impl<const M: usize> CompressorExpert<M> {
 
                 self.flags_buf.clear();
             }
-
-            self.epoch_compression = false;
+            self.epoch_compression = true;
         }
         Ok(())
     }

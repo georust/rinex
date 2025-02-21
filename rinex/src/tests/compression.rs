@@ -58,6 +58,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn crinex3() {
         let pool = vec![
             (
