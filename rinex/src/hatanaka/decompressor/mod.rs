@@ -869,12 +869,12 @@ impl<const M: usize> DecompressorExpert<M> {
         if v3 {
             Self::write_v3_flags(flags, flags_len, numobs, buf);
         } else {
-            Self::write_v1_flags(flags, flags_len, numobs, buf);
+            Self::write_v1_flags(flags, flags_len, buf);
         }
     }
 
     /// Formats Data "flags" into mutable buffer, following standardized format.
-    fn write_v1_flags(flags: &str, flags_len: usize, numobs: usize, buf: &mut [u8]) {
+    fn write_v1_flags(flags: &str, flags_len: usize, buf: &mut [u8]) {
         let mut offset = 14;
         let bytes = flags.as_bytes();
 
@@ -1110,7 +1110,7 @@ mod test {
 
     #[test]
     fn v1_flags_format() {
-        for (flags, numobs, buffer, expected) in [
+        for (flags, _numobs, buffer, expected) in [
             (
                 " 5",
                 3,
@@ -1165,7 +1165,7 @@ mod test {
             let mut buf = [0; 256];
             buf[..buffer_len].copy_from_slice(&bytes);
 
-            Decompressor::write_v1_flags(flags, flags_len, numobs, &mut buf);
+            Decompressor::write_v1_flags(flags, flags_len, &mut buf);
 
             let output = from_utf8(&buf[..expected.len()]).expect("did not generate valid UTF-8");
 

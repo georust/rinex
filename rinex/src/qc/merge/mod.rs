@@ -23,9 +23,8 @@ use meteo::merge_mut as merge_mut_meteo;
 use nav::merge_mut as merge_mut_nav;
 use obs::merge_mut as merge_mut_obs;
 
-use std::cmp::{Eq, PartialEq};
+use std::cmp::PartialEq;
 use std::collections::HashMap;
-use std::hash::Hash;
 
 /// Appends given vector into self.
 pub(crate) fn merge_mut_vec<T: Clone>(lhs: &mut Vec<T>, rhs: &Vec<T>) {

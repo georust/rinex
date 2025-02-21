@@ -14,7 +14,6 @@
  * FAQ          : https://github.com/georust/rinex/tree/main/tutorials/FAQ.md
  */
 
-#[macro_use]
 extern crate num_derive;
 
 #[macro_use]
