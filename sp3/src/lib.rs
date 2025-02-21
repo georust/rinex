@@ -59,7 +59,10 @@ pub mod prelude {
     pub use hifitime::{Duration, Epoch, TimeScale};
 
     #[cfg(feature = "qc")]
-    pub use gnss_qc_traits::{Merge, Split};
+    pub use gnss_qc_traits::Merge;
+
+    #[cfg(feature = "processing")]
+    pub use gnss_qc_traits::Split;
 }
 
 /// [SP3Entry] indexer
