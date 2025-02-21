@@ -101,10 +101,10 @@ impl<const M: usize> CompressorExpert<M> {
 
             if let Some(clk) = v.clock {
                 // TODO: this needs its own compressor
-                write!(w, "{:14.3}\n", clk.offset_s)?;
+                writeln!(w, "{:14.3}", clk.offset_s)?;
             } else {
                 // No clock: BLANKed line
-                write!(w, "{}", '\n')?;
+                writeln!(w, "{}", "")?;
             }
 
             // For each SV
@@ -159,11 +159,11 @@ impl<const M: usize> CompressorExpert<M> {
                 // Flags compression
                 if let Some(flags_kernel) = self.flags_diff.get_mut(&sv) {
                     let compressed = flags_kernel.compress(&self.flags_buf);
-                    write!(w, "{}", compressed)?;
+                    writeln!(w, "{}", compressed)?;
                 } else {
                     let kernel = TextDiff::new(&self.flags_buf);
                     self.flags_diff.insert(*sv, kernel);
-                    write!(w, "{}", self.flags_buf)?;
+                    writeln!(w, "{}", self.flags_buf)?;
                 }
 
                 self.flags_buf.clear();
