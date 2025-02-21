@@ -6,16 +6,34 @@ use crate::{
     epoch::epoch_decompose as epoch_decomposition,
     error::FormattingError,
     navigation::{NavFrameType, NavKey, Record},
-    prelude::Header,
+    prelude::{Constellation, Header},
 };
 
-fn format_epoch_v2v3<W: Write>(w: &mut BufWriter<W>, k: &NavKey) -> std::io::Result<()> {
+fn format_epoch_v2v3<W: Write>(
+    w: &mut BufWriter<W>,
+    k: &NavKey,
+    v2: bool,
+    file_constell: &Constellation,
+) -> std::io::Result<()> {
     let (yyyy, m, d, hh, mm, ss, _) = epoch_decomposition(k.epoch);
-    write!(
-        w,
-        "{:x} {:04} {:02} {:02} {:02} {:02} {:02}",
-        k.sv, yyyy, m, d, hh, mm, ss
-    )
+
+    if v2 && *file_constell != Constellation::Mixed {
+        // single constell V2
+        // Constellation is omitted, only PRN#
+        write!(
+            w,
+            "{:x} {:04} {:02} {:02} {:02} {:02} {:02}",
+            k.sv, yyyy, m, d, hh, mm, ss
+        )
+    } else {
+        // Mixed constell or modern NAV
+        // Constellation + PRN#
+        write!(
+            w,
+            "{:02} {:04} {:02} {:02} {:02} {:02} {:02}",
+            k.sv.prn, yyyy, m, d, hh, mm, ss
+        )
+    }
 }
 
 fn format_epoch_v4<W: Write>(w: &mut BufWriter<W>, k: &NavKey) -> std::io::Result<()> {
@@ -105,11 +123,18 @@ pub fn format<W: Write>(
     rec: &Record,
     header: &Header,
 ) -> Result<(), FormattingError> {
-    let v4 = header.version.major > 3;
+    let version = header.version;
 
-    // timeframe in chronological order
+    let v2 = version.major < 3;
+    let v4 = version.major > 3;
+
+    let file_constell = header
+        .constellation
+        .ok_or(FormattingError::NoConstellationDefinition)?;
+
+    // in chronological order
     for epoch in rec.iter().map(|(k, _v)| k.epoch).unique().sorted() {
-        // per SV sorted
+        // per sorted SV
         for sv in rec
             .iter()
             .filter_map(|(k, _v)| if k.epoch == epoch { Some(k.sv) } else { None })
@@ -129,21 +154,28 @@ pub fn format<W: Write>(
                 .unique()
                 .sorted()
             {
+                // format this entry
                 if let Some((k, v)) = rec
                     .iter()
                     .filter(|(k, _v)| k.epoch == epoch && k.sv == sv && k.frmtype == frmtype)
                     .reduce(|k, _| k)
                 {
+                    // format epoch
                     if v4 {
                         format_epoch_v4(writer, k)?;
                     } else {
-                        format_epoch_v2v3(writer, k)?;
+                        format_epoch_v2v3(writer, k, v2, &file_constell)?;
                     }
+
+                    // format entry
                     if let Some(eph) = v.as_ephemeris() {
-                    } else if let Some(eop) = v.as_earth_orientation() {
-                    } else if let Some(sto) = v.as_system_time() {
-                    } else if let Some(ion) = v.as_ionosphere_model() {
+                        eph.format(writer, k.sv, version, k.msgtype)?;
                     }
+                    // other format not supported yet
+                    // else if let Some(eop) = v.as_earth_orientation() {
+                    // } else if let Some(sto) = v.as_system_time() {
+                    // } else if let Some(ion) = v.as_ionosphere_model() {
+                    // }
                 }
             }
         }
