@@ -27,7 +27,7 @@ pub fn format<W: Write>(
         )?;
 
         // follow header definitions
-        for (nth, observable) in observables.codes.iter().enumerate() {
+        for observable in observables.codes.iter() {
             let key = MeteoKey {
                 epoch,
                 observable: observable.clone(),
