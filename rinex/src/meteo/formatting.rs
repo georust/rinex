@@ -27,14 +27,14 @@ pub fn format<W: Write>(
         )?;
 
         // follow header definitions
-        for observable in observables.codes.iter() {
+        for (nth, observable) in observables.codes.iter().enumerate() {
             let key = MeteoKey {
                 epoch,
                 observable: observable.clone(),
             };
 
             if let Some(observation) = record.get(&key) {
-                write!(w, "{:5.4}", observation)?;
+                write!(w, "{:7.1}", observation)?;
             } else {
                 write!(w, "           ")?;
             }
