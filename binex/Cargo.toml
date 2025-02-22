@@ -21,7 +21,7 @@ rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 [dependencies]
 log = "0.4"
 md-5 = "0.10"
-thiserror = "1"
+thiserror = "2"
 lazy_static = "1.4"
 flate2 = { version = "1.0.34", optional = true }
 hifitime = { version = "4.0", features = ["serde", "std"] }
