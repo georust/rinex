@@ -40,4 +40,4 @@ jobs:
         run: cargo bench --bench ${{ matrix.bench }} -- --sample-size ${{ matrix.sample_size }}  > ${{ matrix.bench }}.txt
 
       - name: Upload Results
-        run: python benches/parse_crit_benchmark.py < ${{ matrix.bench }}.txt >> $GITHUB_STEP_SUMMARY
+        run: python tools/parse_crit_benchmark.py < ${{ matrix.bench }}.txt >> $GITHUB_STEP_SUMMARY
