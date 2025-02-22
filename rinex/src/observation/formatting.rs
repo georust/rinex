@@ -144,7 +144,7 @@ fn format_v3<W: Write>(
                         }
                     } else {
                         // Blanking
-                        write!(w, "{:14.3}", "")?;
+                        write!(w, "                ")?;
                     }
                 }
                 write!(w, "{}", '\n')?;

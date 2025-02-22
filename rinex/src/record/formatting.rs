@@ -2,9 +2,7 @@ use crate::{
     doris::format as format_doris_observations,
     meteo::format as format_meteo_observations,
     navigation::format as format_navigation,
-    observation::{
-        format as format_observations, format_compressed as format_compressed_observations,
-    },
+    observation::format as format_observations,
     prelude::{FormattingError, Header},
     record::Record,
 };
