@@ -1,4 +1,4 @@
-//#![feature(test)]
+//! Benchmarking of the low level CRINEX API & associated objects
 use rinex::hatanaka::{NumDiff, TextDiff};
 
 extern crate criterion;
@@ -42,7 +42,7 @@ fn numdiff_compression<const M: usize>(numdiff: &mut NumDiff<M>, forced_init: us
 
 fn benchmark(c: &mut Criterion) {
     // textdiff benchmarking
-    let mut textdiff_grp = c.benchmark_group("htnk-textdiff");
+    let mut textdiff_grp = c.benchmark_group("textdiff");
 
     let epochs_pool = vec![
         "KD1KVK71n2Pz6AwiBcM",
@@ -118,7 +118,7 @@ fn benchmark(c: &mut Criterion) {
     textdiff_grp.finish();
 
     // numdiff benchmarking
-    let mut numdiff_group = c.benchmark_group("htnk-numdiff");
+    let mut numdiff_group = c.benchmark_group("numdiff");
 
     let forced_init_index = 10;
     let pool_i64 = vec![

@@ -160,7 +160,11 @@ rand = "0.8.4"
 flate2 = "1"
 
 [[bench]]
-name = "observation"
+name = "parsing"
+harness = false
+
+[[bench]]
+name = "formatting"
 harness = false
 
 [[bench]]
