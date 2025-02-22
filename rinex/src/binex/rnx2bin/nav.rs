@@ -241,6 +241,7 @@ impl<'a> Iterator for Streamer<'a> {
                 _ => None,
             }
         };
+
         let frame = frame?;
         Some(Message {
             meta: self.meta,

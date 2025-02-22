@@ -38,6 +38,10 @@ pub struct RNX2BIN<'a> {
     header: &'a Header,
     /// RINEX [TypeDependentStreamer]
     streamer: TypeDependentStreamer<'a>,
+    /// Assert (before deployment) whether the Header should not be serialized (no default!)
+    pub skip_header: bool,
+    /// Define (before deployment) a custom message to be included in the announcement.
+    pub custom_announce: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
@@ -58,9 +62,11 @@ impl<'a> Iterator for RNX2BIN<'a> {
         let content = match self.state {
             State::HeaderPkgVersion => {
                 let mut geo = self.forge_monument_geo();
-                geo.comments
-                    .push(format!("RNX2BIN from {}", self.header.rinex_type));
-                geo.comments.push("STREAM starting!".to_string());
+                if let Some(custom) = &self.custom_announce {
+                    geo.comments.push(custom.clone());
+                }
+                // announce stream beginning
+                geo.comments.push("Stream starting!".to_string());
                 self.state = State::MonumentGeo;
                 Some(geo)
             },
@@ -87,7 +93,7 @@ impl<'a> Iterator for RNX2BIN<'a> {
                 if let Some(_position) = &self.header.rx_position {
                     //geo = geo.with_site_location();
                 }
-                if !self.header.comments.is_empty() {
+                if !self.header.comments.is_empty() && !self.skip_header {
                     self.state = State::AnnounceHeaderComments;
                 } else {
                     self.state = State::AnnounceRecord;
@@ -169,6 +175,8 @@ impl Rinex {
             meta,
             header: &self.header,
             state: State::default(),
+            skip_header: false,
+            custom_announce: Default::default(),
             streamer: TypeDependentStreamer::new(meta, self),
         })
     }
