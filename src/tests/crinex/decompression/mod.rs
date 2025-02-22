@@ -494,10 +494,9 @@ use crate::prelude::{GeodeticMarker, MarkerType};
 #[test]
 #[cfg(feature = "flate2")]
 fn v3_esbc00dnk() {
-    let dut = Rinex::from_gzip_file(
-        "test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
-    )
-    .unwrap();
+    let dut =
+        Rinex::from_gzip_file("test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
 
     let mut geo_marker = GeodeticMarker::default()
         .with_name("ESBC00DNK")
@@ -541,10 +540,9 @@ fn v3_esbc00dnk() {
 #[test]
 #[cfg(feature = "flate2")]
 fn v3_mojn00dnk() {
-    let dut = Rinex::from_gzip_file(
-        "test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz",
-    )
-    .unwrap();
+    let dut =
+        Rinex::from_gzip_file("test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
 
     generic_observation_rinex_test(
             &dut,
