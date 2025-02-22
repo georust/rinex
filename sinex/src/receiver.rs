@@ -1,7 +1,9 @@
 use thiserror::Error;
-//use std::str::FromStr;
-use crate::datetime::{parse_datetime, ParseDateTimeError};
-use gnss::prelude::Constellation;
+
+use crate::{
+    error::ParsingError,
+    prelude::{Constellation, Epoch},
+};
 
 #[derive(Debug, Clone)]
 pub struct Receiver {
@@ -12,25 +14,17 @@ pub struct Receiver {
     /// Receiver group name
     pub group: String,
     /// Receiver validity
-    pub valid_from: chrono::NaiveDateTime,
+    pub valid_from: Epoch,
     /// Receiver validity
-    pub valid_until: chrono::NaiveDateTime,
+    pub valid_until: Epoch,
     /// Receiver type
     pub rtype: String,
     /// Firmware descriptor
     pub firmware: String,
 }
 
-#[derive(Debug, Error)]
-pub enum ReceiverError {
-    #[error("failed to parse datetime field")]
-    ParseDateError(#[from] chrono::format::ParseError),
-    #[error("failed to parse datetime:SSSS field")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-}
-
 impl std::str::FromStr for Receiver {
-    type Err = ParseDateTimeError;
+    type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (station, rem) = s.split_at(10);
         let (constellation, rem) = rem.split_at(2);

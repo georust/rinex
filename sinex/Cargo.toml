@@ -1,11 +1,11 @@
 [package]
 name = "sinex"
-version = "0.2.3"
+version = "0.3.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
-description = "Package to parse and analyze SINEX data"
-homepage = "https://github.com/georust/rinex/sinex"
-repository = "https://github.com/georust/rinex/sinex"
+description = "SINEX file parsing"
+homepage = "https://github.com/georust/rinex/tree/main/sinex"
+repository = "https://github.com/georust/rinex/tree/main/sinex"
 keywords = ["sinex", "timing", "gps", "glonass", "galileo"]
 categories = ["science", "science::geo", "parsing"]
 edition = "2021"
@@ -16,8 +16,9 @@ readme = "README.md"
 [build-dependencies]
 
 [dependencies]
-chrono = "0.4"
-thiserror = "1"
+thiserror = "2"
+hifitime = "4.0"
 strum_macros = "0.26"
+flate2 = { version = "1", optional = true }
 strum = { version = "0.26", features = ["derive"] }
-gnss-rs = { version = "2.3.1", features = ["serde"] }
+gnss-rs = { version = "2.3.3", features = ["serde"] }

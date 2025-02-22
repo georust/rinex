@@ -1,23 +1,15 @@
-use crate::bias;
-//use crate::troposphere;
+use crate::bias::description::Description as BiasDescription;
 
 /// Description block is Document Type dependent
 #[derive(Debug, Clone)]
 pub enum Description {
-    BiasDescription(bias::description::Description),
-    //    TropoDescription(troposphere::description::Description),
+    BiasDescription(BiasDescription),
 }
 
 impl Description {
-    pub fn bias_description(&self) -> Option<&bias::description::Description> {
+    pub fn bias_description(&self) -> Option<&BiasDescription> {
         match self {
             Self::BiasDescription(d) => Some(d),
         }
     }
-    /*pub fn tropo_description (&self) -> Option<&troposphere::description::Description> {
-        match self {
-            Self::TropoDescription(d) => Some(d),
-            _ => None,
-        }
-    }*/
 }

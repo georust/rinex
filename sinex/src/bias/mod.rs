@@ -5,6 +5,7 @@ use crate::datetime::{parse_datetime, ParseDateTimeError};
 use gnss::constellation::Constellation;
 
 pub mod description;
+pub mod error;
 pub mod header;
 
 #[derive(Debug, PartialEq, Clone)]

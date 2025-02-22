@@ -1,15 +1,16 @@
 use crate::datetime::{parse_datetime, ParseDateTimeError};
-use crate::header;
-use crate::header::is_valid_header;
 use thiserror::Error;
 
-#[derive(Debug, PartialEq, Clone)]
-/// Describes how the included GNSS
-/// bias values have to be interpreted and applied
+use crate::{header::is_valid_header, prelude::Epoch};
+
+/// [BiasMode] defines how the Bias solutions to follow,
+/// should be interpreted and used.
+#[derive(Debug, PartialEq, Clone, Default)]
 pub enum BiasMode {
     /// Relative Bias
     Relative,
-    /// Abslute Bias
+    /// Absolute Bias
+    #[default]
     Absolute,
 }
 
@@ -17,12 +18,6 @@ pub enum BiasMode {
 pub enum BiasModeError {
     #[error("unknown bias mode")]
     UnknownBiasMode,
-}
-
-impl Default for BiasMode {
-    fn default() -> Self {
-        Self::Absolute
-    }
 }
 
 impl std::str::FromStr for BiasMode {
@@ -42,25 +37,6 @@ impl std::str::FromStr for BiasMode {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum Error {
-    /// Header line should start with %=
-    #[error("missing header delimiter")]
-    MissingHeaderDelimiter,
-    /// Header line should start with %=BIA
-    #[error("not a bias header")]
-    NonBiasHeader,
-    /// Non recognized file type
-    #[error("file type error")]
-    FileTypeError(#[from] header::DocumentTypeError),
-    #[error("failed to parse datetime")]
-    ParseDateTimeError(#[from] ParseDateTimeError),
-    #[error("failed to parse `length` field")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse `bias_mode` field")]
-    BiasModeError(#[from] BiasModeError),
-}
-
 #[derive(Debug, Clone)]
 pub struct Header {
     /// SINEX Version for this file
@@ -69,16 +45,16 @@ pub struct Header {
     pub creator_code: String,
     /// Data provider agency code
     pub data_code: String,
-    /// File creation date
-    pub date: chrono::NaiveDateTime,
+    /// File creation [Epoch]
+    pub creation_epoch: Epoch,
     /// Start time of solution
-    pub start_time: chrono::NaiveDateTime,
+    pub start_epoch: Epoch,
     /// End time of solution
-    pub end_time: chrono::NaiveDateTime,
+    pub end_epoch: Epoch,
     /// Relative or Absolute Bias mode
     pub bias_mode: BiasMode,
-    /// Number of bias estimates in this file
-    pub length: u32,
+    /// Number of solutions in this file.
+    pub num_solutions: u32,
 }
 
 impl std::str::FromStr for Header {
@@ -88,7 +64,7 @@ impl std::str::FromStr for Header {
             return Err(Error::MissingHeaderDelimiter);
         }
         if !content.starts_with("%=BIA") {
-            return Err(Error::NonBiasHeader);
+            return Err(Error::InvalidBiasHeader);
         }
 
         let (_, rem) = content.split_at(2); // marker

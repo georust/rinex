@@ -1,6 +1,8 @@
 use crate::bias;
 use thiserror::Error;
 
+use bias::header::Header as BiasHeader;
+
 /// Returns true if given content matches a Header line
 pub fn is_valid_header(line: &str) -> bool {
     line.starts_with("%=")
@@ -44,14 +46,14 @@ impl std::str::FromStr for DocumentType {
 #[derive(Debug, Clone)]
 pub enum Header {
     /// Bias solutions header (BIA)
-    BiasHeader(bias::header::Header),
+    BiasHeader(BiasHeader),
     // /// Tropospheric file header (TRO)
     // TropoHeader(troposphere::header::Header),
 }
 
 impl Default for Header {
     fn default() -> Self {
-        Self::BiasHeader(bias::header::Header::default())
+        Self::BiasHeader(Default::default())
     }
 }
 
@@ -69,15 +71,9 @@ impl std::str::FromStr for Header {
 }
 
 impl Header {
-    pub fn bias_header(&self) -> Option<&bias::header::Header> {
+    pub fn bias_header(&self) -> Option<&BiasHeader> {
         match self {
             Self::BiasHeader(h) => Some(h),
         }
     }
-    /*pub fn tropo_header (&self) -> Option<&troposhere::header::Header> {
-        match self {
-            Self::TropoHeader(h) => Some(h),
-            _ => None,
-        }
-    }*/
 }
