@@ -1,26 +1,26 @@
-# RINEx
+# RINEX
 
 [![crates.io](https://img.shields.io/crates/v/rinex.svg)](https://crates.io/crates/rinex)
 [![rustc](https://img.shields.io/badge/rustc-1.64%2B-blue.svg)](https://img.shields.io/badge/rustc-1.64%2B-blue.svg)
 [![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/badge.svg)
 [![Rust](https://github.com/georust/rinex/actions/workflows/daily.yml/badge.svg)](https://github.com/georust/rinex/actions/workflows/daily.yml)
 
-*RINEx* is a *GeoRust* crate that aims at supporting all RINEx formats, enabling advanced GNSS post processing. That means:
+*RINEX* is a *GeoRust* crate that aims at supporting all RINEX formats, enabling advanced GNSS post processing. That means:
 
 - Parsing: text files decoding and datasets interpretation
 - Analysis: data post processing, like post processed navigation
 - Production: text file formatting (encoding), which is currently
 limited because we're still actively working on the Parsing/Analysis steps.
 
-Several RINEx formats exist, among those we support:
+Several RINEX formats exist, among those we support:
 
-* Observation RINEx
-* CRINEx (Compact RINEx)
-* Navigation RINEx
-* Meteo RINEx
-* Clock RINEx
-* IONEx
-* ANTEx
+* Observation RINEX
+* CRINEX (Compact RINEX)
+* Navigation RINEX
+* Meteo RINEX
+* Clock RINEX
+* IONEX
+* ANTEX
 
 [Refer to the front-page table](https://github.com/georust/rinex?tab=readme-ov-file#formats--revisions)
 for more details on supported formats.
@@ -31,16 +31,16 @@ introduced either by `TEQc` or `RTKlib`.
 
 ## Crate features
 
-The RINEx library supports all RINEx formats and revisions natively,
-that includes the CRINEx compression algorithm.
+The RINEX library supports all RINEX formats and revisions natively,
+that includes the CRINEX compression algorithm.
 
 We have one crate feature per file format, to either unlock specific methods
 or Iterators. It allows going deeper into one topic. For example, the `obs` feature is 
-related to Observation RINEx files and unlocks the signal combination
+related to Observation RINEX files and unlocks the signal combination
 method, which is a post processing method. Another example, would be the `meteo` feature
 which unlocks `[Rinex::rain_detected]` which is a direct exploitation of one of its specific Iterators.
 
-## RINEx and Gzip compression
+## RINEX and Gzip compression
 
 The great `flate2` library allows us to support Gzip compression and decompression.  
 Compile our library with this option for seamless support (both ways).  
@@ -54,12 +54,12 @@ It is the root base of our post processing capabilities.
 
 ## Navigation feature
 
-The `nav` feature is tied to the Navigation RINEx format.  
+The `nav` feature is tied to the Navigation RINEX format.  
 
 It not only unlocks specific Iteration methods, but also integrates Ephemeris
 interpretation and associated calculations, mostly the Kepler solvers
 that allows navigation from radio messages. It is the root base to radio based
-post processed navigation using RINEx.
+post processed navigation using RINEX.
 
 If you're interested in post processed navigation using the RINEX library, you will
 need to activate this feature.
@@ -67,7 +67,7 @@ need to activate this feature.
 ## Post processing feature(s)
 
 Parsing is typically only the first of many steps in a post processing pipeline. 
-RINEx datasets are complex and can rarely be processed "as is".
+RINEX datasets are complex and can rarely be processed "as is".
 
 We have a `processing` feature that is `qc` dependent and goes deeper
 in the post processing operations. For example, it unlocks
@@ -77,13 +77,14 @@ A post processing pipeline will most likely require this feature to be activated
 
 Although *RINEX* knows how to physically interprate a dataset, anything
 that is beyond that is out of scope of this library. 
-The [Qc library](https://docs.rs/rinex-qc/latest/rinex_qc/)
-which is also part of the *GeoRust* reposiroty, was developped for that very purpose.
-It allows advanced exploitations of RINEx, stacking several files to create a superset and much more.
+
+You should refer to the [GNSS Qc library](https://docs.rs/gnss-qc/latest/gnss_qc/) for
+that very purpose. It allows advanced exploitations of RINEX.
 Only this library may answer the requirements of GNSS post processing.
+
 If you're interested
 in post processed Navigation for example, you are probably more interested in
-using our `Qc` library instead of simply *RINEx*. 
+using the `Qc` library than simply *RINEX*. 
 
 ## SBAS and Geostationary :artificial_satellite:
 
@@ -103,8 +104,13 @@ It is used by `rinex-cli+debug` for developper verifications.
 ## Applications
 
 Several applications were and are being built based on RINEX, among those we can cite
-[rinex-cli](https://github.com/georust/rinex-cli) which allows parsing, plotting,
-processing similary to `teqc`, generating geodetic surveys, solve ppp and cggtts solutions
+[the RTK-rs framework](https://github.com/rtk-rs) with:
+- [rinex-cli](https://github.com/rtk-rs/rinex-cli) that allows RINEX post processing.
+It has options similar to TEQc and can solve PVT solutions like RTKlib.
+- [crx2rnx](https://github.com/rtk-rs/crx2rnx) which aims at becoming a modern replacement of the
+historical tool
+- [rnx2crx](https://github.com/rtk-rs/rnx2crx) which aims at becoming a modern replacement of the
+historical tool
 
 ## Licensing
 
@@ -112,23 +118,6 @@ The RINEX folder is licensed under either of:
 
 * Apache Version 2.0 ([LICENSE-APACHE](http://www.apache.org/licenses/LICENSE-2.0))
 * MIT ([LICENSE-MIT](http://opensource.org/licenses/MIT)
-
-File name conventions and behavior
-==================================
-
-File production
-===============
-
-[ProductionAttributes] stores the information representing the file production context.  
-This information is described by file names that follow standard conventions.
-If you come from a file that does not follow these conventions, we have no means to fully
-determine a V3 (lengthy) file name. We developped a smart guesser to figure out
-most of the fields, which particularly applies to high quality datasets. In other words,
-you can use the RINEX library as a file name convention generator. If your data is realistic,
-the smart guess will figure the proper filename to use.
-
-Coming from randomly named filenames, V3 (lengthy) filenames can never be fully be figured out,
-you need to provide some [ProductionAttributes] fields yourself.
 
 Getting Started
 ===============
@@ -180,3 +169,18 @@ This may apply to two scenarios:
 standard naming conventions but contain accurate data, and actually use this library to properly rename those
 * stay focused on data production (actual data symbols) in production context, and use the guesser to
 auto determine an accurate file name.
+
+File production
+===============
+
+[ProductionAttributes] stores the information representing the file production context.  
+This information is described by file names that follow standard conventions.
+If you come from a file that does not follow these conventions, we have no means to fully
+determine a V3 (lengthy) file name. We developped a smart guesser to figure out
+most of the fields, which particularly applies to high quality datasets. In other words,
+you can use the RINEX library as a file name convention generator. If your data is realistic,
+the smart guess will figure the proper filename to use.
+
+Coming from randomly named filenames, V3 (lengthy) filenames can never be fully be figured out,
+you need to provide some [ProductionAttributes] fields yourself.
+

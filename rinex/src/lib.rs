@@ -65,9 +65,6 @@ mod qc;
 #[cfg_attr(docsrs, doc(cfg(feature = "processing")))]
 mod processing;
 
-#[macro_use]
-pub(crate) mod macros;
-
 #[cfg(feature = "binex")]
 #[cfg_attr(docsrs, doc(cfg(feature = "binex")))]
 mod binex;
