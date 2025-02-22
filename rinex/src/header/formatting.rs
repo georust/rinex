@@ -50,7 +50,7 @@ impl Header {
                 w,
                 "{}",
                 fmt_rinex(
-                    &format!("{:15.14} {:15.14} {:15.14}", x_ecef_m, y_ecef_m, z_ecef_m),
+                    &format!("{:14.4}{:14.4}{:14.4}", x_ecef_m, y_ecef_m, z_ecef_m),
                     "APPROX POSITION XYZ"
                 )
             )?;
