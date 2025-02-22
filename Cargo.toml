@@ -1,6 +1,6 @@
 [package]
 name = "rinex"
-version = "0.17.0"
+version = "0.17.0-beta"
 license = "MPL-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX file parsing, analysis and production"
@@ -11,6 +11,9 @@ categories = ["science", "science::geo", "parsing"]
 edition = "2021"
 readme = "README.md"
 rust-version = "1.64"
+exclude = [
+    "test_resources/*",
+]
 
 #####################################################################
 # To understand the lib features, please read the following comments.
@@ -142,7 +145,7 @@ gnss-qc-traits = { version = "0.1.0", features = ["html"], optional = true }
 maud = { version = "0.26", optional = true }
 
 # BINEX (serdes)
-binex = { path = "../binex", version = "0.4.0", optional = true }
+binex = { version = "0.4.1", optional = true }
 
 # RTCM (serdes)
 rtcm-rs = { version = "0.11", optional = true }
