@@ -34,7 +34,7 @@ pub fn format<W: Write>(
             };
 
             if let Some(observation) = record.get(&key) {
-                write!(w, "{:5.4}", observation)?;
+                write!(w, "{:7.1}", observation)?;
             } else {
                 write!(w, "           ")?;
             }

@@ -31,7 +31,7 @@ pub use lli::LliFlags;
 pub use signal::SignalObservation;
 pub use snr::SNR;
 
-pub(crate) use formatting::{format, format_compressed};
+pub(crate) use formatting::format;
 pub(crate) use parsing::{is_new_epoch, parse_epoch};
 
 #[cfg(docsrs)]

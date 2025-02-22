@@ -80,12 +80,24 @@ impl std::str::FromStr for MarkerType {
     }
 }
 
+impl std::fmt::Display for MarkerType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Geodetic => write!(f, "GEODETIC"),
+            _ => write!(f, "HUMAN"),
+        }
+    }
+}
+
 impl GeodeticMarker {
     /// Formats [GeodeticMarker] into [BufWriter]
     pub(crate) fn format<W: Write>(&self, w: &mut BufWriter<W>) -> Result<(), FormattingError> {
         writeln!(w, "{}", fmt_rinex(&self.name, "MARKER NAME"))?;
         if let Some(number) = self.number() {
             writeln!(w, "{}", fmt_rinex(&number, "MARKER NUMBER"))?;
+        }
+        if let Some(marker_type) = &self.marker_type {
+            writeln!(w, "{}", fmt_rinex(&marker_type.to_string(), "MARKER TYPE"))?;
         }
         Ok(())
     }
