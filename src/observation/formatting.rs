@@ -2,9 +2,8 @@
 use crate::{
     epoch::format as epoch_format,
     error::FormattingError,
-    hatanaka::Compressor,
     observation::{HeaderFields, ObsKey, Observations},
-    prelude::{Constellation, Header, RinexType, SV},
+    prelude::{Constellation, RinexType, SV},
 };
 
 use itertools::Itertools;
@@ -255,7 +254,7 @@ impl Observations {
 mod test {
 
     use crate::{
-        observation::{EpochFlag, HeaderFields, ObsKey, Observations, SignalObservation},
+        observation::{EpochFlag, ObsKey, Observations, SignalObservation},
         prelude::{Epoch, Observable, SV},
     };
 

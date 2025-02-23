@@ -9,7 +9,6 @@ use crate::{
 use std::{
     collections::HashMap,
     io::{BufWriter, Write},
-    str::FromStr,
 };
 
 use itertools::Itertools;
