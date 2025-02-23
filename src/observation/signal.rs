@@ -111,6 +111,7 @@ impl SignalObservation {
 }
 
 #[cfg(test)]
+#[cfg(feature = "ionex")]
 mod test {
     use crate::observation::SignalObservation;
     use crate::prelude::{Carrier, Observable, SV};

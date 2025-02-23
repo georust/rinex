@@ -1,8 +1,8 @@
 use crate::{
     doris::format as format_doris_observations,
+    hatanaka::Compressor,
     meteo::format as format_meteo_observations,
     navigation::format as format_navigation,
-    observation::format as format_observations,
     prelude::{FormattingError, Header},
     record::Record,
 };
@@ -15,8 +15,26 @@ impl Record {
         w: &mut BufWriter<W>,
         header: &Header,
     ) -> Result<(), FormattingError> {
+        let version_major = header.version.major;
+
         if let Some(rec) = self.as_obs() {
-            format_observations(w, rec, header)
+            let header = header
+                .obs
+                .as_ref()
+                .ok_or(FormattingError::MissingObservableDefinition)?;
+
+            // Compressed format (non readable yet still ASCII)
+            // following the Hatanaka Compression algorithm.
+            if header.crinex.is_some() {
+                let mut compressor = Compressor::default();
+                compressor.format(w, &rec, header)?;
+            } else {
+                for (k, v) in rec.iter() {
+                    v.format(version_major == 2, k, &header, w)?;
+                }
+            }
+
+            Ok(())
         } else if let Some(rec) = self.as_meteo() {
             format_meteo_observations(w, rec, header)
         } else if let Some(rec) = self.as_doris() {
