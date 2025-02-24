@@ -35,17 +35,17 @@ impl TimeFrame {
         Self::evenly_spaced(ts)
     }
 
-    // pub fn from_exclusive_csv(csv: &str) -> Self {
-    //     let mut csv = csv.split(',');
-    //     let t0 = csv.next().unwrap();
-    //     let t1 = csv.next().unwrap();
-    //     let dt = csv.next().unwrap();
-    //     let t0 = Epoch::from_str(t0).unwrap();
-    //     let t1 = Epoch::from_str(t1).unwrap();
-    //     let dt = Duration::from_str(dt).unwrap();
-    //     let ts = TimeSeries::exclusive(t0, t1, dt);
-    //     Self::evenly_spaced(ts)
-    // }
+    pub fn from_exclusive_csv(csv: &str) -> Self {
+        let mut csv = csv.split(',');
+        let t0 = csv.next().unwrap();
+        let t1 = csv.next().unwrap();
+        let dt = csv.next().unwrap();
+        let t0 = Epoch::from_str(t0).unwrap();
+        let t1 = Epoch::from_str(t1).unwrap();
+        let dt = Duration::from_str(dt).unwrap();
+        let ts = TimeSeries::exclusive(t0, t1, dt);
+        Self::evenly_spaced(ts)
+    }
 }
 
 impl Iterator for TimeFrame {

@@ -7,6 +7,8 @@ mod crinex;
 mod filename;
 pub mod formatting;
 mod parsing;
+
+#[cfg(feature = "flate2")]
 mod production;
 
 #[cfg(feature = "qc")]

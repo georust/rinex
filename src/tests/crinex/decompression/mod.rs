@@ -19,6 +19,7 @@ use std::{
 use crate::{
     hatanaka::Decompressor,
     prelude::{Constellation, Observable},
+    tests::toolkit::{generic_observation_comparison, random_name},
 };
 
 /// This method is used by all "raw" decompression tests
@@ -117,15 +118,15 @@ use std::{
 //         // parse DUT
 //         let path = format!("test_resources/CRNX/V1/{}", crnx_name);
 //         let crnx = Rinex::from_file(&path);
-//
+
 //         assert!(crnx.is_ok(), "failed to parse {}", path);
 //         let mut dut = crnx.unwrap();
-//
+
 //         let header = dut.header.obs.as_ref().unwrap();
-//
+
 //         assert!(header.crinex.is_some());
 //         let infos = header.crinex.as_ref().unwrap();
-//
+
 //         if crnx_name.eq("zegv0010.21d") {
 //             assert_eq!(infos.version.major, 1);
 //             assert_eq!(infos.version.minor, 0);
@@ -266,31 +267,25 @@ use std::{
 //                     vec![],
 //                 );
 //         }
-//
+
 //         // decompress and write to file
 //         dut.crnx2rnx_mut();
-//
+
 //         let specs = dut.header.obs.as_ref().unwrap();
 //         assert!(specs.crinex.is_none());
-//
+
 //         // TODO
 //         let filename = format!("{}.rnx", random_name(10));
-//
-//         // TODO
-//         // assert!(
-//         //     dut.to_file(&filename).is_ok(),
-//         //     "failed to dump \"{}\" after decompression",
-//         //     crnx_name
-//         // );
-//
+
 //         // run test on generated file
 //         let path = format!("test_resources/OBS/V2/{}", rnx_name);
-//         let _model = Rinex::from_file(&path).unwrap();
-//
+//         let model = Rinex::from_file(&path).unwrap();
+
 //         // TODO unlock this
-//         // generic_observation_rinex_against_model();
-//
-//         let _ = fs_remove_file(filename); // cleanup
+//         generic_observation_comparison(&dut, &model);
+
+//         // clean up & exit
+//         let _ = std::fs::remove_file(filename);
 //     }
 // }
 
@@ -298,18 +293,14 @@ use std::{
 fn testbench_v3() {
     let pool = vec![
         ("DUTH0630.22D", "DUTH0630.22O"),
-        //(
-        //    "ACOR00ESP_R_20213550000_01D_30S_MO.crx",
-        //    "ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
-        //),
-        //("pdel0010.21d", "pdel0010.21o"),
-        //("flrs0010.12d", "flrs0010.12o"),
-        //("VLNS0010.22D", "VLNS0010.22O"),
-        //("VLNS0630.22D", "VLNS0630.22O"),
-        //TODO unlock this
-        //("ESBC00DNK_R_20201770000_01D_30S_MO.crx", "ESBC00DNK_R_20201770000_01D_30S_MO.rnx"),
-        //("KMS300DNK_R_20221591000_01H_30S_MO.crx", "KMS300DNK_R_20221591000_01H_30S_MO.rnx"),
-        //("MOJN00DNK_R_20201770000_01D_30S_MO.crx", "MOJN00DNK_R_20201770000_01D_30S_MO.rnx"),
+        (
+            "ACOR00ESP_R_20213550000_01D_30S_MO.crx",
+            "ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
+        ),
+        ("pdel0010.21d", "pdel0010.21o"),
+        ("flrs0010.12d", "flrs0010.12o"),
+        ("VLNS0010.22D", "VLNS0010.22O"),
+        ("VLNS0630.22D", "VLNS0630.22O"),
     ];
     for (crnx_name, rnx_name) in pool {
         // parse DUT
@@ -365,8 +356,8 @@ fn testbench_v3() {
                 "3.04",
                 Some("MIXED"),
                 false, // has_clock
-                "GPS, GLO, GAL, BDS",
                 "G01, G07, G08, G10, G16, G18, G21, G23, G26, G30, R04, R05, R10, R12, R20, R21, E02, E11, E12, E24, E25, E31, E33, E36, C05, C11, C14, C21, C22, C23, C25, C28, C34, C37, C42, C43, C44, C58",
+                "GPS, GLO, GAL, BDS",
                 &[
                     ("GPS", "C1C, L1C, S1C, C2S, L2S, S2S, C2W, L2W, S2W, C5Q, L5Q, S5Q"),
                     ("GLO", "C1C, L1C, S1C, C2P, L2P, S2P, C2C, L2C, S2C, C3Q, L3Q, S3Q"),
@@ -384,7 +375,6 @@ fn testbench_v3() {
             );
         }
 
-        // convert to RINEX
         dut.crnx2rnx_mut();
 
         let obs = dut.header.obs.as_ref().unwrap();
@@ -395,7 +385,7 @@ fn testbench_v3() {
         let model = Rinex::from_file(&path).unwrap();
 
         // TODO unlock this
-        // generic_observation_rinex_against_model();
+        generic_observation_comparison(&dut, &model);
     }
 }
 

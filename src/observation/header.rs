@@ -9,10 +9,12 @@ use crate::{
 use std::{
     collections::HashMap,
     io::{BufWriter, Write},
-    str::FromStr,
 };
 
 use itertools::Itertools;
+
+#[cfg(feature = "processing")]
+use std::str::FromStr;
 
 #[cfg(feature = "processing")]
 use qc_traits::{FilterItem, MaskFilter, MaskOperand};
