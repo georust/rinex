@@ -14,6 +14,9 @@ use std::{
 use itertools::Itertools;
 
 #[cfg(feature = "processing")]
+use std::str::FromStr;
+
+#[cfg(feature = "processing")]
 use qc_traits::{FilterItem, MaskFilter, MaskOperand};
 
 #[derive(Debug, Clone, Default, PartialEq)]
