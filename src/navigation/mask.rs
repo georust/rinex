@@ -4,9 +4,6 @@ use crate::{navigation::Record, prelude::Constellation};
 
 fn mask_mut_geq(rec: &mut Record, target: &FilterItem) {
     match target {
-        FilterItem::EpochItem(epoch) => {
-            rec.retain(|k, _| k.epoch >= *epoch);
-        },
         FilterItem::SvItem(items) => {
             rec.retain(|k, _| {
                 let mut retained = true;
@@ -26,9 +23,6 @@ fn mask_mut_geq(rec: &mut Record, target: &FilterItem) {
 
 fn mask_mut_equal(rec: &mut Record, target: &FilterItem) {
     match target {
-        FilterItem::EpochItem(epoch) => {
-            rec.retain(|k, _| k.epoch == *epoch);
-        },
         FilterItem::SvItem(filter) => {
             rec.retain(|k, _| filter.contains(&k.sv));
         },
@@ -51,9 +45,6 @@ fn mask_mut_equal(rec: &mut Record, target: &FilterItem) {
 
 fn mask_mut_ineq(rec: &mut Record, target: &FilterItem) {
     match target {
-        FilterItem::EpochItem(epoch) => {
-            rec.retain(|k, _| k.epoch != *epoch);
-        },
         FilterItem::SvItem(filter) => {
             rec.retain(|k, _| !filter.contains(&k.sv));
         },
@@ -76,9 +67,6 @@ fn mask_mut_ineq(rec: &mut Record, target: &FilterItem) {
 
 fn mask_mut_leq(rec: &mut Record, target: &FilterItem) {
     match target {
-        FilterItem::EpochItem(epoch) => {
-            rec.retain(|k, _| k.epoch <= *epoch);
-        },
         FilterItem::SvItem(items) => {
             rec.retain(|k, _| {
                 let mut retained = true;
@@ -98,9 +86,6 @@ fn mask_mut_leq(rec: &mut Record, target: &FilterItem) {
 
 fn mask_mut_lt(rec: &mut Record, target: &FilterItem) {
     match target {
-        FilterItem::EpochItem(epoch) => {
-            rec.retain(|k, _| k.epoch < *epoch);
-        },
         FilterItem::SvItem(items) => {
             rec.retain(|k, _| {
                 let mut retained = true;
@@ -120,9 +105,6 @@ fn mask_mut_lt(rec: &mut Record, target: &FilterItem) {
 
 fn mask_mut_gt(rec: &mut Record, target: &FilterItem) {
     match target {
-        FilterItem::EpochItem(epoch) => {
-            rec.retain(|k, _| k.epoch > *epoch);
-        },
         FilterItem::SvItem(items) => {
             rec.retain(|k, _| {
                 let mut retained = true;
