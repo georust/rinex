@@ -13,7 +13,7 @@ impl Decimate for Header {
     }
     fn decimate_mut(&mut self, _: &DecimationFilter) {
         self.program = Some(format!(
-            "geo-rust v{}",
+            "rs-rinex v{}",
             Self::format_pkg_version(env!("CARGO_PKG_VERSION"),)
         ));
 
