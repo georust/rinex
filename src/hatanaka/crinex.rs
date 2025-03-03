@@ -164,7 +164,7 @@ impl Default for CRINEX {
     fn default() -> Self {
         Self {
             version: Version { major: 3, minor: 0 },
-            prog: format!("rust-rinex-{}", env!("CARGO_PKG_VERSION")),
+            prog: format!("rtk-rs/rinex v{}", env!("CARGO_PKG_VERSION")),
             date: epoch_now_utc(),
         }
     }

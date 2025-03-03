@@ -27,6 +27,7 @@ impl Record {
             // following the Hatanaka Compression algorithm.
             if header.crinex.is_some() {
                 let mut compressor = Compressor::default();
+                compressor.v3 = version_major > 2;
                 compressor.format(w, &rec, header)?;
             } else {
                 for (k, v) in rec.iter() {

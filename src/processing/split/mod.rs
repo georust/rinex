@@ -83,7 +83,7 @@ impl Split for Rinex {
 
     fn split_mut(&mut self, t: Epoch) -> Self {
         self.header.program = Some(format!(
-            "geo-rust v{}",
+            "rs-rust v{}",
             Header::format_pkg_version(env!("CARGO_PKG_VERSION"),)
         ));
 

@@ -153,7 +153,7 @@ impl Default for Header {
             rinex_type: Type::ObservationData,
             constellation: Some(Constellation::Mixed),
             program: Some(format!(
-                "geo-rust v{}",
+                "rs-rinex v{}",
                 Self::format_pkg_version(env!("CARGO_PKG_VERSION"))
             )),
             obs: Some(Default::default()),
@@ -261,7 +261,7 @@ impl Header {
 
         let (y, m, d, hh, mm, ss, _) = timestamp.to_gregorian_utc();
         format!(
-            "geo-rust v{} {:>width$}          {}{:02}{:02} {:02}{:02}{:02} {:x}",
+            "rs-rinex v{} {:>width$}          {}{:02}{:02} {:02}{:02}{:02} {:x}",
             formatted_version,
             "FILE MERGE",
             y,
@@ -402,37 +402,37 @@ mod test {
             (
                 "1.0.0",
                 "1.0.0",
-                "geo-rust v1.0.0     FILE MERGE          20000101 000000 UTC",
+                "rs-rinex v1.0.0     FILE MERGE          20000101 000000 UTC",
             ),
             (
                 "10.0.0",
                 "10.0.0",
-                "geo-rust v10.0.0    FILE MERGE          20000101 000000 UTC",
+                "rs-rinex v10.0.0    FILE MERGE          20000101 000000 UTC",
             ),
             (
                 "0.17.0",
                 "0.17.0",
-                "geo-rust v0.17.0    FILE MERGE          20000101 000000 UTC",
+                "rs-rinex v0.17.0    FILE MERGE          20000101 000000 UTC",
             ),
             (
                 "0.17.1",
                 "0.17.1",
-                "geo-rust v0.17.1    FILE MERGE          20000101 000000 UTC",
+                "rs-rinex v0.17.1    FILE MERGE          20000101 000000 UTC",
             ),
             (
                 "0.17.1-alpha",
                 "0.17.1a",
-                "geo-rust v0.17.1a   FILE MERGE          20000101 000000 UTC",
+                "rs-rinex v0.17.1a   FILE MERGE          20000101 000000 UTC",
             ),
             (
                 "0.17.1-rc",
                 "0.17.1rc",
-                "geo-rust v0.17.1rc  FILE MERGE          20000101 000000 UTC",
+                "rs-rinex v0.17.1rc  FILE MERGE          20000101 000000 UTC",
             ),
             (
                 "0.17.1-rc-1",
                 "0.17.1rc1",
-                "geo-rust v0.17.1rc1 FILE MERGE          20000101 000000 UTC",
+                "rs-rinex v0.17.1rc1 FILE MERGE          20000101 000000 UTC",
             ),
         ] {
             assert_eq!(Header::format_pkg_version(pkg_version), formatted);

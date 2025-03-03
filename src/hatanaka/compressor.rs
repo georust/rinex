@@ -78,18 +78,33 @@ impl<const M: usize> CompressorExpert<M> {
                 .sorted()
                 .collect::<Vec<_>>();
 
-            self.epoch_buf = format!(
-                "{:04} {:02} {:02} {:02} {:02} {:02}.{:07}  {}{:3}      ",
-                y,
-                m,
-                d,
-                hh,
-                mm,
-                ss,
-                ns / 100,
-                k.flag,
-                svnn.len(),
-            );
+            if self.v3 {
+                self.epoch_buf.push_str(&format!(
+                    "> {:04} {:02} {:02} {:02} {:02} {:02}.{:07}  {}{:3}      ",
+                    y,
+                    m,
+                    d,
+                    hh,
+                    mm,
+                    ss,
+                    ns / 100,
+                    k.flag,
+                    svnn.len(),
+                ));
+            } else {
+                self.epoch_buf.push_str(&format!(
+                    "&{:04} {:02} {:02} {:02} {:02} {:02}.{:07}  {}{:3}      ",
+                    y,
+                    m,
+                    d,
+                    hh,
+                    mm,
+                    ss,
+                    ns / 100,
+                    k.flag,
+                    svnn.len(),
+                ));
+            }
 
             // Append each SV to epoch description
             for sv in svnn.iter() {
@@ -99,13 +114,9 @@ impl<const M: usize> CompressorExpert<M> {
             // Epoch compression
             if self.epoch_compression {
                 let compressed = self.epoch_diff.compress(&self.epoch_buf);
-                writeln!(w, " {}", compressed)?;
+                writeln!(w, "{}", compressed)?;
             } else {
-                if self.v3 {
-                    writeln!(w, "> {}", self.epoch_buf)?;
-                } else {
-                    writeln!(w, "&{}", self.epoch_buf)?;
-                }
+                writeln!(w, "{}", self.epoch_buf)?;
             }
 
             if let Some(clk) = v.clock {
@@ -153,10 +164,14 @@ impl<const M: usize> CompressorExpert<M> {
 
                         if let Some(lli) = signal.lli {
                             self.flags_buf.push_str(&format!("{}", lli.bits() as u8));
+                        } else {
+                            self.flags_buf.push_str(" ");
                         }
 
                         if let Some(snr) = signal.snr {
                             self.flags_buf.push_str(&format!("{}", snr as u8));
+                        } else {
+                            self.flags_buf.push_str(" ");
                         }
                     } else {
                         // BLANK is a single ' '
@@ -170,11 +185,11 @@ impl<const M: usize> CompressorExpert<M> {
                     let compressed = flags_kernel.compress(&self.flags_buf);
                     writeln!(w, "{}", compressed)?;
                 } else {
-                    let kernel = TextDiff::new(&self.flags_buf);
+                    let mut kernel = TextDiff::new("");
+                    let compressed = kernel.compress(&self.flags_buf);
+                    writeln!(w, "{}", compressed)?;
                     self.flags_diff.insert(*sv, kernel);
-                    writeln!(w, "{}", self.flags_buf)?;
                 }
-
                 self.flags_buf.clear();
             }
             self.epoch_compression = true;

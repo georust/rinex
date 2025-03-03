@@ -181,7 +181,7 @@ impl Merge for Header {
         let now = Epoch::now().map_err(|_| MergeError::Other)?;
 
         self.program = Some(format!(
-            "geo-rust v{}",
+            "rs-rinex v{}",
             Self::format_pkg_version(env!("CARGO_PKG_VERSION"))
         ));
 

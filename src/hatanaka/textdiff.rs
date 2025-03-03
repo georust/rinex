@@ -69,50 +69,55 @@ impl TextDiff {
     /// Returns compressed text.
     pub fn compress(&mut self, data: &str) -> &str {
         let len = data.len();
-        let buf_len = self.buffer.len();
-        let history_len = self.buffer.len();
+        let mut buf_len = self.buffer.len();
+        let min_len = std::cmp::min(len, buf_len);
 
-        // expand with new content
-        if len > buf_len {
-            self.buffer.push_str(&data[buf_len..]);
-            self.compressed.push_str(&data[buf_len..].replace(' ', "&")); // copy & replace whitespaces
+        if buf_len > len {
+            // special case: shrink history
+            self.buffer = self.buffer[..len].to_string();
+            buf_len = len; // update size
         }
 
-        // study possible shared content
-        let mut new = data.bytes();
-        let mut history = self.buffer[..history_len].bytes();
+        self.compressed = self.buffer.to_string();
 
         unsafe {
+            let mut bytes = data.as_bytes().iter();
+            let mut buffered = self.buffer.as_bytes().iter();
             let mut compressed = self.compressed.as_bytes_mut().iter_mut();
 
-            // run through bytes for which we have history
-            // and either keep or compress
-            while let Some(new) = new.next() {
-                let compressed = compressed.next().unwrap();
-
-                if let Some(history) = history.next() {
-                    if history == new {
-                        *compressed = b' ';
+            while let Some(buffered) = buffered.next() {
+                let byte = bytes.next().unwrap();
+                let mut compressed = compressed.next().unwrap();
+                if byte == buffered {
+                    *compressed = b' ';
+                } else {
+                    if *byte == b' ' {
+                        *compressed = b'&';
                     } else {
-                        if new == b' ' {
-                            *compressed = b'&';
-                        } else {
-                            *compressed = new;
-                        }
+                        *compressed = *byte;
                     }
                 }
             }
-
-            // supports shorter inputs than internal buffer:
-            // possible '&' residues need to be whitened
-            // this gives maximum flexibility when dealing with actual files
-            while let Some(compressed) = compressed.next() {
-                *compressed = b' ';
-            }
-
-            self.buffer = data.to_string();
-            &self.compressed
         }
+
+        // update internal memory
+        self.buffer = data.to_string();
+
+        // possible new string termination
+        if len > buf_len {
+            self.compressed.push_str(&data[buf_len..]);
+
+            unsafe {
+                let mut compressed = self.compressed.as_bytes_mut().iter_mut().skip(buf_len);
+                while let Some(byte) = compressed.next() {
+                    if *byte == b' ' {
+                        *byte = b'&';
+                    }
+                }
+            }
+        }
+
+        &self.compressed
     }
 }
 
@@ -120,8 +125,9 @@ impl TextDiff {
 mod test {
     use super::*;
     #[test]
-    fn test_decompression() {
-        let mut diff = TextDiff::new("ABCDEFG 12 000 33 XXACQmpLf");
+    fn textdiff_decompression() {
+        const INIT: &str = "ABCDEFG 12 000 33 XXACQmpLf";
+        let mut diff = TextDiff::new(INIT);
 
         let compressed: Vec<&str> = vec![
             "         3   1 44 xxACq   F",
@@ -134,6 +140,7 @@ mod test {
             "&                           ",
             " ",
         ];
+
         let expected: Vec<&str> = vec![
             "ABCDEFG 13 001 44 xxACqmpLF",
             "ABCDEFG 43 001 44 xxACqmpLF",
@@ -148,6 +155,7 @@ mod test {
 
         for i in 0..compressed.len() {
             let decompressed = diff.decompress(compressed[i]);
+
             assert_eq!(
                 decompressed,
                 expected[i],
@@ -186,21 +194,23 @@ mod test {
     }
 
     #[test]
-    #[ignore]
-    fn test_compression() {
+    fn textdiff_compression() {
         let mut diff = TextDiff::new("0");
+
         assert_eq!(diff.compress("0"), " ");
         assert_eq!(diff.compress("4"), "4");
         assert_eq!(diff.compress("4"), " ");
+        assert_eq!(diff.compress("44"), " 4");
         assert_eq!(diff.compress("4 "), " &");
+        assert_eq!(diff.compress("4 "), "  ");
         assert_eq!(diff.compress("4  "), "  &");
-        assert_eq!(diff.compress("0"), "0  ");
-        assert_eq!(diff.compress("0"), "   ");
-        assert_eq!(diff.compress("   "), "&  ");
+        assert_eq!(diff.compress("0"), "0");
+        assert_eq!(diff.compress("0"), " ");
+        assert_eq!(diff.compress("   "), "&&&");
 
         diff.force_init("Default 1234");
         assert_eq!(diff.compress("DEfault 1234"), " E          ");
         assert_eq!(diff.compress("DEfault 1234"), "            ");
-        assert_eq!(diff.compress("             "), "            &");
+        assert_eq!(diff.compress("             "), "&&&&&&& &&&&&");
     }
 }

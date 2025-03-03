@@ -406,7 +406,7 @@ impl Rinex {
             };
             crinex.date = epoch::now();
             crinex.prog = format!(
-                "geo-rust v{}",
+                "rs-rinex v{}",
                 Header::format_pkg_version(env!("CARGO_PKG_VERSION"))
             );
             self.header = self.header.with_crinex(crinex);
@@ -437,7 +437,7 @@ impl Rinex {
                 });
 
             self.header.program = Some(format!(
-                "geo-rust v{}",
+                "rs-rinex v{}",
                 Header::format_pkg_version(env!("CARGO_PKG_VERSION"))
             ));
         }
