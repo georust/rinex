@@ -59,6 +59,16 @@ fn benchmark(c: &mut Criterion) {
             rinex_formatting(&rinex, &mut buffer);
         })
     });
+
+    // Small CRINEX (V3)
+    let rinex = rinex.rnx2crnx();
+
+    formatting_grp.bench_function("CRNX/V3", |b| {
+        b.iter(|| {
+            rinex_formatting(&rinex, &mut buffer);
+        })
+    });
+
     formatting_grp.finish();
 }
 
