@@ -56,18 +56,17 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     fn crinex3() {
         let pool = vec![
             (
                 "ACOR00ESP_R_20213550000_01D_30S_MO.crx",
                 "ACOR00ESP_R_20213550000_01D_30S_MO.rnx",
             ),
-            // ("DUTH0630.22D", "DUTH0630.22O"),
-            // ("VLNS0010.22D", "VLNS0010.22O"),
-            // ("VLNS0630.22D", "VLNS0630.22O"),
-            // ("flrs0010.12d", "flrs0010.12o"),
-            // ("pdel0010.21d", "pdel0010.21o"),
+            ("DUTH0630.22D", "DUTH0630.22O"),
+            ("VLNS0010.22D", "VLNS0010.22O"),
+            ("VLNS0630.22D", "VLNS0630.22O"),
+            ("flrs0010.12d", "flrs0010.12o"),
+            ("pdel0010.21d", "pdel0010.21o"),
         ];
         for duplet in pool {
             let (crnx_name, rnx_name) = duplet;
