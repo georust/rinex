@@ -136,10 +136,12 @@ impl<const M: usize> CompressorExpert<M> {
 
             if let Some(clk) = v.clock {
                 // TODO: clock is not correctly supported yet
-                writeln!(w, "{}", clk.offset_s)?;
+                if !self.epoch_compression {
+                    writeln!(w, "{}", clk.offset_s)?;
+                }
             } else {
                 // No clock: BLANKed line
-                writeln!(w, "{}", "")?;
+                write!(w, "\n")?;
             }
 
             // For each SV
