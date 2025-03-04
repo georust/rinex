@@ -4,7 +4,7 @@ use crate::{
     epoch::epoch_decompose as epoch_decomposition,
     error::FormattingError,
     hatanaka::{NumDiff, TextDiff},
-    observation::{HeaderFields, Record},
+    observation::{HeaderFields, LliFlags, Record},
     prelude::{Observable, SV},
     BufWriter,
 };
@@ -62,10 +62,10 @@ impl<const M: usize> CompressorExpert<M> {
         header: &HeaderFields,
     ) -> Result<(), FormattingError> {
         for (k, v) in record.iter() {
-            // TODO: epoch kernel reset on phase lock loss ?
-            //if k.flags.intersects(LliFlags::LOCK_LOSS || LliFlags::HALF_CYCLE_SLIP) {
-            //  self.epoch_compression = false;
-            //}
+            if !k.flag.is_ok() {
+                // TODO not 100% correct, verify > 1
+                self.epoch_compression = false;
+            }
 
             let (y, m, d, hh, mm, ss, ns) = epoch_decomposition(k.epoch);
 
@@ -78,9 +78,23 @@ impl<const M: usize> CompressorExpert<M> {
                 .sorted()
                 .collect::<Vec<_>>();
 
+            if !self.epoch_compression {
+                if self.v3 {
+                    write!(w, "> ")?;
+                } else {
+                    write!(w, "&")?;
+                }
+            } else {
+                if self.v3 {
+                    write!(w, "  ")?;
+                } else {
+                    write!(w, " ")?;
+                }
+            }
+
             if self.v3 {
                 self.epoch_buf.push_str(&format!(
-                    "> {:04} {:02} {:02} {:02} {:02} {:02}.{:07}  {}{:3}      ",
+                    "{:04} {:02} {:02} {:02} {:02} {:02}.{:07}  {}{:3}      ",
                     y,
                     m,
                     d,
@@ -93,7 +107,7 @@ impl<const M: usize> CompressorExpert<M> {
                 ));
             } else {
                 self.epoch_buf.push_str(&format!(
-                    "&{:04} {:02} {:02} {:02} {:02} {:02}.{:07}  {}{:3}      ",
+                    "{:02} {:02} {:02} {:02} {:02} {:02}.{:07}  {}{:3}      ",
                     y,
                     m,
                     d,
@@ -112,11 +126,12 @@ impl<const M: usize> CompressorExpert<M> {
             }
 
             // Epoch compression
-            if self.epoch_compression {
-                let compressed = self.epoch_diff.compress(&self.epoch_buf);
-                writeln!(w, "{}", compressed)?;
+            if !self.epoch_compression {
+                self.epoch_diff.force_init(&self.epoch_buf);
+                writeln!(w, "{}", self.epoch_buf.trim_end())?;
             } else {
-                writeln!(w, "{}", self.epoch_buf)?;
+                let compressed = self.epoch_diff.compress(&self.epoch_buf);
+                writeln!(w, "{}", compressed.trim_end())?;
             }
 
             if let Some(clk) = v.clock {
@@ -192,7 +207,10 @@ impl<const M: usize> CompressorExpert<M> {
                 }
                 self.flags_buf.clear();
             }
+
+            // prepare for next epoch
             self.epoch_compression = true;
+            self.epoch_buf.clear();
         }
         Ok(())
     }
