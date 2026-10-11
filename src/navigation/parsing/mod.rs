@@ -444,7 +444,7 @@ mod test {
 
     #[test]
     fn v4_record_header_line() {
-        use crate::navigation::{ionosphere::KbRegionCode, NavMessageSubtype};
+        use crate::navigation::{ionosphere::KbRegionCode, Nav402MessageSubtype};
         use crate::prelude::{Constellation, SV};
 
         // blank PRN: the record names the constellation only
@@ -463,7 +463,7 @@ mod test {
     -1.192092895508E-07 9.625600000000E+04 1.310720000000E+05-6.553600000000E+04
     -5.898240000000E+05 0.000000000000E+00";
         let (k, frame) = parse_v4_epoch(content).unwrap();
-        assert_eq!(k.subtype, Some(NavMessageSubtype::JAPN));
+        assert_eq!(k.subtype, Some(Nav402MessageSubtype::JAPN));
         let model = frame.as_ionosphere_model().unwrap().as_klobuchar().unwrap();
         assert_eq!(model.region, KbRegionCode::Japan);
 

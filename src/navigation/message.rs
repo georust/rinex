@@ -141,18 +141,21 @@ impl std::fmt::Display for NavMessageType {
 /// distinguish otherwise identical records.
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum NavMessageSubtype {
+pub enum Nav402MessageSubtype {
     /// QZSS CNVX ION: wide area coefficients
     WIDE,
+
     /// QZSS CNVX ION: Japan area coefficients
     JAPN,
+
     /// NavIC L1NV ION: Klobuchar model
     KLOB,
+
     /// NavIC L1NV ION: NeQuick-N model
     NEQN,
 }
 
-impl std::str::FromStr for NavMessageSubtype {
+impl std::str::FromStr for Nav402MessageSubtype {
     type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_uppercase().as_str() {
@@ -160,12 +163,12 @@ impl std::str::FromStr for NavMessageSubtype {
             "JAPN" => Ok(Self::JAPN),
             "KLOB" => Ok(Self::KLOB),
             "NEQN" => Ok(Self::NEQN),
-            _ => Err(ParsingError::NavMsgSubtype),
+            _ => Err(ParsingError::Nav402MsgSubtype),
         }
     }
 }
 
-impl std::fmt::Display for NavMessageSubtype {
+impl std::fmt::Display for Nav402MessageSubtype {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::WIDE => write!(f, "WIDE"),
@@ -238,15 +241,15 @@ mod test {
     #[test]
     fn message_subtype() {
         for (code, subtype) in [
-            ("WIDE", NavMessageSubtype::WIDE),
-            ("JAPN", NavMessageSubtype::JAPN),
-            ("KLOB", NavMessageSubtype::KLOB),
-            ("NEQN", NavMessageSubtype::NEQN),
+            ("WIDE", Nav402MessageSubtype::WIDE),
+            ("JAPN", Nav402MessageSubtype::JAPN),
+            ("KLOB", Nav402MessageSubtype::KLOB),
+            ("NEQN", Nav402MessageSubtype::NEQN),
         ] {
-            assert_eq!(NavMessageSubtype::from_str(code).unwrap(), subtype);
+            assert_eq!(Nav402MessageSubtype::from_str(code).unwrap(), subtype);
             assert_eq!(subtype.to_string(), code);
         }
-        assert!(NavMessageSubtype::from_str("").is_err());
-        assert!(NavMessageSubtype::from_str("LNAV").is_err());
+        assert!(Nav402MessageSubtype::from_str("").is_err());
+        assert!(Nav402MessageSubtype::from_str("LNAV").is_err());
     }
 }

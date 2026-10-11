@@ -215,8 +215,8 @@ pub enum ParsingError {
     #[error("nav: invalid message type")]
     NavMsgType,
 
-    #[error("nav: invalid message subtype")]
-    NavMsgSubtype,
+    #[error("nav: invalid nav v>4.02 message subtype")]
+    Nav402MsgSubtype,
 
     #[error("nav: ephemeris satellite differs from the record header")]
     NavSvMismatch,

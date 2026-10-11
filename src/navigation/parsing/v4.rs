@@ -1,7 +1,7 @@
 use crate::{
     navigation::{
         timescale, BdModel, EarthOrientation, Ephemeris, GloCdmaModel, IonosphereModel, KbModel,
-        KbRegionCode, NavFrame, NavFrameType, NavKey, NavMessageSubtype, NavMessageType,
+        KbRegionCode, Nav402MessageSubtype, NavFrame, NavFrameType, NavKey, NavMessageType,
         NavicKbModel, NavicNeqnModel, NgModel, TimeOffset,
     },
     prelude::{Constellation, Epoch, ParsingError, SV},
@@ -48,7 +48,7 @@ pub fn parse(content: &str) -> Result<(NavKey, NavFrame), ParsingError> {
         .parse::<NavMessageType>()?;
 
     let subtype = match items.next() {
-        Some(item) => Some(item.parse::<NavMessageSubtype>()?),
+        Some(item) => Some(item.parse::<Nav402MessageSubtype>()?),
         None => None,
     };
 
@@ -71,15 +71,15 @@ pub fn parse(content: &str) -> Result<(NavKey, NavFrame), ParsingError> {
                 },
                 // RINEX 4.02: NavIC L1NV models, told apart by the subtype
                 NavMessageType::L1NV => match subtype {
-                    Some(NavMessageSubtype::KLOB) => {
+                    Some(Nav402MessageSubtype::KLOB) => {
                         let (epoch, model) = NavicKbModel::parse(lines, ts)?;
                         (epoch, IonosphereModel::NavicKlobuchar(model))
                     },
-                    Some(NavMessageSubtype::NEQN) => {
+                    Some(Nav402MessageSubtype::NEQN) => {
                         let (epoch, model) = NavicNeqnModel::parse(lines, ts)?;
                         (epoch, IonosphereModel::NavicNequick(model))
                     },
-                    _ => return Err(ParsingError::NavMsgSubtype),
+                    _ => return Err(ParsingError::Nav402MsgSubtype),
                 },
                 // RINEX 4.02: GLONASS CDMA model
                 NavMessageType::LXOC => {
@@ -95,8 +95,10 @@ pub fn parse(content: &str) -> Result<(NavKey, NavFrame), ParsingError> {
                         let (epoch, mut model) = KbModel::parse(lines, ts)?;
                         // RINEX 4.02: QZSS region code moved to the subtype field
                         match subtype {
-                            Some(NavMessageSubtype::WIDE) => model.region = KbRegionCode::Worldwide,
-                            Some(NavMessageSubtype::JAPN) => model.region = KbRegionCode::Japan,
+                            Some(Nav402MessageSubtype::WIDE) => {
+                                model.region = KbRegionCode::Worldwide
+                            },
+                            Some(Nav402MessageSubtype::JAPN) => model.region = KbRegionCode::Japan,
                             _ => {},
                         }
                         (epoch, IonosphereModel::Klobuchar(model))

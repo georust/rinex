@@ -24,7 +24,7 @@ pub use crate::navigation::{
         BdModel, GloCdmaModel, IonosphereModel, KbModel, KbRegionCode, NavicKbModel,
         NavicNeqnModel, NavicNeqnRegion, NgModel, NgRegionFlags,
     },
-    message::{NavMessageSubtype, NavMessageType},
+    message::{Nav402MessageSubtype, NavMessageType},
     time::TimeOffset,
 };
 
@@ -71,9 +71,9 @@ pub struct NavKey {
     /// [NavFrame] type following.
     pub frmtype: NavFrameType,
 
-    /// [NavMessageSubtype], optional fourth field of the RINEX 4.02
+    /// [Nav402MessageSubtype], optional fourth field of the RINEX 4.02
     /// record header, telling apart otherwise identical records.
-    pub subtype: Option<NavMessageSubtype>,
+    pub subtype: Option<Nav402MessageSubtype>,
 }
 
 /// Navigation data are [NavFrame]s indexed by [NavKey].
