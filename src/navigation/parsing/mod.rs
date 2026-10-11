@@ -11,6 +11,7 @@ mod v4;
 use v4::parse as parse_v4_epoch;
 
 impl NavKey {
+    /// Identifies the Galileo [NavMessageType] from the signal source value (binary word)
     fn galileo_identity(
         sv: SV,
         eph: &Ephemeris,
@@ -18,22 +19,28 @@ impl NavKey {
         if sv.constellation != Constellation::Galileo {
             return Ok(None);
         }
+
         let value = eph
             .get_orbit_f64("source")
             .ok_or(ParsingError::NavGalileoDataSources)?;
+
         if !value.is_finite() || value < 0.0 || value > u32::MAX as f64 || value.fract() != 0.0 {
             return Err(ParsingError::NavGalileoDataSources);
         }
+
         let source = value as u32;
+
         // Bits 3/4 are defined reserved bits and must be preserved.
         if source & !0x31f != 0 || source & 0x300 == 0x300 {
             return Err(ParsingError::NavGalileoDataSources);
         }
-        let message = match source & 7 {
+
+        let message = match source & 0x7 {
             2 => NavMessageType::FNAV,
             1 | 4 | 5 => NavMessageType::INAV,
             _ => return Err(ParsingError::NavGalileoDataSources),
         };
+
         Ok(Some((message, source)))
     }
 
@@ -44,15 +51,17 @@ impl NavKey {
     /// remove the old map entry and insert the frame under this rebuilt key.
     /// Old serialized keys with absent extensions must also be rebuilt.
     pub fn from_frame(
-        version: crate::Version,
-        epoch: crate::Epoch,
-        sv: crate::SV,
+        version: Version,
+        epoch: Epoch,
+        sv: SV,
         mut msgtype: NavMessageType,
         subtype: Option<Nav402MessageSubtype>,
         frame: &NavFrame,
     ) -> Result<Self, ParsingError> {
-        let mut galileo_data_sources = None;
         let mut sto_identity = None;
+        let mut galileo_data_sources = None;
+
+        // TODO: comments here
         let (frmtype, seconds) = match frame {
             NavFrame::EPH(eph) => {
                 if let Some((message, source)) = Self::galileo_identity(sv, eph)? {
@@ -63,8 +72,10 @@ impl NavKey {
                     }
                     galileo_data_sources = Some(source);
                 }
+
                 let (field, optional, unknown) =
                     Ephemeris::transmission_policy(version, sv, msgtype);
+
                 let seconds = eph.get_orbit_f64(field);
                 if seconds.is_none() && !optional {
                     return Err(ParsingError::NavTransmissionTime);
