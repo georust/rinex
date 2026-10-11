@@ -36,66 +36,44 @@ fn parse_orbits(
         _ => return Err(ParsingError::NoNavigationDefinition),
     };
 
-    // println!("FIELD : {:?} \n", nav_standards.items); // DEBUG
-
     let fields = &nav_standards.items;
 
     let mut key_index: usize = 0;
     let word_size: usize = 19;
     let mut map: HashMap<String, OrbitItem> = HashMap::new();
 
-    for line in lines {
+    for (row_index, line) in lines.enumerate() {
         // trim first few white spaces
         if !line.is_ascii() {
             return Err(ParsingError::EpochFormat);
         }
         let padding = if version.major < 3 { 3 } else { 4 };
-        let mut line = line.get(padding..).unwrap_or("");
+        let line = line.get(padding..).unwrap_or("");
+        let Some(&row_length) = nav_standards.row_lengths.get(row_index) else {
+            continue;
+        };
 
-        // number of fields found on this line, blank or not
-        let mut nb_fields = 0;
-
-        loop {
-            if line.is_empty() {
-                // fields omitted at the end of the line
-                key_index += 4_usize.saturating_sub(nb_fields);
-                break;
-            }
-
-            let (val_str, rem) = line.split_at(std::cmp::min(word_size, line.len()));
-            let val_str = val_str.trim();
-            nb_fields += 1;
-
-            // handle omitted fields
-            if val_str.is_empty() {
-                // omitted field
-                key_index += 1;
-                line = rem;
+        // Each row owns its defined fields, including any omitted values.
+        // Ignore trailing content outside the row definition for compatibility
+        // with padded products; it must never shift the following row.
+        for (slot, (name_str, type_str)) in
+            fields[key_index..key_index + row_length].iter().enumerate()
+        {
+            let remaining = line.get(slot * word_size..).unwrap_or("");
+            let val_str = remaining[..word_size.min(remaining.len())].trim();
+            // Spare fields must be skipped (RINEX section 6.4).
+            if val_str.is_empty() || name_str.starts_with("spare") {
                 continue;
             }
-
-            if let Some((name_str, type_str)) = fields.get(key_index) {
-                //println!(
-                //    "Key \"{}\"(index: {}) | Token \"{}\" | Content \"{}\"",
-                //    key,
-                //    key_index,
-                //    token,
-                //    content.trim()
-                //); //DEBUG
-                // Spare fields must be skipped (RINEX section 6.4).
-                if !name_str.starts_with("spare") {
-                    let item = OrbitItem::new(name_str, type_str, val_str, &msgtype, constell)
-                        .map_err(|source| ParsingError::NavOrbitParsing {
-                            field: name_str.to_string(),
-                            source: Box::new(source),
-                        })?;
-                    map.insert(name_str.to_string(), item);
-                }
-            }
-
-            key_index += 1;
-            line = rem;
+            let item = OrbitItem::new(name_str, type_str, val_str, &msgtype, constell).map_err(
+                |source| ParsingError::NavOrbitParsing {
+                    field: name_str.to_string(),
+                    source: Box::new(source),
+                },
+            )?;
+            map.insert(name_str.to_string(), item);
         }
+        key_index += row_length;
     }
     Ok(map)
 }
@@ -190,6 +168,7 @@ impl Ephemeris {
 
     /// Parse Ephemeris (V4) from line iterator
     pub(crate) fn parse_v4(
+        version: Version,
         msg: NavMessageType,
         mut lines: Lines<'_>,
         ts: TimeScale,
@@ -225,8 +204,7 @@ impl Ephemeris {
             return Err(ParsingError::ClockParsing);
         }
 
-        let mut orbits =
-            parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
+        let mut orbits = parse_orbits(version, msg, sv.constellation, lines)?;
 
         if sv.constellation == Constellation::Glonass && msg == NavMessageType::FDMA {
             // RINEX 4 FDMA: seconds of UTC week (table A15).
@@ -616,8 +594,13 @@ mod test {
     -9.578970431139e-10                    2.123000000000e+03
      2.000000000000e+00 0.000000000000e+00-1.862645149231e-09
      1.804920000000e+05";
-        let (epoch, sv, eph) =
-            Ephemeris::parse_v4(NavMessageType::LNAV, content.lines(), TimeScale::GPST).unwrap();
+        let (epoch, sv, eph) = Ephemeris::parse_v4(
+            Version::new(4, 0),
+            NavMessageType::LNAV,
+            content.lines(),
+            TimeScale::GPST,
+        )
+        .unwrap();
         assert_eq!(sv, SV::from_str("I02").unwrap());
         assert_eq!(epoch, Epoch::from_str("2020-09-15T02:05:36 GPST").unwrap());
         assert_eq!(eph.clock_bias, 6.225099787116e-04);
@@ -643,8 +626,13 @@ mod test {
      1.500000000000e+01 0.000000000000e+00                   -3.608874976635e-09
                                            6.984919309616e-09 5.995389074087e-09
      5.191380000000e+05";
-        let (epoch, sv, eph) =
-            Ephemeris::parse_v4(NavMessageType::L1NV, content.lines(), TimeScale::GPST).unwrap();
+        let (epoch, sv, eph) = Ephemeris::parse_v4(
+            Version::new(4, 0),
+            NavMessageType::L1NV,
+            content.lines(),
+            TimeScale::GPST,
+        )
+        .unwrap();
         assert_eq!(sv, SV::from_str("I10").unwrap());
         assert_eq!(epoch, Epoch::from_str("2023-06-24T00:05:00 GPST").unwrap());
         assert_eq!(eph.get_orbit_f64("crs"), Some(-2.593125000000e+02));
@@ -674,7 +662,8 @@ mod test {
      1.500000000000e+01 5.000000000000e+00                    5.184000000000e+05";
         for msgtype in [NavMessageType::L1OC, NavMessageType::L3OC] {
             let (epoch, sv, eph) =
-                Ephemeris::parse_v4(msgtype, content.lines(), TimeScale::UTC).unwrap();
+                Ephemeris::parse_v4(Version::new(4, 0), msgtype, content.lines(), TimeScale::UTC)
+                    .unwrap();
             assert_eq!(sv, SV::from_str("R26").unwrap());
             assert_eq!(epoch, Epoch::from_str("2024-02-03T00:15:00 UTC").unwrap());
             assert_eq!(eph.get_orbit_f64("satPosX"), Some(1.812154053020e+04));
@@ -701,14 +690,24 @@ mod test {
      0.000000000000e+00 7.000000000000e+00-8.789356797934e-09 5.000000000000e+00
     -5.820766091347e-10-6.606569513679e-09-1.178705133498e-08-1.178705133498e-08
      3.558540000000e+05 2.044000000000e+03";
-        let (_, _, eph) =
-            Ephemeris::parse_v4(NavMessageType::CNAV, content.lines(), TimeScale::GPST).unwrap();
+        let (_, _, eph) = Ephemeris::parse_v4(
+            Version::new(4, 0),
+            NavMessageType::CNAV,
+            content.lines(),
+            TimeScale::GPST,
+        )
+        .unwrap();
         assert_eq!(eph.get_orbit_f64("wn_op"), Some(2044.0));
         assert_eq!(eph.get_orbit_f64("flags"), None);
 
         let content = format!("{} 3.000000000000e+00", content);
-        let (_, _, eph) =
-            Ephemeris::parse_v4(NavMessageType::CNAV, content.lines(), TimeScale::GPST).unwrap();
+        let (_, _, eph) = Ephemeris::parse_v4(
+            Version::new(4, 0),
+            NavMessageType::CNAV,
+            content.lines(),
+            TimeScale::GPST,
+        )
+        .unwrap();
         assert_eq!(eph.get_orbit_f64("flags"), Some(3.0));
     }
 }
