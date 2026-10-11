@@ -69,16 +69,83 @@ fn real_nav3_galileo_keeps_four_sources_and_gps_keys() {
 #[test]
 fn real_galileo_nav3_and_nav4_write_read_preserve_every_frame() {
     let (original, _) = read(&real());
-    for version in [Version::new(3, 4), Version::new(4, 0)] {
+    for version in [
+        Version::new(3, 4),
+        Version::new(4, 0),
+        Version::new(4, 1),
+        Version::new(4, 2),
+    ] {
         let mut rinex = original.clone();
         rinex.header.version = version;
         let mut writer = BufWriter::new(Vec::new());
         rinex.format(&mut writer).unwrap();
         let bytes = writer.into_inner().unwrap();
-        let (back, diagnostics) = read(std::str::from_utf8(&bytes).unwrap());
+        let output = std::str::from_utf8(&bytes).unwrap();
+        let lines: Vec<_> = output.lines().collect();
+        let mut galileo_count = 0;
+        for (i, line) in lines.iter().enumerate() {
+            let start = if version.major < 4 && line.starts_with('E') {
+                i
+            } else if version.major >= 4 && line.starts_with("> EPH E") {
+                i + 1
+            } else {
+                continue;
+            };
+            galileo_count += 1;
+            // Independent layout expectations: V3 Table A8 versus V4 Table A13.
+            let lengths = if version.major < 4 {
+                [80, 80, 80]
+            } else {
+                [61, 80, 23]
+            };
+            for (offset, length) in [5, 6, 7].into_iter().zip(lengths) {
+                assert_eq!(lines[start + offset].len(), length, "version {version}");
+            }
+        }
+        assert_eq!(galileo_count, 4);
+        let (mut back, diagnostics) = read(output);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         assert_eq!(back.record, original.record, "version {version}");
+
+        // The reverse conversion must restore the actual NAV3 spare columns.
+        back.header.version = Version::new(3, 4);
+        let mut writer = BufWriter::new(Vec::new());
+        back.format(&mut writer).unwrap();
+        let bytes = writer.into_inner().unwrap();
+        let (back, diagnostics) = read(std::str::from_utf8(&bytes).unwrap());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert_eq!(
+            back.record, original.record,
+            "version {version} back to NAV3"
+        );
     }
+}
+
+#[test]
+fn real_galileo_nav3_spares_do_not_shift_fields() {
+    let source = super::navigation_excerpt(
+        "BRDC00IGS_R_20241310000_01D_MN.rnx",
+        &[(1, 93), (8634, 8641)],
+    );
+    let (original, diagnostics) = read(&source);
+    assert!(diagnostics.is_empty());
+    // Synthetic contents of the four actual spares defined by V3 Table A8.
+    let mut lines: Vec<_> = source.lines().map(str::to_owned).collect();
+    let spare = format!("{:>19}", "SPARE");
+    lines[98].truncate(61);
+    lines[98].push_str(&spare);
+    lines[100].truncate(23);
+    lines[100].push_str(&spare.repeat(3));
+    let (rinex, diagnostics) = read(&lines.join("\n"));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(rinex.record, original.record);
+    let (key, frame) = rinex.record.as_nav().unwrap().first_key_value().unwrap();
+    assert_eq!(key.galileo_data_sources, Some(258));
+    assert_eq!(key.transmission_time.unwrap().seconds(), 431500.0);
+    assert_eq!(
+        frame.as_ephemeris().unwrap().get_orbit_f64("sisa"),
+        Some(3.12)
+    );
 }
 
 #[test]

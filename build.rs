@@ -28,6 +28,7 @@ pub struct NavHelper<'a> {
     pub version: Version,
     pub msg: NavMessageType,
     pub items: Vec<(&'a str, &'a str)>,
+    pub row_lengths: Vec<usize>,
 }
 
 // NAV FRAMES description, from RINEX standards
@@ -53,6 +54,33 @@ pub struct NavHelper<'a> {
         let msg = frame["type"].as_str().unwrap_or("LNAV"); // default type
 
         let items = frame["orbits"].as_object().unwrap(); // mandatory
+
+        // Older descriptors use four fields per row, with a possibly shorter
+        // final row. Explicit lengths describe records such as Galileo NAV4.
+        let row_lengths: Vec<usize> = match frame.get("row_lengths") {
+            Some(lengths) => lengths
+                .as_array()
+                .expect("row_lengths must be an array")
+                .iter()
+                .map(|length| {
+                    usize::try_from(length.as_u64().expect("row length must be an integer"))
+                        .expect("row length must fit usize")
+                })
+                .collect(),
+            None => (0..items.len())
+                .step_by(4)
+                .map(|start| (items.len() - start).min(4))
+                .collect(),
+        };
+        assert!(
+            row_lengths.iter().all(|length| (1..=4).contains(length)),
+            "{constellation} {major}.{minor:02} {msg}: row lengths must be 1..=4"
+        );
+        assert_eq!(
+            row_lengths.iter().sum::<usize>(),
+            items.len(),
+            "{constellation} {major}.{minor:02} {msg}: row lengths must cover all fields"
+        );
 
         // begin frame description
         nav_file.write_all("   ( NavHelper {\n".as_bytes()).unwrap();
@@ -94,6 +122,9 @@ pub struct NavHelper<'a> {
                 .unwrap();
         }
         nav_file.write_all("      ],\n".as_bytes()).unwrap();
+        nav_file
+            .write_all(format!("      row_lengths: vec!{:?},\n", row_lengths).as_bytes())
+            .unwrap();
         nav_file.write_all("   }),\n".as_bytes()).unwrap();
     }
 

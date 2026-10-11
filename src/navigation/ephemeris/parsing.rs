@@ -36,66 +36,44 @@ fn parse_orbits(
         _ => return Err(ParsingError::NoNavigationDefinition),
     };
 
-    // println!("FIELD : {:?} \n", nav_standards.items); // DEBUG
-
     let fields = &nav_standards.items;
 
     let mut key_index: usize = 0;
     let word_size: usize = 19;
     let mut map: HashMap<String, OrbitItem> = HashMap::new();
 
-    for line in lines {
+    for (row_index, line) in lines.enumerate() {
         // trim first few white spaces
         if !line.is_ascii() {
             return Err(ParsingError::EpochFormat);
         }
         let padding = if version.major < 3 { 3 } else { 4 };
-        let mut line = line.get(padding..).unwrap_or("");
+        let line = line.get(padding..).unwrap_or("");
+        let Some(&row_length) = nav_standards.row_lengths.get(row_index) else {
+            continue;
+        };
 
-        // number of fields found on this line, blank or not
-        let mut nb_fields = 0;
-
-        loop {
-            if line.is_empty() {
-                // fields omitted at the end of the line
-                key_index += 4_usize.saturating_sub(nb_fields);
-                break;
-            }
-
-            let (val_str, rem) = line.split_at(std::cmp::min(word_size, line.len()));
-            let val_str = val_str.trim();
-            nb_fields += 1;
-
-            // handle omitted fields
-            if val_str.is_empty() {
-                // omitted field
-                key_index += 1;
-                line = rem;
+        // Each row owns its defined fields, including any omitted values.
+        // Ignore trailing content outside the row definition for compatibility
+        // with padded products; it must never shift the following row.
+        for (slot, (name_str, type_str)) in
+            fields[key_index..key_index + row_length].iter().enumerate()
+        {
+            let remaining = line.get(slot * word_size..).unwrap_or("");
+            let val_str = remaining[..word_size.min(remaining.len())].trim();
+            // Spare fields must be skipped (RINEX section 6.4).
+            if val_str.is_empty() || name_str.starts_with("spare") {
                 continue;
             }
-
-            if let Some((name_str, type_str)) = fields.get(key_index) {
-                //println!(
-                //    "Key \"{}\"(index: {}) | Token \"{}\" | Content \"{}\"",
-                //    key,
-                //    key_index,
-                //    token,
-                //    content.trim()
-                //); //DEBUG
-                // Spare fields must be skipped (RINEX section 6.4).
-                if !name_str.starts_with("spare") {
-                    let item = OrbitItem::new(name_str, type_str, val_str, &msgtype, constell)
-                        .map_err(|source| ParsingError::NavOrbitParsing {
-                            field: name_str.to_string(),
-                            source: Box::new(source),
-                        })?;
-                    map.insert(name_str.to_string(), item);
-                }
-            }
-
-            key_index += 1;
-            line = rem;
+            let item = OrbitItem::new(name_str, type_str, val_str, &msgtype, constell).map_err(
+                |source| ParsingError::NavOrbitParsing {
+                    field: name_str.to_string(),
+                    source: Box::new(source),
+                },
+            )?;
+            map.insert(name_str.to_string(), item);
         }
+        key_index += row_length;
     }
     Ok(map)
 }

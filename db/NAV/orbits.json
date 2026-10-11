@@ -347,6 +347,7 @@
             "major": 4
         },
         "type": "INAV",
+        "row_lengths": [4, 4, 4, 4, 3, 4, 1],
         "orbits": {
             "iodnav": "f64",
             "crs": "f64",
@@ -367,15 +368,11 @@
             "idot": "f64",
             "source": "flag",
             "week": "u32",
-            "spare1": "f64",
             "sisa": "f64",
             "health": "flag",
             "bgdE5aE1": "f64",
             "bgdE5bE1": "f64",
-            "t_tm": "f64",
-            "spare2": "f64",
-            "spare3": "f64",
-            "spare4": "f64"
+            "t_tm": "f64"
         }
     },
     {
@@ -384,6 +381,7 @@
             "major": 4
         },
         "type": "FNAV",
+        "row_lengths": [4, 4, 4, 4, 3, 4, 1],
         "orbits": {
             "iodnav": "f64",
             "crs": "f64",
@@ -404,15 +402,11 @@
             "idot": "f64",
             "source": "flag",
             "week": "u32",
-            "spare1": "f64",
             "sisa": "f64",
             "health": "flag",
             "bgdE5aE1": "f64",
             "bgdE5bE1": "f64",
-            "t_tm": "f64",
-            "spare2": "f64",
-            "spare3": "f64",
-            "spare4": "f64"
+            "t_tm": "f64"
         }
     },
     {
