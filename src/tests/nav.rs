@@ -1394,7 +1394,7 @@ fn nav_v2_iono_alphabeta_and_toe() {
 /// gathered in a single 4.02 file.
 #[test]
 fn nav_v4_02_spec_examples() {
-    use crate::navigation::{NavFrameType, NavMessageSubtype, NavMessageType};
+    use crate::navigation::{Nav402MessageSubtype, NavFrameType, NavMessageType};
 
     let dut = Rinex::from_file("data/NAV/V4/rinex402_examples_MN.rnx").unwrap();
     assert_eq!(dut.header.version, Version::new(4, 2));
@@ -1511,9 +1511,9 @@ fn nav_v4_02_spec_examples() {
         .collect::<Vec<_>>();
     subtypes.sort_by_key(|(subtype, _)| *subtype);
     assert_eq!(subtypes.len(), 2);
-    assert_eq!(subtypes[0].0, Some(NavMessageSubtype::KLOB));
+    assert_eq!(subtypes[0].0, Some(Nav402MessageSubtype::KLOB));
     assert_eq!(subtypes[0].1.as_navic_klobuchar().unwrap().iodk, 1.0);
-    assert_eq!(subtypes[1].0, Some(NavMessageSubtype::NEQN));
+    assert_eq!(subtypes[1].0, Some(Nav402MessageSubtype::NEQN));
     assert_eq!(
         subtypes[1].1.as_navic_nequick().unwrap().regions[1].a.0,
         208.5
