@@ -275,8 +275,7 @@ pub fn format<W: Write>(
         // meaning while mapping it to the target table below.
         let mut source_version = version;
         if let Some(eph) = v.as_ephemeris() {
-            let (field, optional, _) =
-                super::parsing::ephemeris_transmission_policy(version, k.sv, k.msgtype);
+            let (field, optional, _) = Ephemeris::transmission_policy(version, k.sv, k.msgtype);
             if optional && k.transmission_time.is_none() {
                 source_version = match eph.get_orbit_f64(field) {
                     Some(999_900_000.0) => Version::new(3, 4),
@@ -302,7 +301,7 @@ pub fn format<W: Write>(
                     };
                     expected = key;
                     format_epoch_v4(record_writer, &key)?;
-                    eph.format_with_transmission(
+                    eph.format(
                         record_writer,
                         key.sv,
                         version,
@@ -329,7 +328,7 @@ pub fn format<W: Write>(
             if k.sv.constellation != Constellation::Galileo {
                 expected.msgtype = NavMessageType::LNAV;
             }
-            eph.format_with_transmission(
+            eph.format(
                 record_writer,
                 k.sv,
                 version,

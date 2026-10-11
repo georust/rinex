@@ -44,7 +44,10 @@ use anise::{
 
 use std::collections::HashMap;
 
-use crate::prelude::{Constellation, Duration, Epoch, TimeScale, SV};
+use crate::{
+    navigation::NavMessageType,
+    prelude::{Constellation, Duration, Epoch, TimeScale, Version, SV},
+};
 
 /// Ephemeris Navigation message. May be found in all RINEX revisions.
 /// Describes the content of the radio message at publication time.
@@ -424,6 +427,35 @@ impl Ephemeris {
                 }
             },
         }
+    }
+
+    /// Field, missing-value permission and unknown marker, by message table.
+    /// The marker applies only to legacy orbital t_tm, never STO/EOP or GLONASS.
+    pub(crate) fn transmission_policy(
+        version: Version,
+        sv: SV,
+        msgtype: NavMessageType,
+    ) -> (&'static str, bool, Option<f64>) {
+        if sv.constellation == Constellation::Glonass
+            && matches!(msgtype, NavMessageType::LNAV | NavMessageType::FDMA)
+        {
+            return ("frameTime", false, None);
+        }
+        if sv.constellation.is_sbas() {
+            return ("t_tm", false, None);
+        }
+        let legacy = msgtype.is_legacy(sv.constellation);
+        // RINEX 3.04 Tables A6/A8/A12/A14/A18 and corresponding NAV4 tables.
+        let marker = if legacy {
+            Some(if version >= Version::new(4, 2) {
+                999_999_999.999
+            } else {
+                999_900_000.0
+            })
+        } else {
+            None
+        };
+        ("t_tm", legacy, marker)
     }
 }
 

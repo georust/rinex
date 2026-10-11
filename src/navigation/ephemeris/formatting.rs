@@ -31,16 +31,6 @@ impl Ephemeris {
         sv: SV,
         version: Version,
         msgtype: NavMessageType,
-    ) -> Result<(), FormattingError> {
-        self.format_with_transmission(w, sv, version, msgtype, false)
-    }
-
-    pub(crate) fn format_with_transmission<W: Write>(
-        &self,
-        w: &mut BufWriter<W>,
-        sv: SV,
-        version: Version,
-        msgtype: NavMessageType,
         unknown_transmission: bool,
     ) -> Result<(), FormattingError> {
         let sv_constellation = if sv.constellation.is_sbas() {
@@ -48,8 +38,7 @@ impl Ephemeris {
         } else {
             sv.constellation
         };
-        let (transmission_field, _, marker) =
-            crate::navigation::parsing::ephemeris_transmission_policy(version, sv, msgtype);
+        let (transmission_field, _, marker) = Self::transmission_policy(version, sv, msgtype);
         // retrieve standard specs
         let standard_specs = match closest_nav_standards(sv_constellation, version, msgtype) {
             Some(specs) => specs,
@@ -164,7 +153,7 @@ mod test {
         let mut writer = BufWriter::new(utf8);
 
         ephemeris
-            .format(&mut writer, g01, version, msgtype)
+            .format(&mut writer, g01, version, msgtype, false)
             .unwrap();
 
         let inner = writer.into_inner().unwrap();
@@ -188,7 +177,7 @@ mod test {
         let mut writer = BufWriter::new(utf8);
 
         ephemeris
-            .format(&mut writer, g01, version, msgtype)
+            .format(&mut writer, g01, version, msgtype, false)
             .unwrap();
 
         let inner = writer.into_inner().unwrap();
@@ -224,7 +213,7 @@ mod test {
         let mut writer = BufWriter::new(utf8);
 
         ephemeris
-            .format(&mut writer, s36, version, NavMessageType::LNAV)
+            .format(&mut writer, s36, version, NavMessageType::LNAV, false)
             .unwrap();
 
         let inner = writer.into_inner().unwrap();
