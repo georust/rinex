@@ -111,7 +111,7 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
     let mut hh = 0_u8;
     let mut mm = 0_u8;
     let mut ss = 0_u8;
-    let mut ns = 0_u64;
+    let mut ns = 0_u32;
 
     if content.split_ascii_whitespace().count() < 6 {
         return Err(ParsingError::EpochFormat);
@@ -125,10 +125,8 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
                     .map_err(|_| ParsingError::EpochParsing)?;
 
                 /* old RINEX problem: YY sometimes encoded on two digits */
-                if y > 79 && y <= 99 {
-                    y += 1900;
-                } else if y < 79 {
-                    y += 2000;
+                if item.len() <= 2 && item.bytes().all(|b| b.is_ascii_digit()) {
+                    y += if y >= 80 { 1900 } else { 2000 };
                 }
             },
             1 => {
@@ -145,26 +143,22 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
             },
             5 => {
                 if let Some(dot) = item.find('.') {
-                    let is_nav = item.trim().len() < 7;
-
                     ss = item[..dot]
                         .trim()
                         .parse::<u8>()
                         .map_err(|_| ParsingError::EpochParsing)?;
 
-                    let nanos = item[dot + 1..].trim();
-
-                    ns = nanos
-                        .parse::<u64>()
-                        .map_err(|_| ParsingError::EpochParsing)?;
-
-                    if is_nav {
-                        // NAV RINEX : 100ms precision
-                        ns *= 100_000_000;
-                    } else if nanos.len() != 9 {
-                        // OBS RINEX : 100ns precision
-                        ns *= 100;
+                    let fraction = &item[dot + 1..];
+                    if fraction.is_empty() || !fraction.bytes().all(|b| b.is_ascii_digit()) {
+                        return Err(ParsingError::EpochParsing);
                     }
+                    if fraction.len() > 9 {
+                        return Err(ParsingError::EpochPrecision);
+                    }
+                    ns = fraction
+                        .parse::<u32>()
+                        .map_err(|_| ParsingError::EpochParsing)?;
+                    ns *= 10_u32.pow((9 - fraction.len()) as u32);
                 } else {
                     ss = item
                         .trim()
@@ -178,35 +172,10 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
 
     //println!("content \"{}\"", content); // DEBUG
     //println!("Y {} M {} D {} HH {} MM {} SS {} NS {}", y, m, d, hh, mm, ss, ns); // DEBUG
-    match ts {
-        TimeScale::UTC => {
-            // Catch possible Hifitime panic on bad string content
-            if y == 0 {
-                return Err(ParsingError::EpochFormat);
-            }
-            let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns as u32);
-            Ok(epoch)
-        },
-        TimeScale::TAI => {
-            // Catch possible Hifitime panic on bad string content
-            if y == 0 {
-                return Err(ParsingError::EpochFormat);
-            }
-            let epoch = Epoch::from_gregorian_tai(y, m, d, hh, mm, ss, ns as u32);
-            Ok(epoch)
-        },
-        ts => {
-            // Catch possible Hifitime panic on bad string content
-            if y == 0 {
-                return Err(ParsingError::EpochFormat);
-            }
-            let epoch = Epoch::from_gregorian_str(&format!(
-                "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:09} {}",
-                y, m, d, hh, mm, ss, ns, ts
-            ))?;
-            Ok(epoch)
-        },
+    if y <= 0 {
+        return Err(ParsingError::EpochFormat);
     }
+    Ok(Epoch::maybe_from_gregorian(y, m, d, hh, mm, ss, ns, ts)?)
 }
 
 pub(crate) fn parse_utc(s: &str) -> Result<Epoch, ParsingError> {
@@ -223,6 +192,50 @@ mod test {
     use hifitime::Epoch;
     use hifitime::TimeScale;
     use std::str::FromStr;
+
+    #[test]
+    fn fractional_seconds_follow_decimal_place_value() {
+        for (fraction, nanos) in [
+            ("1", 100_000_000),
+            ("01", 10_000_000),
+            ("12345", 123_450_000),
+            ("1234567", 123_456_700),
+            ("123456789", 123_456_789),
+        ] {
+            let epoch = parse_utc(&format!("2024 05 10 00 00 0.{fraction}")).unwrap();
+            assert_eq!(epoch.to_gregorian_utc().6, nanos);
+        }
+        assert!(matches!(
+            parse_utc("2024 05 10 00 00 0.12345678901234567890"),
+            Err(ParsingError::EpochPrecision)
+        ));
+    }
+
+    #[test]
+    fn invalid_calendars_and_two_digit_years_are_checked() {
+        for timescale in [TimeScale::UTC, TimeScale::TAI, TimeScale::GPST] {
+            for date in [
+                "0000 01 01 00 00 00",
+                "2024 02 30 00 00 00",
+                "2024 13 01 00 00 00",
+                "2024 01 01 25 00 00",
+            ] {
+                assert!(
+                    parse_in_timescale(date, timescale).is_err(),
+                    "{date} {timescale}"
+                );
+            }
+        }
+        for (year, expected) in [("79", 2079), ("80", 1980), ("0079", 79)] {
+            assert_eq!(
+                parse_utc(&format!("{year} 01 01 00 00 00"))
+                    .unwrap()
+                    .to_gregorian_utc()
+                    .0,
+                expected
+            );
+        }
+    }
 
     #[test]
     fn epoch_parse_nav_v2() {

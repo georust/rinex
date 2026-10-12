@@ -812,6 +812,10 @@ impl Rinex {
     /// errors are fatal, as are I/O errors (including invalid UTF-8).
     /// An epoch finer than native nanosecond resolution returns `EpochPrecision`;
     /// it is never rounded or silently merged with another epoch.
+    /// Valid OBS events are exposed as `ObservationEvent` diagnostics. Header
+    /// changes return `ObsHeaderUpdate`, since this container has a single header.
+    /// Use [observation::ObservationReader] to retain events and header revisions
+    /// in source order. Unrecoverable OBS framing and CRINEX errors are fatal.
     pub fn parse_with_diagnostics<R: Read>(
         reader: &mut BufReader<R>,
     ) -> Result<(Self, Vec<record::ParsingDiagnostic>), ParsingError> {

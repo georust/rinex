@@ -119,7 +119,7 @@ impl GeodeticMarker {
         let mut s = self.clone();
         if content.len() == 9 && content.chars().nth(5) == Some('M') {
             if let Ok(id) = u32::from_str_radix(&content[..5], 10) {
-                if let Ok(monument) = u16::from_str_radix(&content[7..], 10) {
+                if let Ok(monument) = u16::from_str_radix(&content[6..], 10) {
                     s.identification = Some(id);
                     s.monument = Some(monument);
                 }
@@ -137,5 +137,7 @@ mod test {
         let marker = GeodeticMarker::default();
         let marker = marker.with_number("10118M001");
         assert_eq!(marker.number(), Some("10118M001".to_string()));
+        let marker = marker.with_number("10118M123");
+        assert_eq!(marker.number(), Some("10118M123".to_string()));
     }
 }
