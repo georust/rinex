@@ -9,6 +9,7 @@ use orbits::OrbitItem;
 
 use flags::{
     bds::{BdsHealth, BdsSatH1},
+    gal::GalDataSource,
     glonass::{GlonassHealth, GlonassHealth2},
     gps::GpsQzssl1cHealth,
 };
@@ -44,7 +45,67 @@ use anise::{
 
 use std::collections::HashMap;
 
-use crate::prelude::{Constellation, Duration, Epoch, TimeScale, SV};
+use crate::{
+    navigation::{NavMessageType, TransmissionTime},
+    prelude::{Constellation, Duration, Epoch, ParsingError, TimeScale, Version, SV},
+};
+
+/// [Ephemeris] Message [TransmossionPolicy]
+pub(crate) struct TransmissionPolicy {
+    pub field: &'static str,
+    pub allow_missing: bool,
+    constellation: Constellation,
+}
+
+impl TransmissionPolicy {
+    const LOW_MARKER: f64 = 999_900_000.0;
+    const HIGH_MARKER: f64 = 999_999_999.999;
+
+    pub fn unknown_marker(&self, version: Version) -> Option<f64> {
+        if !self.allow_missing || (self.constellation == Constellation::QZSS && version.major < 4) {
+            return None;
+        }
+        // 3.05 Tables A6/A8/A14/A18 use the high marker; 4.00/4.01
+        // revert to the low marker. QZSS NAV3 Table A12 defines no marker.
+        Some(
+            if version == Version::new(3, 5) || version >= Version::new(4, 2) {
+                Self::HIGH_MARKER
+            } else {
+                Self::LOW_MARKER
+            },
+        )
+    }
+
+    pub fn read(&self, seconds: Option<f64>) -> Result<Option<TransmissionTime>, ParsingError> {
+        if seconds.is_none() && !self.allow_missing {
+            return Err(ParsingError::NavTransmissionTime);
+        }
+        seconds.map(TransmissionTime::new).transpose()
+    }
+
+    pub fn decode_source(
+        &self,
+        seconds: Option<TransmissionTime>,
+        version: Version,
+    ) -> Option<TransmissionTime> {
+        seconds.filter(|v| Some(v.seconds()) != self.unknown_marker(version))
+    }
+
+    pub fn decode_stored(
+        &self,
+        seconds: Option<TransmissionTime>,
+        identity: Option<TransmissionTime>,
+    ) -> Option<TransmissionTime> {
+        // The key retains the decoded meaning, not the source revision.
+        // A known time must still match numerically, even if it equals a marker
+        // used by another revision. Unknown identities require a known encoding.
+        seconds.filter(|v| {
+            !(identity.is_none()
+                && self.allow_missing
+                && (v.seconds() == Self::LOW_MARKER || v.seconds() == Self::HIGH_MARKER))
+        })
+    }
+}
 
 /// Ephemeris Navigation message. May be found in all RINEX revisions.
 /// Describes the content of the radio message at publication time.
@@ -423,6 +484,42 @@ impl Ephemeris {
                     None
                 }
             },
+        }
+    }
+
+    pub(crate) fn galileo_data_source(&self) -> Result<GalDataSource, ParsingError> {
+        match self.orbits.get("source") {
+            Some(OrbitItem::GalDataSource(flags)) => {
+                GalDataSource::from_bits(flags.bits()).ok_or(ParsingError::NavGalileoDataSources)
+            },
+            _ => GalDataSource::from_rinex_value(
+                self.get_orbit_f64("source")
+                    .ok_or(ParsingError::NavGalileoDataSources)?,
+            ),
+        }
+    }
+
+    pub(crate) fn transmission_policy(sv: SV, msgtype: NavMessageType) -> TransmissionPolicy {
+        let fdma = sv.constellation == Constellation::Glonass
+            && matches!(msgtype, NavMessageType::LNAV | NavMessageType::FDMA);
+        let allow_missing = match sv.constellation {
+            Constellation::GPS | Constellation::QZSS | Constellation::IRNSS => {
+                msgtype == NavMessageType::LNAV
+            },
+            Constellation::Galileo => matches!(
+                msgtype,
+                NavMessageType::LNAV | NavMessageType::INAV | NavMessageType::FNAV
+            ),
+            Constellation::BeiDou => matches!(
+                msgtype,
+                NavMessageType::LNAV | NavMessageType::D1 | NavMessageType::D2
+            ),
+            _ => false,
+        };
+        TransmissionPolicy {
+            field: if fdma { "frameTime" } else { "t_tm" },
+            allow_missing,
+            constellation: sv.constellation,
         }
     }
 }

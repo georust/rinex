@@ -148,14 +148,6 @@ impl OrbitItem {
             return Err(ParsingError::NavNullOrbit);
         }
 
-        // Identity fields cannot be rounded or saturated into a valid bitfield.
-        if name_str == "source"
-            && constellation == Constellation::Galileo
-            && (float < 0.0 || float > u32::MAX as f64 || float.fract() != 0.0)
-        {
-            return Err(ParsingError::NavGalileoDataSources);
-        }
-
         // uninterpreted data remains as native type and we exit.
         match type_str {
             "u8" => {
@@ -291,8 +283,7 @@ impl OrbitItem {
                                 NavMessageType::LNAV | NavMessageType::INAV | NavMessageType::FNAV,
                                 Constellation::Galileo,
                             ) => {
-                                let flags = GalDataSource::from_bits(unsigned)
-                                    .ok_or(ParsingError::NavFlagsMapping)?;
+                                let flags = GalDataSource::from_rinex_value(float)?;
 
                                 Ok(OrbitItem::GalDataSource(flags))
                             },

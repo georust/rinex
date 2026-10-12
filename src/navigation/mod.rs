@@ -57,6 +57,7 @@ pub(crate) fn timescale(constellation: Constellation) -> Result<TimeScale, Parsi
 }
 
 /// STO identity fields from RINEX Table A30, ASCII and space-padded.
+/// Used in parser verbose debugging options.
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct StoIdentity {
@@ -152,25 +153,6 @@ impl std::hash::Hash for TransmissionTime {
 impl<'de> Deserialize<'de> for TransmissionTime {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         Self::new(f64::deserialize(deserializer)?).map_err(serde::de::Error::custom)
-    }
-}
-
-impl NavKey {
-    /// Build/rebuild the complete broadcast key from decoded payload fields.
-    /// Pass the source revision, epoch, satellite and message header fields.
-    /// For legacy Galileo, LNAV is resolved from Data sources. STO requires
-    /// `epoch` to equal its reference epoch. After editing identity fields,
-    /// remove the old map entry and insert the frame under this rebuilt key.
-    /// Old serialized keys with absent extensions must also be rebuilt.
-    pub fn from_frame(
-        version: crate::Version,
-        epoch: crate::Epoch,
-        sv: crate::SV,
-        msgtype: NavMessageType,
-        subtype: Option<Nav402MessageSubtype>,
-        frame: &NavFrame,
-    ) -> Result<Self, ParsingError> {
-        parsing::key_from_frame(version, epoch, sv, msgtype, subtype, frame)
     }
 }
 

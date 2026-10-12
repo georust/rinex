@@ -231,7 +231,7 @@ fn galileo_clock_reference_bits_are_mutually_exclusive() {
 }
 
 #[test]
-fn galileo_sources_do_not_round_or_saturate_and_reserved_bits_survive() {
+fn invalid_galileo_sources_do_not_saturate_and_reserved_bits_survive() {
     let source = super::navigation_excerpt(
         "BRDC00IGS_R_20241310000_01D_MN.rnx",
         &[(1, 93), (8634, 8641)],
@@ -256,6 +256,16 @@ fn galileo_sources_do_not_round_or_saturate_and_reserved_bits_survive() {
         f.as_ephemeris().unwrap().get_orbit_f64("source"),
         Some(282.0)
     );
+    for version in [Version::new(3, 4), Version::new(3, 5), Version::new(4, 2)] {
+        let mut output = r.clone();
+        output.header.version = version;
+        let mut writer = BufWriter::new(Vec::new());
+        output.format(&mut writer).unwrap();
+        let bytes = writer.into_inner().unwrap();
+        let (back, diagnostics) = read(std::str::from_utf8(&bytes).unwrap());
+        assert!(diagnostics.is_empty());
+        assert_eq!(back.record, r.record);
+    }
     // A direct NAV4 mismatch uses the same unchanged F/NAV payload.
     let block = source.lines().skip(93).collect::<Vec<_>>().join("\n");
     let text = super::navigation_rinex("4.00", &format!("> EPH E02 INAV\n{block}\n"));
@@ -264,6 +274,152 @@ fn galileo_sources_do_not_round_or_saturate_and_reserved_bits_survive() {
         d[0].kind,
         ParsingDiagnosticKind::NavigationFailure(ParsingError::NavGalileoDataSources)
     ));
+}
+
+#[test]
+fn galileo_rounding_is_shared_by_parser_manual_frames_and_writer() {
+    use crate::navigation::{gal::GalDataSource, NavKey, OrbitItem};
+    let source = super::navigation_excerpt(
+        "BRDC00IGS_R_20241310000_01D_MN.rnx",
+        &[(1, 93), (8634, 8641)],
+    );
+    let (original, _) = read(&source);
+    let (key, frame) = original.record.as_nav().unwrap().first_key_value().unwrap();
+    // Synthetic derivatives of the real source field; expectations follow
+    // nearest-integer conversion and Table A8's signal bits.
+    for (value, bits, message) in [
+        (258.4, 258, NavMessageType::FNAV),
+        (257.5, 258, NavMessageType::FNAV),
+        (516.4, 516, NavMessageType::INAV),
+        (515.5, 516, NavMessageType::INAV),
+        (516.5, 517, NavMessageType::INAV),
+    ] {
+        let text = source.replace(" 2.580000000000E+02", &format!("{value:19.12E}"));
+        let (parsed, diagnostics) = read(&text);
+        assert!(diagnostics.is_empty(), "{value}: {diagnostics:?}");
+        let (parsed_key, parsed_frame) = parsed.record.as_nav().unwrap().first_key_value().unwrap();
+        assert_eq!(parsed_key.galileo_data_sources, Some(bits));
+        assert_eq!(parsed_key.msgtype, message);
+        assert_eq!(
+            parsed_frame.as_ephemeris().unwrap().get_orbit_f64("source"),
+            Some(bits as f64)
+        );
+        for item in [
+            OrbitItem::F64(value),
+            OrbitItem::U32(bits),
+            OrbitItem::GalDataSource(GalDataSource::from_bits(bits).unwrap()),
+        ] {
+            let mut changed = frame.clone();
+            changed
+                .as_mut_ephemeris()
+                .unwrap()
+                .orbits
+                .insert("source".into(), item);
+            let rebuilt = NavKey::from_frame(
+                Version::new(3, 4),
+                key.epoch,
+                key.sv,
+                NavMessageType::LNAV,
+                key.subtype,
+                &changed,
+            )
+            .unwrap();
+            assert_eq!(rebuilt, *parsed_key);
+            let mut output = original.clone();
+            *output.record.as_mut_nav().unwrap() = [(rebuilt, changed)].into_iter().collect();
+            output.header.version = Version::new(4, 2);
+            let mut writer = BufWriter::new(Vec::new());
+            output.format(&mut writer).unwrap();
+            let bytes = writer.into_inner().unwrap();
+            let (back, diagnostics) = read(std::str::from_utf8(&bytes).unwrap());
+            assert!(diagnostics.is_empty());
+            assert_eq!(back.record, parsed.record);
+        }
+    }
+    for value in [
+        290.0,
+        770.0,
+        259.0,
+        0.0,
+        -0.1,
+        4294967296.0,
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+    ] {
+        let mut changed = frame.clone();
+        changed
+            .as_mut_ephemeris()
+            .unwrap()
+            .orbits
+            .insert("source".into(), OrbitItem::F64(value));
+        assert!(
+            matches!(
+                NavKey::from_frame(
+                    Version::new(3, 4),
+                    key.epoch,
+                    key.sv,
+                    key.msgtype,
+                    key.subtype,
+                    &changed,
+                ),
+                Err(ParsingError::NavGalileoDataSources)
+            ),
+            "{value}"
+        );
+        let mut writer = BufWriter::new(Vec::new());
+        assert!(matches!(
+            changed.as_ephemeris().unwrap().format(
+                &mut writer,
+                key.sv,
+                Version::new(4, 2),
+                key.msgtype,
+                false,
+            ),
+            Err(crate::FormattingError::NavUnrepresentableIdentity)
+        ));
+        assert!(writer.into_inner().unwrap().is_empty());
+    }
+    let mut changed = frame.clone();
+    changed.as_mut_ephemeris().unwrap().orbits.insert(
+        "source".into(),
+        OrbitItem::GalDataSource(GalDataSource::from_bits_retain(290)),
+    );
+    assert!(matches!(
+        NavKey::from_frame(
+            Version::new(4, 2),
+            key.epoch,
+            key.sv,
+            key.msgtype,
+            key.subtype,
+            &changed,
+        ),
+        Err(ParsingError::NavGalileoDataSources)
+    ));
+    let mixed = source
+        .lines()
+        .skip(93)
+        .collect::<Vec<_>>()
+        .join("\n")
+        .replace(" 2.580000000000E+02", " 2.590000000000E+02");
+    let (unsupported, diagnostics) = read(&super::navigation_rinex("3.02", &mixed));
+    assert!(unsupported.record.as_nav().unwrap().is_empty());
+    assert_eq!(diagnostics.len(), 1);
+}
+
+#[test]
+#[cfg(feature = "serde")]
+fn galileo_e5b_inav_uses_the_correct_public_and_serialized_name() {
+    use crate::navigation::gal::GalDataSource;
+    assert_eq!(
+        serde_json::to_value(GalDataSource::INAV_E5B_I).unwrap(),
+        "INAV_E5B_I"
+    );
+    assert_eq!(
+        GalDataSource::from_name("INAV_E5B_I"),
+        Some(GalDataSource::INAV_E5B_I)
+    );
+    assert_eq!(GalDataSource::from_name("FNAV_E5B_I"), None);
 }
 
 #[test]

@@ -31,16 +31,6 @@ impl Ephemeris {
         sv: SV,
         version: Version,
         msgtype: NavMessageType,
-    ) -> Result<(), FormattingError> {
-        self.format_with_transmission(w, sv, version, msgtype, false)
-    }
-
-    pub(crate) fn format_with_transmission<W: Write>(
-        &self,
-        w: &mut BufWriter<W>,
-        sv: SV,
-        version: Version,
-        msgtype: NavMessageType,
         unknown_transmission: bool,
     ) -> Result<(), FormattingError> {
         let sv_constellation = if sv.constellation.is_sbas() {
@@ -48,8 +38,21 @@ impl Ephemeris {
         } else {
             sv.constellation
         };
-        let (transmission_field, _, marker) =
-            crate::navigation::parsing::ephemeris_transmission_policy(version, sv, msgtype);
+        let policy = Self::transmission_policy(sv, msgtype);
+        let galileo_source = if sv_constellation == Constellation::Galileo {
+            let source = self
+                .galileo_data_source()
+                .map_err(|_| FormattingError::NavUnrepresentableIdentity)?;
+            let message = source
+                .message_type()
+                .map_err(|_| FormattingError::NavUnrepresentableIdentity)?;
+            if version.major >= 4 && message != msgtype {
+                return Err(FormattingError::NavUnrepresentableIdentity);
+            }
+            Some(source.bits() as f64)
+        } else {
+            None
+        };
         // retrieve standard specs
         let standard_specs = match closest_nav_standards(sv_constellation, version, msgtype) {
             Some(specs) => specs,
@@ -105,8 +108,12 @@ impl Ephemeris {
                     .or_else(|| orbit_alias(field).and_then(|alias| self.get_orbit_f64(alias)))
                 {
                     Some(value) => {
-                        let value = if unknown_transmission && *field == transmission_field {
-                            marker.ok_or(FormattingError::NavUnrepresentableIdentity)?
+                        let value = if unknown_transmission && *field == policy.field {
+                            policy
+                                .unknown_marker(version)
+                                .ok_or(FormattingError::NavUnrepresentableIdentity)?
+                        } else if *field == "source" {
+                            galileo_source.unwrap_or(value)
                         } else {
                             value
                         };
@@ -164,7 +171,7 @@ mod test {
         let mut writer = BufWriter::new(utf8);
 
         ephemeris
-            .format(&mut writer, g01, version, msgtype)
+            .format(&mut writer, g01, version, msgtype, false)
             .unwrap();
 
         let inner = writer.into_inner().unwrap();
@@ -188,7 +195,7 @@ mod test {
         let mut writer = BufWriter::new(utf8);
 
         ephemeris
-            .format(&mut writer, g01, version, msgtype)
+            .format(&mut writer, g01, version, msgtype, false)
             .unwrap();
 
         let inner = writer.into_inner().unwrap();
@@ -224,7 +231,7 @@ mod test {
         let mut writer = BufWriter::new(utf8);
 
         ephemeris
-            .format(&mut writer, s36, version, NavMessageType::LNAV)
+            .format(&mut writer, s36, version, NavMessageType::LNAV, false)
             .unwrap();
 
         let inner = writer.into_inner().unwrap();

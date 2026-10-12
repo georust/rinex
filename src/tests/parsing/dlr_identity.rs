@@ -275,7 +275,9 @@ fn transmission_source_field_depends_on_glonass_message() {
 fn source_markers_missing_and_zero_follow_message_version_tables() {
     for (version, marker, other) in [
         ("3.04", 999900000.0, 999999999.999),
+        ("3.05", 999999999.999, 999900000.0),
         ("4.00", 999900000.0, 999999999.999),
+        ("4.01", 999900000.0, 999999999.999),
         ("4.02", 999999999.999, 999900000.0),
     ] {
         for (value, missing) in [
@@ -322,6 +324,52 @@ fn source_markers_missing_and_zero_follow_message_version_tables() {
         d[0].kind,
         ParsingDiagnosticKind::NavigationFailure(ParsingError::NavTransmissionTime)
     ));
+}
+
+#[test]
+fn legacy_transmission_markers_follow_each_constellations_nav3_table() {
+    let source = super::navigation_text("data/NAV/V3/BRDC00IGS_R_20241310000_01D_MN.rnx.gz");
+    let lines: Vec<_> = source.lines().collect();
+    for constellation in ['G', 'E', 'C', 'I', 'J'] {
+        let start = lines
+            .iter()
+            .position(|line| {
+                line.starts_with(constellation)
+                    && line.get(..3).is_some_and(|sv| sv.parse::<SV>().is_ok())
+            })
+            .unwrap();
+        let body: Vec<_> = lines[start..start + 8]
+            .iter()
+            .map(|l| l.to_string())
+            .collect();
+        // Synthetic changes only to the real final transmission column.
+        for (version, marker) in [("3.04", 999900000.0), ("3.05", 999999999.999)] {
+            for value in [None, Some(0.0), Some(999900000.0), Some(999999999.999)] {
+                let mut changed = body.clone();
+                let field = value
+                    .map(|v| crate::navigation::formatting::NavFormatter::new(v).to_string())
+                    .unwrap_or_else(|| " ".repeat(19));
+                changed[7].replace_range(4..23, &field);
+                let (rinex, diagnostics) = read(&super::navigation_rinex(
+                    version,
+                    &(changed.join("\n") + "\n"),
+                ));
+                assert!(
+                    diagnostics.is_empty(),
+                    "{constellation} {version}: {diagnostics:?}"
+                );
+                let (key, frame) = rinex.record.as_nav().unwrap().first_key_value().unwrap();
+                // QZSS Tables A12 define no unknown sentinel in these revisions.
+                let unknown = value.is_none() || (constellation != 'J' && value == Some(marker));
+                assert_eq!(
+                    key.transmission_time.is_none(),
+                    unknown,
+                    "{constellation} {version}: {value:?}"
+                );
+                assert_eq!(frame.as_ephemeris().unwrap().get_orbit_f64("t_tm"), value);
+            }
+        }
+    }
 }
 
 #[test]

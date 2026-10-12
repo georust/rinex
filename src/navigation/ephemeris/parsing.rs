@@ -43,12 +43,16 @@ fn parse_orbits(
     let mut map: HashMap<String, OrbitItem> = HashMap::new();
 
     for (row_index, line) in lines.enumerate() {
-        // trim first few white spaces
         if !line.is_ascii() {
             return Err(ParsingError::EpochFormat);
         }
+
+        // trim first few white spaces
         let padding = if version.major < 3 { 3 } else { 4 };
         let line = line.get(padding..).unwrap_or("");
+
+        // retrieve "row_length" specs which accurately describes BLANKS and line contents,
+        // in particular, for cases where line specs is not "complete" (undefined "spares").
         let Some(&row_length) = nav_standards.row_lengths.get(row_index) else {
             continue;
         };
@@ -61,16 +65,19 @@ fn parse_orbits(
         {
             let remaining = line.get(slot * word_size..).unwrap_or("");
             let val_str = remaining[..word_size.min(remaining.len())].trim();
+
             // Spare fields must be skipped (RINEX section 6.4).
             if val_str.is_empty() || name_str.starts_with("spare") {
                 continue;
             }
+
             let item = OrbitItem::new(name_str, type_str, val_str, &msgtype, constell).map_err(
                 |source| ParsingError::NavOrbitParsing {
                     field: name_str.to_string(),
                     source: Box::new(source),
                 },
             )?;
+
             map.insert(name_str.to_string(), item);
         }
         key_index += row_length;
