@@ -50,6 +50,7 @@ use crate::{
     prelude::{Constellation, Duration, Epoch, ParsingError, TimeScale, Version, SV},
 };
 
+/// [Ephemeris] Message [TransmossionPolicy]
 pub(crate) struct TransmissionPolicy {
     pub field: &'static str,
     pub allow_missing: bool,
