@@ -38,7 +38,21 @@ impl Ephemeris {
         } else {
             sv.constellation
         };
-        let (transmission_field, _, marker) = Self::transmission_policy(version, sv, msgtype);
+        let policy = Self::transmission_policy(sv, msgtype);
+        let galileo_source = if sv_constellation == Constellation::Galileo {
+            let source = self
+                .galileo_data_source()
+                .map_err(|_| FormattingError::NavUnrepresentableIdentity)?;
+            let message = source
+                .message_type()
+                .map_err(|_| FormattingError::NavUnrepresentableIdentity)?;
+            if version.major >= 4 && message != msgtype {
+                return Err(FormattingError::NavUnrepresentableIdentity);
+            }
+            Some(source.bits() as f64)
+        } else {
+            None
+        };
         // retrieve standard specs
         let standard_specs = match closest_nav_standards(sv_constellation, version, msgtype) {
             Some(specs) => specs,
@@ -94,8 +108,12 @@ impl Ephemeris {
                     .or_else(|| orbit_alias(field).and_then(|alias| self.get_orbit_f64(alias)))
                 {
                     Some(value) => {
-                        let value = if unknown_transmission && *field == transmission_field {
-                            marker.ok_or(FormattingError::NavUnrepresentableIdentity)?
+                        let value = if unknown_transmission && *field == policy.field {
+                            policy
+                                .unknown_marker(version)
+                                .ok_or(FormattingError::NavUnrepresentableIdentity)?
+                        } else if *field == "source" {
+                            galileo_source.unwrap_or(value)
                         } else {
                             value
                         };

@@ -20,28 +20,8 @@ impl NavKey {
             return Ok(None);
         }
 
-        let value = eph
-            .get_orbit_f64("source")
-            .ok_or(ParsingError::NavGalileoDataSources)?;
-
-        if !value.is_finite() || value < 0.0 || value > u32::MAX as f64 || value.fract() != 0.0 {
-            return Err(ParsingError::NavGalileoDataSources);
-        }
-
-        let source = value as u32;
-
-        // Bits 3/4 are defined reserved bits and must be preserved.
-        if source & !0x31f != 0 || source & 0x300 == 0x300 {
-            return Err(ParsingError::NavGalileoDataSources);
-        }
-
-        let message = match source & 0x7 {
-            2 => NavMessageType::FNAV,
-            1 | 4 | 5 => NavMessageType::INAV,
-            _ => return Err(ParsingError::NavGalileoDataSources),
-        };
-
-        Ok(Some((message, source)))
+        let source = eph.galileo_data_source()?;
+        Ok(Some((source.message_type()?, source.bits())))
     }
 
     /// Build/rebuild the complete broadcast key from decoded payload fields.
@@ -54,36 +34,52 @@ impl NavKey {
         version: Version,
         epoch: Epoch,
         sv: SV,
+        msgtype: NavMessageType,
+        subtype: Option<Nav402MessageSubtype>,
+        frame: &NavFrame,
+    ) -> Result<Self, ParsingError> {
+        let mut key = Self::payload_identity(epoch, sv, msgtype, subtype, frame)?;
+        if version.major >= 4 && key.galileo_data_sources.is_some() && key.msgtype != msgtype {
+            return Err(ParsingError::NavGalileoDataSources);
+        }
+        if frame.as_ephemeris().is_some() {
+            key.transmission_time = Ephemeris::transmission_policy(sv, key.msgtype)
+                .decode_source(key.transmission_time, version);
+        }
+        Ok(key)
+    }
+
+    pub(crate) fn validate_frame(&self, frame: &NavFrame) -> Result<(), ParsingError> {
+        let mut rebuilt =
+            Self::payload_identity(self.epoch, self.sv, self.msgtype, self.subtype, frame)?;
+        if frame.as_ephemeris().is_some() {
+            rebuilt.transmission_time = Ephemeris::transmission_policy(self.sv, rebuilt.msgtype)
+                .decode_stored(rebuilt.transmission_time, self.transmission_time);
+        }
+        if rebuilt != *self {
+            return Err(ParsingError::NavFrameIdentity);
+        }
+        Ok(())
+    }
+
+    fn payload_identity(
+        epoch: Epoch,
+        sv: SV,
         mut msgtype: NavMessageType,
         subtype: Option<Nav402MessageSubtype>,
         frame: &NavFrame,
     ) -> Result<Self, ParsingError> {
         let mut sto_identity = None;
         let mut galileo_data_sources = None;
-
-        // TODO: comments here
-        let (frmtype, seconds) = match frame {
+        let (frmtype, transmission_time) = match frame {
             NavFrame::EPH(eph) => {
                 if let Some((message, source)) = Self::galileo_identity(sv, eph)? {
-                    if version.major < 4 {
-                        msgtype = message;
-                    } else if message != msgtype {
-                        return Err(ParsingError::NavGalileoDataSources);
-                    }
+                    msgtype = message;
                     galileo_data_sources = Some(source);
                 }
-
-                let (field, optional, unknown) =
-                    Ephemeris::transmission_policy(version, sv, msgtype);
-
-                let seconds = eph.get_orbit_f64(field);
-                if seconds.is_none() && !optional {
-                    return Err(ParsingError::NavTransmissionTime);
-                }
-                (
-                    NavFrameType::Ephemeris,
-                    seconds.filter(|v| Some(*v) != unknown),
-                )
+                let policy = Ephemeris::transmission_policy(sv, msgtype);
+                let time = policy.read(eph.get_orbit_f64(policy.field))?;
+                (NavFrameType::Ephemeris, time)
             },
             NavFrame::STO(sto) => {
                 if epoch != Epoch::from_time_of_week(sto.t_ref.0, sto.t_ref.1, sto.lhs) {
@@ -92,13 +88,16 @@ impl NavKey {
                 sto_identity = Some(sto_identity_fields(sto)?);
                 (
                     NavFrameType::SystemTimeOffset,
-                    Some(
+                    Some(TransmissionTime::new(
                         sto.transmission_time
                             .ok_or(ParsingError::NavTransmissionTime)?,
-                    ),
+                    )?),
                 )
             },
-            NavFrame::EOP(eop) => (NavFrameType::EarthOrientation, Some(eop.t_tm)),
+            NavFrame::EOP(eop) => (
+                NavFrameType::EarthOrientation,
+                Some(TransmissionTime::new(eop.t_tm)?),
+            ),
             NavFrame::ION(_) => (NavFrameType::IonosphereModel, None),
         };
         Ok(NavKey {
@@ -108,7 +107,7 @@ impl NavKey {
             frmtype,
             subtype,
             galileo_data_sources,
-            transmission_time: seconds.map(TransmissionTime::new).transpose()?,
+            transmission_time,
             sto_identity,
         })
     }

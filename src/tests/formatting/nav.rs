@@ -578,7 +578,13 @@ fn nav_unknown_transmission_maps_to_target_marker_without_becoming_a_time() {
             .transmission_time,
         None
     );
-    for version in [Version::new(3, 4), Version::new(4, 0), Version::new(4, 2)] {
+    for (version, marker) in [
+        (Version::new(3, 4), 999900000.0),
+        (Version::new(3, 5), 999999999.999),
+        (Version::new(4, 0), 999900000.0),
+        (Version::new(4, 1), 999900000.0),
+        (Version::new(4, 2), 999999999.999),
+    ] {
         let mut source = rinex.clone();
         source.header.version = version;
         let back = write_and_reparse(&source, "unknown").unwrap();
@@ -586,11 +592,7 @@ fn nav_unknown_transmission_maps_to_target_marker_without_becoming_a_time() {
         assert_eq!(k.transmission_time, None);
         assert_eq!(
             f.as_ephemeris().unwrap().get_orbit_f64("t_tm"),
-            Some(if version >= Version::new(4, 2) {
-                999999999.999
-            } else {
-                999900000.0
-            })
+            Some(marker)
         );
         source = back;
         source.header.version = Version::new(3, 4);
@@ -598,6 +600,134 @@ fn nav_unknown_transmission_maps_to_target_marker_without_becoming_a_time() {
             write_and_reparse(&source, "back").unwrap().record,
             rinex.record
         );
+    }
+}
+
+#[test]
+fn unknown_transmission_validation_checks_payload_before_encoding() {
+    use crate::{navigation::OrbitItem, FormattingError};
+    let body = crate::tests::parsing::GPS_BLOCK
+        .lines()
+        .skip(1)
+        .collect::<Vec<_>>()
+        .join("\n")
+        .replace("4.248180000000E+05", "9.999999999990E+08");
+    let text = crate::tests::parsing::navigation_rinex("3.05", &body);
+    let rinex = Rinex::parse(&mut std::io::BufReader::new(text.as_bytes())).unwrap();
+    let (key, frame) = rinex.record.as_nav().unwrap().first_key_value().unwrap();
+    assert_eq!(key.transmission_time, None);
+    for value in [0.0, -0.5, 431500.0, f64::NAN, f64::INFINITY] {
+        let mut changed = frame.clone();
+        changed
+            .as_mut_ephemeris()
+            .unwrap()
+            .orbits
+            .insert("t_tm".into(), OrbitItem::F64(value));
+        let record = [(*key, changed)].into_iter().collect();
+        let mut writer = std::io::BufWriter::new(Vec::new());
+        assert!(
+            matches!(
+                crate::navigation::format(&mut writer, &record, &rinex.header),
+                Err(FormattingError::NavIdentityMismatch)
+            ),
+            "{value}"
+        );
+        assert!(writer.into_inner().unwrap().is_empty());
+    }
+    // In 3.05 the low marker is an ordinary retained numeric value. A target
+    // revision that would decode it as unknown cannot preserve that identity.
+    let text = text.replace("9.999999999990E+08", "9.999000000000E+08");
+    let mut known = Rinex::parse(&mut std::io::BufReader::new(text.as_bytes())).unwrap();
+    assert_eq!(
+        known
+            .record
+            .as_nav()
+            .unwrap()
+            .first_key_value()
+            .unwrap()
+            .0
+            .transmission_time
+            .unwrap()
+            .seconds(),
+        999900000.0
+    );
+    let mut writer = std::io::BufWriter::new(Vec::new());
+    known.format(&mut writer).unwrap();
+    known.header.version = Version::new(4, 0);
+    let mut writer = std::io::BufWriter::new(Vec::new());
+    assert!(matches!(
+        crate::navigation::format(&mut writer, known.record.as_nav().unwrap(), &known.header),
+        Err(FormattingError::NavUnrepresentableIdentity)
+    ));
+    assert!(writer.into_inner().unwrap().is_empty());
+}
+
+#[test]
+fn qzss_unknown_marker_is_not_invented_for_nav3_and_missing_stays_blank() {
+    use crate::FormattingError;
+    // Synthetic QZSS envelope using the compatible GPS/QZSS legacy layout.
+    for (value, unknown) in [("9.999999999990E+08", true), ("                  ", false)] {
+        let body = crate::tests::parsing::GPS_BLOCK
+            .replace("G03", "J03")
+            .replace("4.248180000000E+05", value);
+        let text = crate::tests::parsing::navigation_rinex("4.02", &body);
+        let mut rinex = Rinex::parse(&mut std::io::BufReader::new(text.as_bytes())).unwrap();
+        assert_eq!(rinex.record.as_nav().unwrap().len(), 1);
+        assert_eq!(
+            rinex
+                .record
+                .as_nav()
+                .unwrap()
+                .first_key_value()
+                .unwrap()
+                .0
+                .transmission_time,
+            None
+        );
+        for version in [
+            Version::new(3, 4),
+            Version::new(3, 5),
+            Version::new(4, 0),
+            Version::new(4, 2),
+        ] {
+            rinex.header.version = version;
+            let mut writer = std::io::BufWriter::new(Vec::new());
+            let result = crate::navigation::format(
+                &mut writer,
+                rinex.record.as_nav().unwrap(),
+                &rinex.header,
+            );
+            if unknown && version.major < 4 {
+                assert!(matches!(
+                    result,
+                    Err(FormattingError::NavUnrepresentableIdentity)
+                ));
+                assert!(writer.into_inner().unwrap().is_empty());
+            } else {
+                result.unwrap();
+                let bytes = writer.into_inner().unwrap();
+                let text = crate::tests::parsing::navigation_rinex(
+                    &version.to_string(),
+                    std::str::from_utf8(&bytes).unwrap(),
+                );
+                let back = Rinex::parse(&mut std::io::BufReader::new(text.as_bytes())).unwrap();
+                let (key, frame) = back.record.as_nav().unwrap().first_key_value().unwrap();
+                assert_eq!(key.transmission_time, None);
+                let expected = if unknown {
+                    Some(if version == Version::new(4, 2) {
+                        999999999.999
+                    } else {
+                        999900000.0
+                    })
+                } else {
+                    None
+                };
+                assert_eq!(
+                    frame.as_ephemeris().unwrap().get_orbit_f64("t_tm"),
+                    expected
+                );
+            }
+        }
     }
 }
 

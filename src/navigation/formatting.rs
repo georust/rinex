@@ -4,7 +4,7 @@ use crate::{
     epoch::epoch_decompose as epoch_decomposition,
     error::FormattingError,
     navigation::{Ephemeris, NavFrame, NavFrameType, NavKey, NavMessageType, Record},
-    prelude::{Constellation, Epoch, Header, Version},
+    prelude::{Constellation, Epoch, Header},
 };
 
 pub(crate) struct NavFormatter {
@@ -183,20 +183,16 @@ fn format_epoch_v4<W: Write>(w: &mut BufWriter<W>, k: &NavKey) -> std::io::Resul
 /// where every message is filed as LNAV: the legacy message of the
 /// constellation. Galileo tells INAV from FNAV by the data source
 /// (Table A13), BeiDou tells D2 (GEO) from D1 by the PRN range (BDS ICD).
-fn v4_message_type(k: &NavKey, eph: &Ephemeris) -> NavMessageType {
+fn v4_message_type(k: &NavKey, eph: &Ephemeris) -> Result<NavMessageType, FormattingError> {
     if k.msgtype != NavMessageType::LNAV {
-        return k.msgtype;
+        return Ok(k.msgtype);
     }
-    match k.sv.constellation {
+    Ok(match k.sv.constellation {
         Constellation::Glonass => NavMessageType::FDMA,
-        Constellation::Galileo => {
-            let data_source = eph.get_orbit_f64("source").unwrap_or(0.0) as u32;
-            if data_source & 0x02 != 0 {
-                NavMessageType::FNAV
-            } else {
-                NavMessageType::INAV
-            }
-        },
+        Constellation::Galileo => eph
+            .galileo_data_source()
+            .and_then(|source| source.message_type())
+            .map_err(|_| FormattingError::NavUnrepresentableIdentity)?,
         Constellation::BeiDou => {
             if k.sv.prn <= 5 || k.sv.prn >= 59 {
                 NavMessageType::D2
@@ -206,7 +202,7 @@ fn v4_message_type(k: &NavKey, eph: &Ephemeris) -> NavMessageType {
         },
         c if c.is_sbas() => NavMessageType::SBAS,
         _ => NavMessageType::LNAV,
-    }
+    })
 }
 
 /// Formats the navigation [Record] in the revision of the [Header].
@@ -270,25 +266,8 @@ pub fn format<W: Write>(
         if !v4 && !representable(k, v) {
             continue;
         }
-        // A key does not retain the source revision. An explicitly unknown
-        // legacy t_tm can originate from either specified marker; preserve its
-        // meaning while mapping it to the target table below.
-        let mut source_version = version;
-        if let Some(eph) = v.as_ephemeris() {
-            let (field, optional, _) = Ephemeris::transmission_policy(version, k.sv, k.msgtype);
-            if optional && k.transmission_time.is_none() {
-                source_version = match eph.get_orbit_f64(field) {
-                    Some(999_900_000.0) => Version::new(3, 4),
-                    Some(999_999_999.999) => Version::new(4, 2),
-                    _ => version,
-                };
-            }
-        }
-        let rebuilt = NavKey::from_frame(source_version, k.epoch, k.sv, k.msgtype, k.subtype, v)
+        k.validate_frame(v)
             .map_err(|_| FormattingError::NavIdentityMismatch)?;
-        if &rebuilt != k {
-            return Err(FormattingError::NavIdentityMismatch);
-        }
         let mut buffer = BufWriter::new(Vec::new());
         let record_writer = &mut buffer;
         let mut expected = *k;
@@ -296,7 +275,7 @@ pub fn format<W: Write>(
             match v {
                 NavFrame::EPH(eph) => {
                     let key = NavKey {
-                        msgtype: v4_message_type(k, eph),
+                        msgtype: v4_message_type(k, eph)?,
                         ..*k
                     };
                     expected = key;
