@@ -54,6 +54,8 @@ bitflags! {
 }
 
 impl GalDataSource {
+    /// Parses the [GalDataSource] (binary word) from RINEX floating
+    /// point representing the binary flags.
     pub(crate) fn from_rinex_value(value: f64) -> Result<Self, ParsingError> {
         if !value.is_finite() || value < 0.0 || value > u32::MAX as f64 {
             return Err(ParsingError::NavGalileoDataSources);
@@ -66,13 +68,17 @@ impl GalDataSource {
         Self::from_bits(rounded as u32).ok_or(ParsingError::NavGalileoDataSources)
     }
 
+    /// Identifies & returns [NavMessageType] described by this [GalDataSource].
     pub(crate) fn message_type(self) -> Result<NavMessageType, ParsingError> {
         let clock_refs = Self::TEMPORAL_SISA_E1_E5A | Self::TEMPORAL_SISA_E1_E5B;
+
         if self.contains(clock_refs) {
             return Err(ParsingError::NavGalileoDataSources);
         }
+
         let inav = self.intersects(Self::INAV_E1B | Self::INAV_E5B_I);
         let fnav = self.contains(Self::FNAV_E5A_I);
+
         // Older tables permit merged sources, but they cannot be represented
         // by the current single-message identity. Do not guess a message type.
         match (inav, fnav) {
