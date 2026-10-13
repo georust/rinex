@@ -26,8 +26,10 @@ use std::{
 
 impl Header {
     /// Parse [Header] by consuming [BufReader] until end of this section
-    /// OBS declarations must contain supported, unique codes and match their
-    /// declared counts, so unsupported columns cannot shift subsequent values.
+    /// OBS declarations require GNSS code shapes for their format version,
+    /// supported, unique codes and matching declared counts, so unsupported
+    /// columns cannot shift subsequent values. This is not a per-constellation
+    /// signal catalogue check.
     pub fn parse<R: Read>(reader: &mut BufReader<R>) -> Result<Self, ParsingError> {
         Self::parse_with_base(reader, None)
     }
@@ -545,6 +547,7 @@ impl Header {
                     Self::validate_observation_declaration(
                         content,
                         false,
+                        version,
                         &mut observation_declarations,
                     )?;
                 }
@@ -557,6 +560,7 @@ impl Header {
                     Self::validate_observation_declaration(
                         content,
                         true,
+                        version,
                         &mut observation_declarations,
                     )?;
                 }
@@ -932,8 +936,12 @@ impl Header {
     fn validate_observation_declaration(
         content: &str,
         modern: bool,
+        version: Version,
         declared: &mut Vec<(usize, Vec<Observable>)>,
     ) -> Result<(), ParsingError> {
+        if modern != (version.major >= 3) {
+            return Err(ParsingError::BadObservable);
+        }
         let count = if modern {
             if !content[..1].trim().is_empty() {
                 Constellation::from_str(&content[..1]).map_err(|_| ParsingError::BadObservable)?;
@@ -957,6 +965,20 @@ impl Header {
         }
         let (_, codes) = declared.last_mut().ok_or(ParsingError::BadObservable)?;
         for name in content[6..].split_ascii_whitespace() {
+            // Observable also parses METEO/DORIS tokens and intentionally does
+            // not validate GNSS code syntax. Check the OBS context first.
+            let code = name.as_bytes();
+            let valid_shape = if modern {
+                matches!(code, [b'C' | b'L' | b'D' | b'S', b'1'..=b'9', b'A'..=b'Z'])
+                    // Unknown attributes were allowed before RINEX 3.02.
+                    || (version < Version::new(3, 2)
+                        && matches!(code, [b'C' | b'L' | b'D' | b'S', b'1'..=b'9']))
+            } else {
+                matches!(code, [b'C' | b'P' | b'L' | b'D' | b'S', b'1'..=b'9'])
+            };
+            if !valid_shape {
+                return Err(ParsingError::BadObservable);
+            }
             codes.push(Observable::from_str(name).map_err(|_| ParsingError::BadObservable)?);
         }
         Ok(())
