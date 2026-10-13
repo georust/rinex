@@ -198,8 +198,13 @@ struct Line {
 /// Header updates are atomic. Unsupported state-changing records are terminal
 /// errors. [crate::Rinex] reuses this reader but cannot retain header revisions
 /// in its single-header observation map, so it rejects header changes.
-/// Marker updates accept standard marker types and DOMES marker numbers;
+/// Marker updates accept standard marker types and DOMES (`DDDDDMDDD`) numbers;
 /// custom marker types and other number formats are terminal update errors.
+/// Initial headers retain the metadata fields implemented by [Header];
+/// unimplemented initial records are not retained.
+/// Updates to scale factors, phase shifts and GLONASS frequency slots are
+/// unsupported. Retain the initial header and update-event snapshots when
+/// storing items from multiple revisions.
 pub struct ObservationReader<R: BufRead> {
     input: R,
     header: Header,
