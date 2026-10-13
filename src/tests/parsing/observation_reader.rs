@@ -788,6 +788,29 @@ fn invalid_calendar_and_two_digit_year_boundary_are_not_guessed() {
 }
 
 #[test]
+fn oversized_year_rejects_the_block_without_panicking_or_losing_the_next_epoch() {
+    let normal = epoch("0.0000000", None, None);
+    let (_, rows) = normal.split_once('\n').unwrap();
+    let bad = format!(">{:28}  0  1\n{rows}", "2147483647 12 31 23 59 59");
+    let all = collect(&synthetic_obs(
+        "3.04",
+        &(bad + &epoch("1.0000000", None, None)),
+    ));
+    assert_eq!(all.items.len(), 2);
+    assert!(matches!(
+        all.items[0].outcome,
+        ObsOutcome::Rejected {
+            error: ParsingError::EpochFormat,
+            ..
+        }
+    ));
+    assert!(matches!(
+        all.items[1].outcome,
+        ObsOutcome::Observation { .. }
+    ));
+}
+
+#[test]
 fn mislabeled_header_records_stop_instead_of_corrupting_following_schema() {
     let body = format!(
         "> 2024 05 10 00 00 00.0000000  0  1\n{}\n",
