@@ -838,6 +838,139 @@ fn compressed_schema_change_initialises_new_positional_kernels() {
     assert_eq!(all.items[2].header_revision, 1);
 }
 
+fn crinex_numeric_gap(v3: bool, clock_gap: bool, reset: bool) -> String {
+    // Synthetic CRINEX 1.0/3.0. Epoch text is differenced; numeric series
+    // terminate at a blank field (Hatanaka 2008, section 2.1 and Table 2).
+    let descriptors: Vec<_> = (0..4)
+        .map(|second| {
+            if v3 {
+                format!("> 2024 05 10 00 00 {second:02}.0000000  0  1      G03")
+            } else {
+                format!("&24  5 10  0  0 {second:2}.0000000  0  1G03")
+            }
+        })
+        .collect();
+    let clock_scale = if v3 { 1_000_000_000 } else { 1_000_000 };
+    let mut body = format!(
+        "{}\n3&{clock_scale}\n3&20000000123 3&109000001234 &&&&\n",
+        descriptors[0]
+    );
+    for index in 1..4 {
+        let delta: String = descriptors[index - 1]
+            .chars()
+            .zip(descriptors[index].chars())
+            .map(|(previous, current)| if previous == current { ' ' } else { current })
+            .collect();
+        let clock = match (index, clock_gap, reset) {
+            (1, true, _) => String::new(),
+            (2, true, true) => format!("3&{}", 2 * clock_scale),
+            _ => "0".to_owned(),
+        };
+        let signals = match (index, clock_gap, reset) {
+            (1, false, _) => " 0",
+            (2, false, true) => "3&30000000456 0",
+            _ => "0 0",
+        };
+        body.push_str(&format!("{}\n{clock}\n{signals}\n", delta.trim_end()));
+    }
+    let envelope = if v3 {
+        observation_rinex("3.04", "G    2 C1C L1C", &body)
+    } else {
+        v2_header(&body).replace("    L1    C1", "    C1    L1")
+    };
+    format!(
+        "{}\n{}\n{envelope}",
+        record(
+            &format!(
+                "{}                 COMPACT RINEX FORMAT",
+                if v3 { "3.0" } else { "1.0" }
+            ),
+            "CRINEX VERS   / TYPE"
+        ),
+        record(
+            "RNX2CRX ver.4.1.0                       31-Jan-25 09:24",
+            "CRINEX PROG / DATE"
+        )
+    )
+}
+
+#[test]
+fn crinex_blank_numeric_fields_require_reinitialization_and_retain_the_prefix() {
+    for v3 in [false, true] {
+        for clock_gap in [false, true] {
+            let text = crinex_numeric_gap(v3, clock_gap, false);
+            let error = ObservationReader::new(Cursor::new(text.as_bytes()))
+                .unwrap()
+                .collect_records(ObsDuplicatePolicy::Preserve)
+                .unwrap_err();
+            assert_eq!(error.partial.items.len(), 2);
+            assert_eq!(error.partial.status, ReadStatus::Failed);
+            let source = error.error.source.unwrap();
+            assert_eq!(source.body_lines.start, if clock_gap { 8 } else { 9 });
+            // A clock failure precedes publication of the recovered descriptor.
+            assert_eq!(source.block_index, if clock_gap { None } else { Some(2) });
+            assert!(matches!(
+                error.error.cause,
+                ParsingError::CRINEX(crate::hatanaka::Error::UninitializedKernel)
+            ));
+            assert!(matches!(
+                Rinex::parse(&mut BufReader::new(text.as_bytes())),
+                Err(ParsingError::CRINEX(
+                    crate::hatanaka::Error::UninitializedKernel
+                ))
+            ));
+            assert!(matches!(
+                Rinex::parse_with_diagnostics(&mut BufReader::new(text.as_bytes())),
+                Err(ParsingError::CRINEX(
+                    crate::hatanaka::Error::UninitializedKernel
+                ))
+            ));
+        }
+    }
+}
+
+#[test]
+fn crinex_reinitialization_after_blanks_preserves_other_numeric_series() {
+    for v3 in [false, true] {
+        for clock_gap in [false, true] {
+            let all = collect(&crinex_numeric_gap(v3, clock_gap, true));
+            assert_eq!(all.status, ReadStatus::EndOfInput);
+            assert_eq!(all.items.len(), 4);
+            for (index, item) in all.items.iter().enumerate() {
+                let ObsOutcome::Observation { data, .. } = &item.outcome else {
+                    panic!("{item:?}")
+                };
+                let expected_clock = if clock_gap && index == 1 {
+                    None
+                } else {
+                    Some(if clock_gap && index >= 2 {
+                        0.002
+                    } else {
+                        0.001
+                    })
+                };
+                assert_eq!(
+                    data.clock.as_ref().map(|clock| clock.offset_s),
+                    expected_clock
+                );
+                let code = if v3 { "C1C" } else { "C1" }.parse::<Observable>().unwrap();
+                let pseudorange = data.signals.iter().find(|signal| signal.observable == code);
+                let expected_range = if !clock_gap && index == 1 {
+                    None
+                } else {
+                    Some(if !clock_gap && index >= 2 {
+                        30_000_000.456
+                    } else {
+                        20_000_000.123
+                    })
+                };
+                assert_eq!(pseudorange.map(|signal| signal.value), expected_range);
+                assert_eq!(data.signals.last().unwrap().value, 109_000_001.234);
+            }
+        }
+    }
+}
+
 #[test]
 fn blank_satellite_rows_remain_observable_as_missing_measurements() {
     let body = "> 2024 05 10 00 00 00.0000000  0  1\nG03\n";

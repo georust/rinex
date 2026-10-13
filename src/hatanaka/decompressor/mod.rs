@@ -685,6 +685,9 @@ impl<const M: usize> DecompressorExpert<M> {
                 Err(_) => return Err(Error::ClockField),
             }
         } else {
+            // A blank clock field terminates this numeric series. Its next
+            // value must explicitly initialize a new kernel.
+            self.clock_initialized = false;
             None
         };
 
@@ -899,6 +902,9 @@ impl<const M: usize> DecompressorExpert<M> {
     /// observation is missing. Nonempty corrupt fields are errors.
     fn decompress_field(&mut self, ptr: usize, field: &str) -> Result<Option<i64>, Error> {
         if field.is_empty() {
+            // Only this column's series ends; other observations and the
+            // independently compressed LLI/SNR text retain their state.
+            self.obs_diff.remove(&(self.sv, ptr));
             return Ok(None);
         }
 
