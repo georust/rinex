@@ -115,11 +115,13 @@ serde_json = { version = "1", features = ["preserve_order"] }
 serde = { version = "1", default-features = false, features = ["derive"] }
 
 [dependencies.gnss-rs]
-version = "2"
+git = "https://github.com/nav-solutions/gnss"
+rev = "0fc547ac5181c5d75e48df0f069112208340bf32"
 features = ["std", "domes", "cospar", "sbas"]
 
 [dependencies.gnss-qc-traits]
-version = "0.5"
+git = "https://github.com/nav-solutions/qc-traits"
+rev = "1a62a6d00ce7dd56386e871105b09423ad30691c"
 optional = true
 features = ["html"]
 
