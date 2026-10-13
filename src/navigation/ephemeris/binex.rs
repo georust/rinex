@@ -8,10 +8,12 @@ use std::collections::HashMap;
 use binex::prelude::{EphemerisFrame, GALEphemeris, GLOEphemeris, GPSEphemeris, SBASEphemeris};
 
 impl Ephemeris {
-    /// Converts this BINEX [EphemerisFrame] to [Ephemeris], ready to format.  
-    /// We support [Constellation::GPS],
-    /// [Constellation::SBAS], [Constellation::Galileo] and [Constellation::Glonass].
-    ///
+    /// Build a RINEX [Ephemeris] message from BINEX binary [EphemerisFrame].
+    /// Supported constellations are:
+    /// - [Constellation::GPS],
+    /// - [Constellation::SBAS]
+    /// - [Constellation::Galileo]
+    /// - [Constellation::Glonass]
     pub fn from_binex(message: EphemerisFrame) -> Option<(SV, Self)> {
         match message {
             EphemerisFrame::GPS(serialized) => Some((
