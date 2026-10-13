@@ -120,7 +120,8 @@ rev = "0fc547ac5181c5d75e48df0f069112208340bf32"
 features = ["std", "domes", "cospar", "sbas"]
 
 [dependencies.gnss-qc-traits]
-version = "0.5"
+git = "https://github.com/nav-solutions/qc-traits"
+rev = "1a62a6d00ce7dd56386e871105b09423ad30691c"
 optional = true
 features = ["html"]
 
