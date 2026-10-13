@@ -19,12 +19,15 @@ use crate::{
 };
 
 use std::{
+    collections::BTreeSet,
     io::{BufRead, BufReader, Read},
     str::FromStr,
 };
 
 impl Header {
     /// Parse [Header] by consuming [BufReader] until end of this section
+    /// OBS declarations must contain supported, unique codes and match their
+    /// declared counts, so unsupported columns cannot shift subsequent values.
     pub fn parse<R: Read>(reader: &mut BufReader<R>) -> Result<Self, ParsingError> {
         Self::parse_with_base(reader, None)
     }
@@ -74,6 +77,7 @@ impl Header {
 
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
+        let mut observation_declarations = Vec::new();
 
         let mut observation = base.and_then(|h| h.obs.clone()).unwrap_or_default();
         let mut nav = NavigationHeader::default();
@@ -537,11 +541,25 @@ impl Header {
                 observation = observation.with_time_of_last_obs(time_of_last_obs);
             } else if marker.contains("TYPES OF OBS") {
                 // these observations can serve both Observation & Meteo RINEX
+                if rinex_type == Type::ObservationData {
+                    Self::validate_observation_declaration(
+                        content,
+                        false,
+                        &mut observation_declarations,
+                    )?;
+                }
                 if !content[..6].trim().is_empty() {
                     observation.codes.clear();
                 }
                 Self::parse_v2_observables(content, constellation, &mut meteo, &mut observation);
             } else if marker.contains("SYS / # / OBS TYPES") {
+                if rinex_type == Type::ObservationData {
+                    Self::validate_observation_declaration(
+                        content,
+                        true,
+                        &mut observation_declarations,
+                    )?;
+                }
                 if let Ok(system) = Constellation::from_str(&content[..1]) {
                     observation.codes.remove(&system);
                 }
@@ -754,6 +772,13 @@ impl Header {
             }
         }
 
+        for (expected, codes) in observation_declarations {
+            if codes.len() != expected || codes.iter().collect::<BTreeSet<_>>().len() != codes.len()
+            {
+                return Err(ParsingError::BadObservable);
+            }
+        }
+
         Ok(Header {
             version,
             rinex_type,
@@ -900,6 +925,41 @@ impl Header {
             y, m, d, hh, mm, ss, ns, ts
         ))
         .map_err(|_| ParsingError::DatetimeParsing)
+    }
+
+    // Validate OBS declarations in the common header decoder before unknown
+    // tokens can be discarded and shift the observation column assignments.
+    fn validate_observation_declaration(
+        content: &str,
+        modern: bool,
+        declared: &mut Vec<(usize, Vec<Observable>)>,
+    ) -> Result<(), ParsingError> {
+        let count = if modern {
+            if !content[..1].trim().is_empty() {
+                Constellation::from_str(&content[..1]).map_err(|_| ParsingError::BadObservable)?;
+                Some(content[3..6].trim())
+            } else {
+                None
+            }
+        } else if !content[..6].trim().is_empty() {
+            Some(content[..6].trim())
+        } else {
+            None
+        };
+        if let Some(count) = count {
+            let count = count
+                .parse::<usize>()
+                .map_err(|_| ParsingError::BadObservable)?;
+            if count == 0 {
+                return Err(ParsingError::BadObservable);
+            }
+            declared.push((count, Vec::new()));
+        }
+        let (_, codes) = declared.last_mut().ok_or(ParsingError::BadObservable)?;
+        for name in content[6..].split_ascii_whitespace() {
+            codes.push(Observable::from_str(name).map_err(|_| ParsingError::BadObservable)?);
+        }
+        Ok(())
     }
 
     /// Parse list of [Observable]s which applies to both METEO and OBS RINEX
