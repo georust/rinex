@@ -196,6 +196,8 @@ struct Line {
 /// Header updates are atomic. Unsupported state-changing records are terminal
 /// errors. [crate::Rinex] reuses this reader but cannot retain header revisions
 /// in its single-header observation map, so it rejects header changes.
+/// Marker updates accept standard marker types and DOMES marker numbers;
+/// custom marker types and other number formats are terminal update errors.
 pub struct ObservationReader<R: BufRead> {
     input: R,
     header: Header,
@@ -980,7 +982,6 @@ fn apply_update(header: &Header, records: &[String]) -> Result<Header, ParsingEr
         // silently ignored by the general, permissive initial-header parser.
         match marker {
             "MARKER NAME"
-            | "MARKER NUMBER"
             | "OBSERVER / AGENCY"
             | "REC # / TYPE / VERS"
             | "ANT # / TYPE"
@@ -994,9 +995,22 @@ fn apply_update(header: &Header, records: &[String]) -> Result<Header, ParsingEr
             | "COSPAR NUMBER"
             | "PRN / # OF OBS"
             | "# OF SATELLITES" => {},
+            "MARKER NUMBER" => {
+                let number = line[..20].trim();
+                if crate::marker::GeodeticMarker::default()
+                    .with_number(number)
+                    .number()
+                    .as_deref()
+                    != Some(number)
+                {
+                    return Err(ParsingError::ObsHeaderUpdate(
+                        "unsupported MARKER NUMBER; expected a DOMES identifier".into(),
+                    ));
+                }
+            },
             "MARKER TYPE" => {
                 crate::marker::MarkerType::from_str(line[..20].trim())
-                    .map_err(|_| ParsingError::ObsHeaderUpdate("invalid marker type".into()))?;
+                    .map_err(|_| ParsingError::ObsHeaderUpdate("unsupported marker type".into()))?;
             },
             "RCV CLOCK OFFS APPL" => {
                 if !matches!(line[..6].trim(), "0" | "1") {

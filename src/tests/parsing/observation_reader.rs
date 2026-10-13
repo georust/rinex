@@ -254,6 +254,69 @@ fn failed_header_update_is_atomic_terminal_and_retains_prefix() {
 }
 
 #[test]
+fn standard_marker_types_change_the_header_revision() {
+    for (keyword, expected) in [
+        ("GROUND_CRAFT", MarkerType::Groundcraft),
+        ("FIXED_BUOY", MarkerType::FixedBuoy),
+        ("NON_GEODETIC", MarkerType::NonGeodetic),
+    ] {
+        let body = event(4, &[record(keyword, "MARKER TYPE")]) + &epoch("0.0000000", None, None);
+        let all = collect(&synthetic_obs("3.04", &body));
+        let ObsOutcome::Event(ObsEvent::Special {
+            header_update: Some(header),
+            ..
+        }) = &all.items[0].outcome
+        else {
+            panic!("{}", keyword)
+        };
+        assert_eq!(
+            header.geodetic_marker.as_ref().unwrap().marker_type,
+            Some(expected)
+        );
+        assert_eq!(all.items[0].header_revision, 1);
+        assert_eq!(all.items[1].header_revision, 1);
+        assert!(matches!(
+            all.items[1].outcome,
+            ObsOutcome::Observation { .. }
+        ));
+    }
+}
+
+#[test]
+fn unrepresentable_marker_numbers_are_terminal_and_leave_the_header_unchanged() {
+    for number in ["ABC", "", "12345MXYZ", "+1234M001"] {
+        let body = epoch("0.0000000", None, None)
+            + &event(4, &[record(number, "MARKER NUMBER")])
+            + &epoch("1.0000000", None, None);
+        let text = synthetic_obs("3.04", &body).replacen(
+            &record("", "END OF HEADER"),
+            &format!(
+                "{}\n{}\n{}",
+                record("OLD SITE", "MARKER NAME"),
+                record("10118M123", "MARKER NUMBER"),
+                record("", "END OF HEADER")
+            ),
+            1,
+        );
+        let mut reader = ObservationReader::new(Cursor::new(text.as_bytes())).unwrap();
+        let before = reader.header().clone();
+        assert_eq!(
+            before.geodetic_marker.as_ref().unwrap().number().as_deref(),
+            Some("10118M123")
+        );
+        assert!(matches!(
+            reader.next().unwrap().unwrap().outcome,
+            ObsOutcome::Observation { .. }
+        ));
+        let error = reader.next().unwrap().unwrap_err();
+        assert!(matches!(error.cause, ParsingError::ObsHeaderUpdate(_)));
+        assert_eq!(reader.header(), &before);
+        assert_eq!(reader.status(), ReadStatus::Failed);
+        assert!(reader.next().is_none());
+    }
+}
+
+#[test]
 fn external_events_require_time_and_modern_descriptors_require_a_marker() {
     let text = synthetic_obs("3.04", &event(5, &[record("EXTERNAL", "COMMENT")]));
     let mut reader = ObservationReader::new(Cursor::new(text.as_bytes())).unwrap();
