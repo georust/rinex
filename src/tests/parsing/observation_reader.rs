@@ -599,6 +599,44 @@ fn v2_blank_time_event_is_a_block_and_can_change_observable_count() {
 }
 
 #[test]
+fn crinex_31_time_extensions_are_rejected_before_the_body_is_consumed() {
+    // RNXCMP 4.2.0 output for a RINEX 4.02 C1C=20000000.123 record. Its
+    // clock line also carries the five-digit time extension, unlike CRINEX 3.0.
+    for extension in ["01000", "00001"] {
+        let body = format!(
+            "> 2024 05 10 00 00  0.0000000  0  1      G03\n {extension}\n3&20000000123 &&\n"
+        );
+        let text = format!(
+            "{}\n{}\n{}",
+            record(
+                "3.1                 COMPACT RINEX FORMAT",
+                "CRINEX VERS   / TYPE"
+            ),
+            record(
+                "RNX2CRX ver.4.2.0                       13-Oct-26 00:41",
+                "CRINEX PROG / DATE"
+            ),
+            observation_rinex("4.02", "G    1 C1C", &body)
+        );
+        let consumed = Rc::new(Cell::new(0));
+        let input = Counted {
+            input: Cursor::new(text.clone().into_bytes()),
+            consumed: consumed.clone(),
+        };
+        let error = ObservationReader::new(input).unwrap_err();
+        assert!(matches!(
+            error.cause,
+            ParsingError::ObsStream(ref message) if message.contains("3.1")
+        ));
+        assert_eq!(consumed.get(), text.find('>').unwrap());
+        assert!(matches!(
+            Rinex::parse(&mut BufReader::new(text.as_bytes())),
+            Err(ParsingError::ObsStream(_))
+        ));
+    }
+}
+
+#[test]
 fn real_crinex_v3_has_owned_measurements_and_no_false_eof() {
     let input = std::fs::File::open("data/CRNX/V3/DUTH0630.22D").unwrap();
     let all = ObservationReader::new(BufReader::new(input))

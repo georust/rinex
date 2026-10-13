@@ -183,10 +183,12 @@ struct Line {
 /// A synchronous observation stream. It owns framing, header state and CRINEX
 /// kernels; callers own filtering, duplicate policy and scientific recovery.
 ///
-/// Supports RINEX 2/3/4 OBS and CRINEX 1/3. Each item owns its data and source
-/// span. Observation fields retain their encoded values, including negatives
-/// and zeroes; scaling and correction metadata belongs to the item's header
-/// revision. Flag-6 cycle-slip records are emitted as events.
+/// Supports RINEX 2/3/4 OBS through 4.02 and CRINEX 1.0/3.0. CRINEX 3.1
+/// time extensions are not decoded and its header is rejected before body
+/// decoding. Each item owns its data and source span. Observation fields retain
+/// their encoded values, including negatives and zeroes. Supported metadata is
+/// associated with the item's header revision; decoding applies no scientific
+/// corrections. Flag-6 cycle-slip records are emitted as events.
 ///
 /// A rejected block permits further reads only when its boundary and decoder
 /// state remain known. A terminal error is emitted once and fuses the iterator.
@@ -336,11 +338,20 @@ impl<R: BufRead> ObservationReader<R> {
             ));
         }
         if let Some(crinex) = header.obs.as_ref().and_then(|h| h.crinex.as_ref()) {
-            if crinex.version.major != 1 && crinex.version.major != 3 {
+            if !matches!(
+                crinex.version,
+                Version {
+                    major: 1 | 3,
+                    minor: 0
+                }
+            ) {
                 return Err(terminal(
                     None,
                     ObsContext::default(),
-                    ParsingError::ObsStream("unsupported CRINEX version".into()),
+                    ParsingError::ObsStream(format!(
+                        "unsupported CRINEX version {}; supported versions are 1.0 and 3.0",
+                        crinex.version
+                    )),
                 ));
             }
             self.coordinate = SourceCoordinate::CrinexText;
