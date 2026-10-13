@@ -172,7 +172,9 @@ pub(crate) fn parse_in_timescale(content: &str, ts: TimeScale) -> Result<Epoch, 
 
     //println!("content \"{}\"", content); // DEBUG
     //println!("Y {} M {} D {} HH {} MM {} SS {} NS {}", y, m, d, hh, mm, ss, ns); // DEBUG
-    if y <= 0 {
+    // RINEX uses a four-digit Gregorian year. Bound it before Hifitime's
+    // calendar arithmetic, and reject hour 24 instead of normalizing the date.
+    if !(1..=9999).contains(&y) || hh > 23 {
         return Err(ParsingError::EpochFormat);
     }
     Ok(Epoch::maybe_from_gregorian(y, m, d, hh, mm, ss, ns, ts)?)
@@ -234,6 +236,41 @@ mod test {
                     .0,
                 expected
             );
+        }
+    }
+
+    #[test]
+    fn hours_are_checked_without_normalizing_the_date() {
+        for timescale in [TimeScale::UTC, TimeScale::TAI, TimeScale::GPST] {
+            let epoch = parse_in_timescale("2024 01 01 23 59 59.1234567", timescale).unwrap();
+            assert_eq!(epoch.time_scale, timescale);
+            assert_eq!(
+                epoch.to_gregorian(timescale),
+                (2024, 1, 1, 23, 59, 59, 123_456_700)
+            );
+
+            for time in ["24 00 00", "24 01 00", "25 00 00"] {
+                let date = format!("2024 01 01 {time}");
+                assert!(
+                    parse_in_timescale(&date, timescale).is_err(),
+                    "{date} {timescale} must not be normalized to the next day"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn years_outside_the_rinex_field_range_return_errors() {
+        for timescale in [TimeScale::UTC, TimeScale::TAI, TimeScale::GPST] {
+            for year in ["0000", "-0001", "10000", "2147483647"] {
+                let date = format!("{year} 12 31 23 59 59");
+                assert!(matches!(
+                    parse_in_timescale(&date, timescale),
+                    Err(ParsingError::EpochFormat)
+                ));
+            }
+            let epoch = parse_in_timescale("9999 12 31 23 59 59", timescale).unwrap();
+            assert_eq!(epoch.to_gregorian(timescale), (9999, 12, 31, 23, 59, 59, 0));
         }
     }
 
