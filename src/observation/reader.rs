@@ -283,7 +283,6 @@ impl<R: BufRead> ObservationReader<R> {
         }
         let header = Header::parse(&mut BufReader::new(text.as_bytes()))
             .map_err(|e| terminal(None, ObsContext::default(), e))?;
-        validate_codes(&text, &header).map_err(|e| terminal(None, ObsContext::default(), e))?;
         reader.header_lines = reader.input_line;
         reader.set_header(header)?;
         timescale(&reader.header).map_err(|e| terminal(None, ObsContext::default(), e))?;
@@ -937,59 +936,6 @@ fn timescale(header: &Header) -> Result<TimeScale, ParsingError> {
         .ok_or(ParsingError::BadObsBadTimescaleDefinition)
 }
 
-// Validate declarations before handing them to the existing header parser,
-// which intentionally tolerates unknown initial metadata and bad code tokens.
-fn validate_codes(text: &str, header: &Header) -> Result<(), ParsingError> {
-    let mut current = None;
-    let mut declared = Vec::<(Option<Constellation>, usize, Vec<Observable>)>::new();
-    for line in text.lines() {
-        let marker = label(line);
-        if marker != Some("SYS / # / OBS TYPES")
-            && !marker.is_some_and(|m| m.contains("TYPES OF OBS"))
-        {
-            continue;
-        }
-        let content = &line[..60];
-        let (system, count) = if marker == Some("SYS / # / OBS TYPES") {
-            if !content[..1].trim().is_empty() {
-                let system = Constellation::from_str(&content[..1])
-                    .map_err(|_| ParsingError::BadObservable)?;
-                (Some(system), Some(content[3..6].trim()))
-            } else {
-                (None, None)
-            }
-        } else if !content[..6].trim().is_empty() {
-            (header.constellation, Some(content[..6].trim()))
-        } else {
-            (None, None)
-        };
-        if let Some(count) = count {
-            let count = count
-                .parse::<usize>()
-                .map_err(|_| ParsingError::BadObservable)?;
-            if count == 0 {
-                return Err(ParsingError::BadObservable);
-            }
-            declared.push((system, count, Vec::new()));
-            current = Some(declared.len() - 1);
-        }
-        let entry = current
-            .and_then(|i| declared.get_mut(i))
-            .ok_or(ParsingError::BadObservable)?;
-        for name in content[6..].split_ascii_whitespace() {
-            entry
-                .2
-                .push(Observable::from_str(name).map_err(|_| ParsingError::BadObservable)?);
-        }
-    }
-    for (_, expected, codes) in declared {
-        if codes.len() != expected || codes.iter().collect::<BTreeSet<_>>().len() != codes.len() {
-            return Err(ParsingError::BadObservable);
-        }
-    }
-    Ok(())
-}
-
 fn reject_hidden_update(line: &str) -> Result<(), ParsingError> {
     if matches!(
         label(line),
@@ -1079,7 +1025,6 @@ fn apply_update(header: &Header, records: &[String]) -> Result<Header, ParsingEr
         text.push_str(line);
         text.push('\n');
     }
-    validate_codes(&text, header)?;
     let mut updated = header.parse_observation_update(&text)?;
     // Event records are not initial-header comments.
     updated.comments = header.comments.clone();

@@ -71,6 +71,51 @@ fn real_source_columns_owned_results_and_complete_collection_agree() {
 }
 
 #[test]
+fn all_observation_entrypoints_reject_invalid_code_declarations() {
+    let reject = |text: &str| {
+        assert!(matches!(
+            ObservationReader::new(Cursor::new(text.as_bytes())),
+            Err(ObsReadError {
+                cause: ParsingError::BadObservable,
+                ..
+            })
+        ));
+        assert!(matches!(
+            Rinex::parse(&mut BufReader::new(text.as_bytes())),
+            Err(ParsingError::BadObservable)
+        ));
+        assert!(matches!(
+            Rinex::parse_with_diagnostics(&mut BufReader::new(text.as_bytes())),
+            Err(ParsingError::BadObservable)
+        ));
+    };
+    // X1 is a RINEX channel pseudo-observable that this decoder does not yet
+    // support. Its value must never become a C1C pseudorange by dropping X1.
+    let body = "> 2024 05 10 00 00 00.0000000  0  1\nG03         9.000  \n";
+    for codes in [
+        "G    2 X1 C1C",
+        "G    2 ZZZ C1C",
+        "G    3 C1C ZZZ L1C",
+        "G    2 C1C ZZZ",
+        "G    2 C1C",
+        "G    2 C1C C1C",
+    ] {
+        reject(&observation_rinex("3.04", codes, body));
+    }
+    let invalid_v2 = v2_header(&v2_epoch(0)).replace(
+        &record(
+            &format!("{:6}{:>6}{:>6}", 2, "L1", "C1"),
+            "# / TYPES OF OBSERV",
+        ),
+        &record(
+            &format!("{:6}{:>6}{:>6}", 2, "ZZZ", "C1"),
+            "# / TYPES OF OBSERV",
+        ),
+    );
+    reject(&invalid_v2);
+}
+
+#[test]
 fn bad_blocks_have_context_no_partial_samples_and_recover_at_modern_marker() {
     for bad in [
         epoch("0.0000000", Some("INVALID"), None),
