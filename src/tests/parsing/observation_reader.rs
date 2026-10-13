@@ -70,25 +70,26 @@ fn real_source_columns_owned_results_and_complete_collection_agree() {
     }
 }
 
+fn reject_invalid_observation_declaration(text: &str) {
+    assert!(matches!(
+        ObservationReader::new(Cursor::new(text.as_bytes())),
+        Err(ObsReadError {
+            cause: ParsingError::BadObservable,
+            ..
+        })
+    ));
+    assert!(matches!(
+        Rinex::parse(&mut BufReader::new(text.as_bytes())),
+        Err(ParsingError::BadObservable)
+    ));
+    assert!(matches!(
+        Rinex::parse_with_diagnostics(&mut BufReader::new(text.as_bytes())),
+        Err(ParsingError::BadObservable)
+    ));
+}
+
 #[test]
 fn all_observation_entrypoints_reject_invalid_code_declarations() {
-    let reject = |text: &str| {
-        assert!(matches!(
-            ObservationReader::new(Cursor::new(text.as_bytes())),
-            Err(ObsReadError {
-                cause: ParsingError::BadObservable,
-                ..
-            })
-        ));
-        assert!(matches!(
-            Rinex::parse(&mut BufReader::new(text.as_bytes())),
-            Err(ParsingError::BadObservable)
-        ));
-        assert!(matches!(
-            Rinex::parse_with_diagnostics(&mut BufReader::new(text.as_bytes())),
-            Err(ParsingError::BadObservable)
-        ));
-    };
     // X1 is a RINEX channel pseudo-observable that this decoder does not yet
     // support. Its value must never become a C1C pseudorange by dropping X1.
     let body = "> 2024 05 10 00 00 00.0000000  0  1\nG03         9.000  \n";
@@ -100,7 +101,7 @@ fn all_observation_entrypoints_reject_invalid_code_declarations() {
         "G    2 C1C",
         "G    2 C1C C1C",
     ] {
-        reject(&observation_rinex("3.04", codes, body));
+        reject_invalid_observation_declaration(&observation_rinex("3.04", codes, body));
     }
     let invalid_v2 = v2_header(&v2_epoch(0)).replace(
         &record(
@@ -112,7 +113,125 @@ fn all_observation_entrypoints_reject_invalid_code_declarations() {
             "# / TYPES OF OBSERV",
         ),
     );
-    reject(&invalid_v2);
+    reject_invalid_observation_declaration(&invalid_v2);
+}
+
+#[test]
+fn observation_declarations_reject_other_formats_and_malformed_gnss_codes() {
+    // These tokens may parse as generic Observable values, but they cannot
+    // describe GNSS OBS columns (RINEX 2.11 Table A1 / 4.02 Table 9).
+    for version in ["3.00", "3.01", "3.02", "3.04", "4.02"] {
+        for code in [
+            "TD", "HR", "PR", "WD", "F", "W1C", "P1C", "LZZ", "C0C", "C19", "C1@", "C1CC", "c1c",
+        ] {
+            reject_invalid_observation_declaration(&observation_rinex(
+                version,
+                &format!("G    1 {code}"),
+                "",
+            ));
+        }
+    }
+    for version in ["3.02", "3.04", "4.02"] {
+        reject_invalid_observation_declaration(&observation_rinex(version, "G    1 C1", ""));
+    }
+    let declaration = record(
+        &format!("{:6}{:>6}{:>6}", 2, "L1", "C1"),
+        "# / TYPES OF OBSERV",
+    );
+    for code in ["TD", "PR", "WD", "F", "W1", "C0", "CZ", "C1C"] {
+        let text = v2_header("").replace(
+            &declaration,
+            &record(&format!("{:6}{code:>6}", 1), "# / TYPES OF OBSERV"),
+        );
+        reject_invalid_observation_declaration(&text);
+    }
+}
+
+#[test]
+fn observation_code_shapes_follow_the_format_version() {
+    let text = v2_header("").replace(
+        &record(
+            &format!("{:6}{:>6}{:>6}", 2, "L1", "C1"),
+            "# / TYPES OF OBSERV",
+        ),
+        &record(
+            "     6    C1    P1    L1    D1    S1    C5",
+            "# / TYPES OF OBSERV",
+        ),
+    );
+    let reader = ObservationReader::new(Cursor::new(text.as_bytes())).unwrap();
+    assert_eq!(
+        reader.header().obs.as_ref().unwrap().codes[&Constellation::GPS].len(),
+        6
+    );
+    // Unknown attributes are permitted in 3.00/3.01, but not from 3.02.
+    for version in ["3.00", "3.01"] {
+        let all = collect(&observation_rinex(
+            version,
+            "G    1 C1",
+            "> 2024 05 10 00 00 00.0000000  0  1\nG03        25.000  \n",
+        ));
+        let ObsOutcome::Observation { data, .. } = &all.items[0].outcome else {
+            panic!()
+        };
+        assert_eq!(
+            data.signals[0].observable,
+            Observable::PseudoRange("C1".into())
+        );
+        assert_eq!(data.signals[0].value, 25.0);
+    }
+    for version in ["3.00", "3.01", "3.02", "3.04", "4.02"] {
+        let text = observation_rinex(version, "G    4 C1C L1C D1C S1C", "");
+        let reader = ObservationReader::new(Cursor::new(text.as_bytes())).unwrap();
+        assert_eq!(
+            reader.header().obs.as_ref().unwrap().codes[&Constellation::GPS].len(),
+            4
+        );
+    }
+    reject_invalid_observation_declaration(&text.replacen("2.11", "3.04", 1));
+}
+
+#[test]
+fn invalid_observation_code_updates_are_terminal_and_atomic() {
+    for code in ["TD", "W1C", "LZZ", "C0C", "C19", "C1", "P1C"] {
+        let text = synthetic_obs(
+            "3.04",
+            &(epoch("0.0000000", None, None)
+                + &event(
+                    4,
+                    &[record(&format!("G    1 {code}"), "SYS / # / OBS TYPES")],
+                )),
+        );
+        let mut reader = ObservationReader::new(Cursor::new(text.as_bytes())).unwrap();
+        let initial = reader.header().clone();
+        assert!(matches!(
+            reader.next().unwrap().unwrap().outcome,
+            ObsOutcome::Observation { .. }
+        ));
+        assert!(matches!(
+            reader.next().unwrap().unwrap_err().cause,
+            ParsingError::BadObservable
+        ));
+        assert_eq!(reader.header(), &initial);
+        assert_eq!(reader.status(), ReadStatus::Failed);
+        assert!(reader.next().is_none());
+    }
+    let text = v2_header(
+        &(v2_epoch(0)
+            + &format!(
+                "{:26}  4  1\n{}\n",
+                "",
+                record("     1    TD", "# / TYPES OF OBSERV")
+            )),
+    );
+    let mut reader = ObservationReader::new(Cursor::new(text.as_bytes())).unwrap();
+    let initial = reader.header().clone();
+    reader.next().unwrap().unwrap();
+    assert!(matches!(
+        reader.next().unwrap().unwrap_err().cause,
+        ParsingError::BadObservable
+    ));
+    assert_eq!(reader.header(), &initial);
 }
 
 #[test]
