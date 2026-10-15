@@ -335,7 +335,7 @@ fn sbas_real_transmission_time_is_not_week_or_quadratic_clock() {
 
 #[test]
 fn sbas_transmission_week_boundary_and_fraction_preserved_in_v3_v4() {
-    for tx in [-0.25, 0.0, 604800.25] {
+    for tx in [-88.0, -0.25, 0.0, 604800.25] {
         // Synthetic derivative: only the third scalar and version envelope change.
         let mut lines: Vec<String> = SBAS_BLOCK.lines().map(str::to_owned).collect();
         lines[1].replace_range(61..80, &format!("{tx:19.12e}"));
