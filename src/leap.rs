@@ -82,21 +82,57 @@ impl Leap {
 impl std::str::FromStr for Leap {
     type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // two formats exist
+        // RINEX 3/4 uses four I6 fields and a time-system identifier.
+        // Optional blank fields stay unknown; byte positions must not be trimmed.
+        if !s.is_ascii() {
+            return Err(ParsingError::LeapParsing);
+        }
+        if s.len() >= 24 {
+            let parse = |field: &str| -> Result<Option<u32>, ParsingError> {
+                let field = field.trim();
+                if field.is_empty() {
+                    Ok(None)
+                } else {
+                    field
+                        .parse()
+                        .map(Some)
+                        .map_err(|_| ParsingError::LeapParsing)
+                }
+            };
+            let system = s[24..].trim();
+            return Ok(Leap {
+                leap: parse(&s[..6])?.ok_or(ParsingError::LeapParsing)?,
+                delta_tls: parse(&s[6..12])?,
+                week: parse(&s[12..18])?,
+                day: parse(&s[18..24])?,
+                timescale: if system.is_empty() {
+                    None
+                } else if system == "BDS" {
+                    Some(TimeScale::BDT)
+                } else {
+                    Some(TimeScale::from_str(system)?)
+                },
+            });
+        }
+        // Preserve the public compact/basic and legacy compact complete inputs.
+        // Ambiguous truncated extended input is an error rather than a panic.
         let mut ls = Leap::default();
         let items = s.split_ascii_whitespace().collect::<Vec<_>>();
         let count = items.len();
-
-        if count < 3 {
+        if count == 1 {
             // Simple / basic format
             ls.leap = items[0].parse::<u32>().or(Err(ParsingError::LeapParsing))?;
-        } else {
+        } else if count == 4 || count == 5 {
             // Complex / complete format
-            let (leap, rem) = s.split_at(5);
-            let (tls, rem) = rem.split_at(5);
-            let (week, rem) = rem.split_at(5);
-            let (day, rem) = rem.split_at(5);
-            let system = rem.trim();
+            let (leap, tls, week) = (items[0], items[1], items[2]);
+            let split = items[3]
+                .find(|c: char| c.is_ascii_alphabetic())
+                .unwrap_or(items[3].len());
+            let (day, suffix) = items[3].split_at(split);
+            if !suffix.is_empty() && count == 5 {
+                return Err(ParsingError::LeapParsing);
+            }
+            let system = if count == 5 { items[4] } else { suffix };
 
             ls.leap = leap
                 .trim()
@@ -130,6 +166,8 @@ impl std::str::FromStr for Leap {
                 let ts = TimeScale::from_str(system)?;
                 ls.timescale = Some(ts);
             }
+        } else {
+            return Err(ParsingError::LeapParsing);
         }
 
         Ok(ls)
@@ -145,6 +183,44 @@ mod test {
     };
 
     use std::{io::BufWriter, str::FromStr};
+
+    #[test]
+    fn fixed_width_partial_fields_keep_raw_values_and_unknown_day() {
+        // GRN0 2024-05-10 real header content (first40 bytes). Physical meaning
+        // of its unusual future fields is not certified by syntax parsing.
+        let leap = Leap::from_str("    18  2313     5                       ").unwrap();
+        assert_eq!(leap.leap, 18);
+        assert_eq!(leap.delta_tls, Some(2313));
+        assert_eq!(leap.week, Some(5));
+        assert_eq!(leap.day, None);
+        assert_eq!(leap.timescale, None);
+    }
+
+    #[test]
+    fn fixed_width_blanks_and_explicit_time_system_are_not_shifted() {
+        let leap = Leap::from_str("    18                  GPS             ").unwrap();
+        assert_eq!(leap.leap, 18);
+        assert_eq!(leap.delta_tls, None);
+        assert_eq!(leap.week, None);
+        assert_eq!(leap.day, None);
+        assert_eq!(leap.timescale, Some(TimeScale::GPST));
+        let complete = Leap::from_str(&format!("{:6}{:6}{:6}{:6}GPS", 18, 18, 2185, 7)).unwrap();
+        assert_eq!(complete.day, Some(7));
+        assert_eq!(complete.week, Some(2185));
+    }
+
+    #[test]
+    fn malformed_or_empty_fields_return_error_without_panicking() {
+        for input in [
+            "",
+            " ",
+            "18 2313 5",
+            "é",
+            "    xx                                  ",
+        ] {
+            assert!(Leap::from_str(input).is_err(), "{input:?}");
+        }
+    }
 
     #[test]
     fn leap_second_basic() {

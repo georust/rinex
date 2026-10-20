@@ -432,7 +432,7 @@ impl Header {
                     }
                 }
             } else if marker.contains("LEAP SECOND") {
-                let leap_str = content.split_at(40).0.trim();
+                let leap_str = content.split_at(40).0;
                 let parsed = Leap::from_str(leap_str)?;
                 leap = Some(parsed.clone());
             } else if marker.contains("DOI") {
