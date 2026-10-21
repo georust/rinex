@@ -82,54 +82,28 @@ impl Leap {
 impl std::str::FromStr for Leap {
     type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // two formats exist
+        // Fields: leap, ΔtLS, week, day, then an optional time system that may
+        // touch the day field ("7GPS"). Read them as tokens, so that short or
+        // misaligned lines return an error instead of panicking.
+        let s = s.trim();
+        let numbers = s.trim_end_matches(|c: char| c.is_ascii_alphabetic());
+        let system = s[numbers.len()..].trim();
+        let items = numbers.split_ascii_whitespace().collect::<Vec<_>>();
+        let parse = |item: &str| item.parse::<u32>().or(Err(ParsingError::LeapParsing));
+
         let mut ls = Leap::default();
-        let items = s.split_ascii_whitespace().collect::<Vec<_>>();
-        let count = items.len();
+        ls.leap = parse(items.first().ok_or(ParsingError::LeapParsing)?)?;
 
-        if count < 3 {
-            // Simple / basic format
-            ls.leap = items[0].parse::<u32>().or(Err(ParsingError::LeapParsing))?;
-        } else {
-            // Complex / complete format
-            let (leap, rem) = s.split_at(5);
-            let (tls, rem) = rem.split_at(5);
-            let (week, rem) = rem.split_at(5);
-            let (day, rem) = rem.split_at(5);
-            let system = rem.trim();
+        // Only the complete format carries ΔtLS, week and day. With fewer fields
+        // it is unclear which one is missing, so keep the current count only.
+        if items.len() >= 4 {
+            ls.delta_tls = Some(parse(items[1])?);
+            ls.week = Some(parse(items[2])?);
+            ls.day = Some(parse(items[3])?);
+        }
 
-            ls.leap = leap
-                .trim()
-                .parse::<u32>()
-                .or(Err(ParsingError::LeapParsing))?;
-
-            let tls = tls
-                .trim()
-                .parse::<u32>()
-                .or(Err(ParsingError::LeapParsing))?;
-
-            ls.delta_tls = Some(tls);
-
-            let week = week
-                .trim()
-                .parse::<u32>()
-                .or(Err(ParsingError::LeapParsing))?;
-
-            ls.week = Some(week);
-
-            let day = day
-                .trim()
-                .parse::<u32>()
-                .or(Err(ParsingError::LeapParsing))?;
-
-            ls.day = Some(day);
-
-            if system.eq("") {
-                ls.timescale = None;
-            } else {
-                let ts = TimeScale::from_str(system)?;
-                ls.timescale = Some(ts);
-            }
+        if !system.is_empty() {
+            ls.timescale = Some(TimeScale::from_str(system)?);
         }
 
         Ok(ls)
@@ -185,6 +159,56 @@ mod test {
                 timescale: Some(TimeScale::GPST),
             }
         );
+    }
+
+    #[test]
+    fn leap_second_missing_future_field() {
+        // REDZ00POL_S_20242240000_01D_30S_MO.rnx header: "    18  2326     7"
+        assert_eq!(
+            Leap::from_str("18  2326     7").unwrap(),
+            Leap {
+                leap: 18,
+                week: None,
+                day: None,
+                timescale: None,
+                delta_tls: None,
+            }
+        );
+    }
+
+    #[test]
+    fn leap_second_basic_with_timescale() {
+        assert_eq!(
+            Leap::from_str("18                  GPS").unwrap(),
+            Leap {
+                leap: 18,
+                week: None,
+                day: None,
+                timescale: Some(TimeScale::GPST),
+                delta_tls: None,
+            }
+        );
+    }
+
+    #[test]
+    fn leap_second_single_digit() {
+        assert_eq!(
+            Leap::from_str("5     5   500     7").unwrap(),
+            Leap {
+                leap: 5,
+                week: Some(500),
+                day: Some(7),
+                timescale: None,
+                delta_tls: Some(5),
+            }
+        );
+    }
+
+    #[test]
+    fn leap_second_malformed_is_an_error() {
+        for s in ["", "   ", "GPS", "18 x 2185 7", "18    18  2185     7XYZ"] {
+            assert!(Leap::from_str(s).is_err(), "{:?}", s);
+        }
     }
 
     #[test]
